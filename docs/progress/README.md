@@ -1,5 +1,11 @@
 # 개발 진행 상태
 
+**최종 확인 — 2026-10-23 설치/회귀 CI 모두 성공**: d17d2b4의 [설치39966416447](https://github.com/BomJin2/GuitarLab/actions/runs/39966416447)와 [전체39966416679](https://github.com/BomJin2/GuitarLab/actions/runs/39966416679)가 사후 정리까지 success입니다. 전체436개 프론트/AI113·도구80·기본228/확장231Rust(각26제외)/최소Rust1.90을 확인했고 설치는 별도Server2025에서3393 lock/실행/정상 종료0/독립Python/제거·보존을 통과했습니다. 이 Phase8 설치 슬라이스·오류 수정·문서화는 완료입니다. 아래 CI 진행 중/미실행은 이력이며 별도Win10/11·고급 판정/특화 모델·최종배포는 계속 미완료입니다. 다음은 Phase7 정밀 onset 참조 후보의 주석 목록만 제한 확인하는 독립 후속입니다. 대용량 오디오/모델을 자동 수신하지 않습니다.
+
+**최신 완료 — 2026-10-23 독립 Windows 설치 CI**: d17d2b4의 [39966416447](https://github.com/BomJin2/GuitarLab/actions/runs/39966416447)/job120457341775가 전 단계/사후 정리 success입니다. 새 Git checkout·고정 원본/3393 lock·release NSIS·실제 currentUser 설치/새v9/정상 종료0·최소 PATH Python2회·제거/DB·미등록 파일 보존을 Windows Server2025/build26100(관리자토큰true)에서 확인했습니다. 현재 PC 토큰false/Defender 성공과 구분하며 cleanWindowsValidated=false·별도Win10/11/최종배포 미완료입니다. 기존 영구Python3358파일 새lock 호환·제품모델4marker도 읽기 전용 검증했습니다. 기능 회귀39966416679는 기본 검사 success/확장 native 진행 중으로 최종 추적합니다. 아래 원격 빌드 중/미실행은 이전 기록입니다.
+
+**현재 추적 — 2026-10-23 d17d2b4**: PowerShell7의 직접 Node 호출에서 공백 경로/--/--locked 인자 보존을 실제 확인했습니다. [새 설치39966416447](https://github.com/BomJin2/GuitarLab/actions/runs/39966416447)/job120457341775가 직전 실패 지점을 넘어 최적화 빌드 중이고 [새 기능 회귀39966416679](https://github.com/BomJin2/GuitarLab/actions/runs/39966416679)도 진행 중입니다. cc11fe8의 기능 회귀는 수정 push로 cancelled이며 실패로 간주하지 않습니다. 현재 앱/portable은 이전 수용 lock으로 유지합니다. 새 소스 패키지 준비는 새 LF 리소스/명시적 경로를 사용하고 이전 리소스를 덮어쓰거나 새 lock에 억지로 맞추지 않습니다.
+
 **최신 — 2026-10-23 LF 설치 검증 통과/원격 호출 수정**: 새3393개 LF 리소스의 NSIS SHA3c4a298e…를 일반 사용자 권한으로 설치/실행/정상 종료0/독립Python2회/제거했고 DB·미등록 파일 및 제품16테이블/4모델 marker·PID24920을 보존했습니다. cc11fe8의 [격리 설치39965890095](https://github.com/BomJin2/GuitarLab/actions/runs/39965890095)는 새 Windows에서 공식 원본 다운로드·3393지문을 통과했지만 pnpm shim의 -- 구분자 소실로 빌드 전 실패했습니다. 설치된 Tauri2.12.2의 공식 Node 진입점을 직접 호출하도록 수정해 재실행합니다. [기능 회귀39965890043](https://github.com/BomJin2/GuitarLab/actions/runs/39965890043)는 아직 진행 중입니다. 새 설치 원격 성공/전체 Phase8은 미완료이며 아래 빌드 중/설치 미실행은 이전 기록입니다.
 
 **현재 — 2026-10-23 새 체크아웃 재현성/격리 설치 CI 구현 중**: Git LF와 기존 CRLF 작업 트리가 달랐던 worker3개만 정규화하고 runtime3393개 중 해당3개의 lock 지문만 갱신했습니다. 나머지3390개/기존 수용 앱·리소스는 보존했습니다. 고정 Python 두 원본65,751,269바이트만 명시적으로 수신하는 준비기와 별도 GitHub Windows 설치 workflow를 추가했습니다. 실제 캐시 재사용/새 UUID 리소스3393개 검증·현재 portable 영수증 보존, 도구80개(79성공/링크권한1제외)·AI113개·YAML 포맷 성공입니다. 제한 환경 rename 오류는 동일 검사의 일반 Windows 재실행으로 해결했습니다. 새 LF 리소스의 로컬 release 빌드 진행 중이며 원격 설치 CI는 아직 미실행입니다. 상세는 [Phase8](PHASE-08.md), 남은14개 중9개 기본 완료/5개 부분 상태는 [남은 작업](REMAINING-WORK.md)입니다.
@@ -351,11 +357,11 @@
 | 4A | 입력 녹음과 다시 듣기 | 완료 | [PHASE-04A.md](PHASE-04A.md) |
 | 4B | 오버더빙과 로컬 믹스 출력 | 완료 | [PHASE-04B.md](PHASE-04B.md) |
 | 5 | 수동 TAB 편집 | 기본·트랙 관리/순서 저장 복원·저장/재열기 화면 유지 수용 완료(436개/Windows) | [PHASE-05.md](PHASE-05.md) |
-| 6 | AI 기타 카피와 stem 분리 | 진행 중(두 모델 설치/다운로드·release 격리 새설치/실제 자체 분석 회귀 완료, 별도 Windows 보류) | [PHASE-06.md](PHASE-06.md) |
+| 6 | AI 기타 카피와 stem 분리 | 진행 중(두 모델/자체 분석·현재 PC 독립 실행·GitHub Server의 기본 runtime 설치 성공, 모델 포함 별도Win10/11 수용 보류) | [PHASE-06.md](PHASE-06.md) |
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
-| 7 | 고급 판정 | 진행 중(주기적 변화 진단v2·공개 전기기타/DI·시각별 참조91창 검증, 실제 주법/고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
-| 8 | 품질과 릴리스 | 진행 중(기존 백업/보관·종료/교체 보호/내부 설치·압축악보 보호,411개 회귀/최신ZIP·PS5.1 및 GitHub Windows 전체CI·AI113/도구66·Rust 최소1.90 성공; 실제 데이터 교체/영구 삭제·최신 설치기AV/서명·최종배포·별도Windows 미완료) | [PHASE-08](PHASE-08.md) |
+| 7 | 고급 판정 | 진행 중(주기적 변화 진단v2·공개 전기기타/DI·91창 참조와 오류 창 문맥/신호 감사 완료, 실제 주법/고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
+| 8 | 품질과 릴리스 | 진행 중(백업/보관·종료/교체/압축악보 보호,436개 프론트/AI113·도구80·MSRV/원격 회귀 성공; LF 재현성·현재 PC release/Defender·GitHub Server 설치/정상 종료/제거 CI 통과. 실제 데이터 교체/영구 삭제·서명/최종배포·별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
 
 ## 현재 작업 위치
 
