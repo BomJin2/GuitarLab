@@ -35,6 +35,7 @@
 - EXE40,688,128바이트/SHA256 `c6a4accff143e5a19b419c1664a817b2b000077b3b4bdc935bf39c509b6c01a9`, runtime3393개 전체 지문 확인. 기존33280 제어 세션은 이미 EXITED0/forced=false였고 권한 있는 읽기 조회에서도 다른 앱을 찾지 못해 중복 실행하지 않았습니다. 새 **PID24920·PTY11472·‘GuitarLab · 저장 후 화면 유지’** READY/응답, 실제DB9/16테이블·4모델 marker 전후 동일을 확인했습니다. 개인 입력/REC는 시작하지 않았습니다.
 - 사용자에게 카피에서 저장→프로젝트 다시 열기 후 화면 유지를 확인받았습니다. 사용자의 응답은 ‘ㅇㅇ 되는거 같은데’이며 추가 재실행 없이 현재 앱을 유지합니다. 연습/연주와 실패/취소/늦은 응답은 자동 회귀로 검사했습니다.
 - 최신 후보는 workspace-stay-candidate.json/portable-candidate.json입니다. 새 ZIP/installer·별도 Windows·실제 장치 재검사는 **미실행**이며 이전 순서 변경 ZIP을 이번 수정 버전으로 안내하지 않습니다. Git 반영 후 이번 소스 원격 CI는 별도 추적합니다.
+- 소스/문서를1c1f874d4b499cb5c605ccf4f33cfe267c278dee로 main에 push했습니다. [CI39958606255](https://github.com/BomJin2/GuitarLab/actions/runs/39958606255)는 진행 중이며 최종 결론은 아직 대기입니다.
 
 ## 후속 — 악보 트랙 표시 순서 변경 (2026-10-23)
 
