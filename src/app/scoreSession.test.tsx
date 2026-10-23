@@ -58,6 +58,61 @@ function navigate(route: string) {
   window.location.hash = `#/${route}`;
   fireEvent(window, new HashChangeEvent('hashchange'));
 }
+it('트랙 위아래 이동은 선택/음표를 유지하고 Undo/Redo·독립 원본 비교 순서를 연결한다', async () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  fireEvent.change(screen.getByLabelText('악보 선택'), {
+    target: { files: [new File([dualXml], '두 기타.musicxml')] },
+  });
+  const selector = await screen.findByLabelText('악보 트랙');
+  if (!(selector instanceof HTMLSelectElement))
+    throw new Error('악보 선택기 필요');
+  const ids = [...selector.options].map((option) => option.value);
+  fireEvent.click(
+    screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
+  );
+  const up = () => screen.getByRole('button', { name: '트랙 위로 이동' });
+  const down = () => screen.getByRole('button', { name: '트랙 아래로 이동' });
+  expect(up()).toHaveProperty('disabled', true);
+  const fret = screen.getByLabelText('음표 프렛').getAttribute('value');
+  fireEvent.click(down());
+  expect([...selector.options].map((option) => option.value)).toEqual([
+    ids[1],
+    ids[0],
+  ]);
+  expect(selector.value).toBe(ids[0]);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe(fret);
+  expect(down()).toHaveProperty('disabled', true);
+  expect(
+    screen.getByLabelText('실제 TAB 악보').getAttribute('data-track-index'),
+  ).toBe('1');
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect([...selector.options].map((option) => option.value)).toEqual(ids);
+  expect(selector.value).toBe(ids[0]);
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  expect([...selector.options].map((option) => option.value)).toEqual([
+    ids[1],
+    ids[0],
+  ]);
+  fireEvent.click(screen.getByRole('button', { name: '원본 악보 비교 보기' }));
+  expect(
+    screen.getByLabelText('원본 악보 트랙').querySelectorAll('option')[0]
+      ?.textContent,
+  ).toContain('Guitar');
+  expect(
+    screen
+      .getByLabelText('읽기 전용 원본 비교')
+      .querySelector('[data-track-index]')
+      ?.getAttribute('data-track-index'),
+  ).toBe('0');
+  fireEvent.click(up());
+  expect([...selector.options].map((option) => option.value)).toEqual(ids);
+  expect(selector.value).toBe(ids[0]);
+});
+
 it('추가한 트랙을 삭제하고 되돌리면 목록뿐 아니라 화면 선택도 복구된 트랙으로 돌아간다', async () => {
   render(
     <PlayerProvider>

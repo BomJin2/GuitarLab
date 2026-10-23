@@ -1,5 +1,40 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 악보 트랙 표시 순서 변경 (2026-10-23)
+
+### 1. 작업 개요
+
+작업 날짜2026-10-23. 앞선 트랙 Undo 선택 실패 수정/사용자 수용 이후 F-06 트랙 설정과 docs/04 표시 순서 모델을 보완합니다. 현재 구현·검증 중이며 전체 Phase/릴리스 완료로 표시하지 않습니다.
+
+### 2. 구현 및 변경 사항
+
+- docs/12에 MOVE_TRACK {trackId,targetIndex} 계약을 먼저 정의했습니다. 새 IPC/DB/의존성은 없습니다.
+- `scoreStructure.ts`: 유효한 ID/정수·범위/다른 최종 위치를 검증하고 tracks 배열 순서만 변경합니다. 트랙/음표와 시간/싱크 객체는 유지하고 렌더 왕복 검증/이력은 공통 컨트롤러를 사용합니다.
+- `ScoreStructureEditor.tsx`: 기존 공통 스타일의 위/아래 버튼과 순서 표시만 추가합니다. 맨 위/아래·녹음/파일 작업 잠금은 차단합니다. 드래그/새 상태 저장 구조를 추가하지 않습니다.
+- 도메인/훅/App 회귀는 앞뒤 이동·잘못된 값·단일 트랙·ID/음표/원본·저장 버전 보존·같은 선택/Undo/Redo·독립 원본/렌더 인덱스를 검사합니다.
+
+### 3. 테스트 결과
+
+- `pnpm test src/features/score/scoreStructure.test.ts src/features/score/useScoreEditing.test.tsx src/app/scoreSession.test.tsx`:40개/3파일15.63초 성공, 타입 검사 성공입니다.
+- 전체 `pnpm test`:432개/102파일29.27초 **성공**. `pnpm lint`·`pnpm build`의 타입/Vite1분3초·`pnpm format:check` 성공입니다. 기존500kB 청크 안내는 유지합니다.
+- 실제 개발 브라우저에서 자체 악보에 추가한 트랙/프렛5를 위로 이동→같은 ID/선택/프렛5·변경된 목록 순서→Undo/Redo→아래/위 이동을 확인했습니다. 맨 위/아래 버튼 상태와 기존 음표를 유지했습니다. 증거 `track-order-browser-20261023.png`는 target/runtime-validation에 보존합니다. 개인 프로젝트/입력/REC는 사용하지 않았습니다.
+- Windows·최신 패키지 검사는 진행 중이며 사용자 저장/재열기 수용·새 installer/별도 OS는 **미실행**입니다. Rust/Python 제품 코드/계약 버전은 변경하지 않아 이번 로컬 전체 재검사는 **미실행**이며 내장 UI 검사와 해당 소스의 원격 CI를 별도로 추적합니다. 현재 앱은 수용 완료한 Undo 수정본을 유지합니다.
+
+### 4. 미구현 및 알려진 문제
+
+단성6줄 편집 범위만 지원하며 화음/고급 주법·트랙 드래그 이동은 미구현입니다. 순서 변경은 악보 편집본에만 적용하고 오디오 stem/믹스/테이크를 바꾸지 않습니다. 별도 Windows/최종 배포·실제 고급 판정 품질은 미완료입니다.
+
+### 5. 다음 작업 계획
+
+회귀·실제 렌더/선택을 확인하고 전체 검사 후 새 고정 Windows 후보와 데이터 보존을 검증합니다. 앞선 Undo 수정 CI가 끝나기 전 새 코드 push로 취소하지 않고, 순서 변경 저장/재열기와 사용자 수용을 구분해 기록합니다.
+
+### Windows/패키지 확인
+
+- 내장 `bundle_tests`3개/컴파일15.60초와 `pnpm tauri build --debug --no-bundle --ci --config ...track-order-e78447dd-2a17-4839-bd61-f7175829e62b.conf.json -- --locked --offline`21.00초 **성공**. 기존 hardlink 복사·linker/식별자 안내는 유지합니다.
+- EXE40,688,128바이트/SHA256 `aa74d4be5521c0200f2f76ce02b0d30882c1a076eadb9d87d5a5a499a3e858cc`, runtime3393개 전체 지문 확인. 기존30504 정상 종료 요청 accepted=true·exitCode=0·forced=false 뒤 **PID33280·PTY48588·‘GuitarLab · 트랙 순서 변경’** READY/응답을 확인했습니다. 새 백업 기준 실제 DB9/16테이블·모델4marker 전후 동일이며 입력/REC를 시작하지 않았습니다.
+- 새 ZIP3613파일/39,983,745바이트/SHA256 `a9aa7850271ccf272b810c1f2adbd1e5e1bb3052572dda63151d56f4d4d9c45b`: 전체 지문·새 UUID 폴더 추출/재검사와 기본PowerShell5.1 종료0·개발 PATH 없는 독립 Python3.12.15 실제2회 **성공**. validation-packages/37036a63-f161-4b1e-9503-7bc4f789ac78에 보존하고 모델/개인 데이터는 제외합니다.
+- 사용자에게 순서 이동/같은 선택·Undo/Redo·저장/재열기 확인을 요청했고 현재 앱과 UI 소스를 유지합니다. 실제 수용 응답·이번 소스 CI는 대기이며 별도Windows/새 installer는 **미실행**입니다.
+
 ## 사용자 실패 후속 — 삭제 Undo의 복구 트랙 선택 (2026-10-23)
 
 ### 1. 작업 개요

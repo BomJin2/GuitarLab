@@ -7,6 +7,66 @@ import { decodeScoreJson } from './scoreJson';
 import { importScore } from './alphaTabAdapter';
 import { timingAt } from '../player/timing';
 
+it('트랙을 앞뒤 최종 위치로 이동해 ID·음표·싱크를 보존하고 JSON/실제 렌더를 왕복한다', () => {
+  const document = editStructure(
+    editStructure(scoreEditingFixture().document, { kind: 'ADD_GUITAR_TRACK' }),
+    { kind: 'ADD_GUITAR_TRACK' },
+  );
+  const original = JSON.stringify(document);
+  const ids = document.tracks.map((track) => track.id);
+  const moved = editStructure(document, {
+    kind: 'MOVE_TRACK',
+    trackId: ids[0]!,
+    targetIndex: 2,
+  });
+  expect(moved.tracks).toEqual([
+    document.tracks[1],
+    document.tracks[2],
+    document.tracks[0],
+  ]);
+  expect(moved.tracks[2]).toBe(document.tracks[0]);
+  expect(moved.syncAnchors).toBe(document.syncAnchors);
+  expect(moved.tempoMap).toBe(document.tempoMap);
+  expect(moved.timeSignatures).toBe(document.timeSignatures);
+  expect(JSON.stringify(document)).toBe(original);
+  expect(
+    decodeScoreJson(new TextEncoder().encode(JSON.stringify(moved))),
+  ).toEqual(moved);
+  const rendered = renderNormalized(moved);
+  expect(
+    rendered.score.tracks.map((track) => track.name.replace(/\u00a0/g, ' ')),
+  ).toEqual(moved.tracks.map((track) => track.name.replace(/\u00a0/g, ' ')));
+  expect(
+    editStructure(moved, {
+      kind: 'MOVE_TRACK',
+      trackId: ids[0]!,
+      targetIndex: 0,
+    }).tracks,
+  ).toEqual(document.tracks);
+});
+
+it('잘못된 이동 위치/없는 ID/단일 트랙 이동은 원본을 보존해 거부한다', () => {
+  const document = scoreEditingFixture().document;
+  const original = JSON.stringify(document);
+  for (const targetIndex of [-1, 0, 1, 0.5, NaN, Infinity])
+    expect(() =>
+      editStructure(document, {
+        kind: 'MOVE_TRACK',
+        trackId: document.tracks[0]!.id,
+        targetIndex,
+      }),
+    ).toThrow('순서');
+  const added = editStructure(document, { kind: 'ADD_GUITAR_TRACK' });
+  expect(() =>
+    editStructure(added, {
+      kind: 'MOVE_TRACK',
+      trackId: '없는 ID',
+      targetIndex: 1,
+    }),
+  ).toThrow('트랙');
+  expect(JSON.stringify(document)).toBe(original);
+});
+
 it('선택한 트랙/음표만 제거하고 마지막/없는 트랙을 거부하며 원본·싱크와 남은 ID를 보존한다', () => {
   const original = scoreEditingFixture().document;
   const added = editStructure(original, { kind: 'ADD_GUITAR_TRACK' });

@@ -11,6 +11,35 @@ import { transcriptionFixture } from '../../test/transcriptionFixture';
 import { prepareEditingDocument } from './normalizedNotation';
 import { getActiveTrackIndex, selectScoreTrack } from './trackSelection';
 
+it('트랙 이동과 Undo/Redo가 같은 선택 ID·음표·원본/저장 버전을 유지하고 잠금은 이동을 막는다', () => {
+  const { result, engine, initial, rerender } = harness();
+  act(() => result.current.editor.begin());
+  act(() => result.current.editor.structure({ kind: 'ADD_GUITAR_TRACK' }));
+  const before = result.current.session!;
+  const trackId = before.activePerformanceTrackId!;
+  const move = { kind: 'MOVE_TRACK' as const, trackId, targetIndex: 0 };
+  rerender({ locked: true });
+  act(() => result.current.editor.structure(move));
+  expect(result.current.session).toBe(before);
+  rerender({ locked: false });
+  act(() => result.current.editor.structure(move));
+  const moved = result.current.session!;
+  expect(getActiveTrackIndex(moved)).toBe(0);
+  expect(moved.activePerformanceTrackId).toBe(trackId);
+  expect(moved.document.tracks[1]).toEqual(before.document.tracks[0]);
+  expect(moved.originalBytes).toBe(initial.originalBytes);
+  expect(moved.savedRevision).toBe(initial.savedRevision);
+  act(() => result.current.editor.undo());
+  expect(result.current.session?.document).toBe(before.document);
+  expect(getActiveTrackIndex(result.current.session!)).toBe(1);
+  expect(result.current.session?.activePerformanceTrackId).toBe(trackId);
+  act(() => result.current.editor.redo());
+  expect(result.current.session?.document).toBe(moved.document);
+  expect(getActiveTrackIndex(result.current.session!)).toBe(0);
+  expect(result.current.session?.activePerformanceTrackId).toBe(trackId);
+  engine.dispose();
+});
+
 it('추가한 트랙 삭제를 되돌리면 복구된 트랙을 바로 선택해 보여준다', () => {
   const { result, engine } = harness();
   act(() => result.current.editor.begin());

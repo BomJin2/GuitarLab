@@ -21,6 +21,7 @@ export function ScoreStructureEditor({
   const index = Math.min(selected, bars.length - 1);
   const bar = bars[index];
   const track = document.tracks.find((t) => t.id === trackId);
+  const trackIndex = document.tracks.findIndex((t) => t.id === trackId);
   if (!bar || !track) return null;
   const removalConfirmed =
     removalTarget?.id === track.id &&
@@ -58,6 +59,38 @@ export function ScoreStructureEditor({
           <button>트랙 이름 적용</button>
         </fieldset>
       </form>
+      <fieldset disabled={locked}>
+        <legend>선택 악보 트랙 순서</legend>
+        <span>
+          {trackIndex + 1} / {document.tracks.length}
+        </span>
+        <button
+          type="button"
+          disabled={trackIndex <= 0}
+          onClick={() =>
+            editor.structure({
+              kind: 'MOVE_TRACK',
+              trackId,
+              targetIndex: trackIndex - 1,
+            })
+          }
+        >
+          트랙 위로 이동
+        </button>
+        <button
+          type="button"
+          disabled={trackIndex >= document.tracks.length - 1}
+          onClick={() =>
+            editor.structure({
+              kind: 'MOVE_TRACK',
+              trackId,
+              targetIndex: trackIndex + 1,
+            })
+          }
+        >
+          트랙 아래로 이동
+        </button>
+      </fieldset>
       <fieldset disabled={locked || document.tracks.length <= 1}>
         <legend>선택 악보 트랙 삭제</legend>
         <label>

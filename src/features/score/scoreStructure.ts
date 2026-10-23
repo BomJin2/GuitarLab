@@ -5,6 +5,7 @@ import { validateEditable } from './normalizedNotation';
 export type StructureEdit =
   | { kind: 'ADD_GUITAR_TRACK' }
   | { kind: 'REMOVE_TRACK'; trackId: string; discardNotes: true }
+  | { kind: 'MOVE_TRACK'; trackId: string; targetIndex: number }
   | { kind: 'SET_TRACK_NAME'; trackId: string; name: string }
   | { kind: 'SET_TUNING'; trackId: string; tuningMidi: number[] }
   | { kind: 'SET_TEMPO'; measureIndex: number; bpm: number; resetSync: true }
@@ -35,6 +36,24 @@ export function editStructure(
   edit: StructureEdit,
 ): ScoreDocument {
   const bars = validateEditable(document);
+  if (edit.kind === 'MOVE_TRACK') {
+    const sourceIndex = document.tracks.findIndex(
+      (track) => track.id === edit.trackId,
+    );
+    if (
+      sourceIndex < 0 ||
+      !Number.isInteger(edit.targetIndex) ||
+      edit.targetIndex < 0 ||
+      edit.targetIndex >= document.tracks.length ||
+      edit.targetIndex === sourceIndex
+    )
+      throw new Error('이동할 트랙과 현재와 다른 유효한 순서를 확인하세요.');
+    const tracks = [...document.tracks];
+    const [moved] = tracks.splice(sourceIndex, 1);
+    if (!moved) throw new Error('이동할 악보 트랙을 찾을 수 없습니다.');
+    tracks.splice(edit.targetIndex, 0, moved);
+    return { ...document, renderSource: 'NORMALIZED', tracks };
+  }
   if (edit.kind === 'REMOVE_TRACK') {
     if (
       edit.discardNotes !== true ||
