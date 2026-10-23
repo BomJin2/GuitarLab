@@ -13,7 +13,7 @@ import { ScoreViewport } from './ScoreViewport';
 const bounds = vi.hoisted(() => ({ y: 20 }));
 const clicks = vi.hoisted(() => ({
   listeners: [] as Array<
-    (note: import('@coderline/alphatab').model.Note) => void
+    (beat: import('@coderline/alphatab').model.Beat) => void
   >,
   settings: [] as unknown[],
 }));
@@ -23,9 +23,9 @@ vi.mock('@coderline/alphatab', async (importOriginal) => ({
     constructor(_host: unknown, settings: unknown) {
       clicks.settings.push(settings);
     }
-    noteMouseDown = {
+    beatMouseDown = {
       on: (
-        listener: (note: import('@coderline/alphatab').model.Note) => void,
+        listener: (beat: import('@coderline/alphatab').model.Beat) => void,
       ) => clicks.listeners.push(listener),
     };
     renderFinished = { on: vi.fn() };
@@ -65,7 +65,7 @@ beforeEach(() => {
   );
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
 });
-it('공개 숫자 클릭 이벤트는 최신 콜백만 호출하고 읽기 전용/해제된 렌더는 전달하지 않는다', () => {
+it('공개 박자 영역 이벤트는 최신 콜백만 호출하고 읽기 전용/해제된 렌더는 전달하지 않는다', () => {
   const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
   const lookup = buildPlaybackLookup(score);
   const note =
@@ -82,10 +82,10 @@ it('공개 숫자 클릭 이벤트는 최신 콜백만 호출하고 읽기 전�
     />,
   );
   expect(clicks.settings[0]).toMatchObject({
-    core: { includeNoteBounds: true },
     player: { enablePlayer: false, enableUserInteraction: false },
   });
-  act(() => clicks.listeners[0]!(note));
+  expect(clicks.settings[0]).not.toHaveProperty('core.includeNoteBounds');
+  act(() => clicks.listeners[0]!(note.beat));
   expect(first).toHaveBeenCalledExactlyOnceWith(note);
   rerender(
     <ScoreViewport
@@ -97,22 +97,53 @@ it('공개 숫자 클릭 이벤트는 최신 콜백만 호출하고 읽기 전�
     />,
   );
   expect(clicks.listeners).toHaveLength(1);
-  act(() => clicks.listeners[0]!(note));
+  act(() => clicks.listeners[0]!(note.beat));
   expect(next).toHaveBeenCalledExactlyOnceWith(note);
   rerender(
     <ScoreViewport score={score} lookup={lookup} trackIndex={0} tick={960} />,
   );
-  expect(clicks.settings[1]).toMatchObject({
-    core: { includeNoteBounds: false },
-  });
+  expect(clicks.listeners).toHaveLength(1);
+  act(() => clicks.listeners[0]!(note.beat));
+  const replacement = importer.ScoreLoader.loadAlphaTex('. 5.1.4');
+  rerender(
+    <ScoreViewport
+      score={replacement}
+      lookup={buildPlaybackLookup(replacement)}
+      trackIndex={0}
+      tick={0}
+    />,
+  );
   act(() => {
-    clicks.listeners[0]!(note);
-    clicks.listeners[1]!(note);
+    clicks.listeners[0]!(note.beat);
+    clicks.listeners[1]!(note.beat);
   });
   expect(next).toHaveBeenCalledTimes(1);
   unmount();
-  act(() => clicks.listeners[1]!(note));
+  act(() => clicks.listeners[1]!(note.beat));
   expect(next).toHaveBeenCalledTimes(1);
+});
+it('박자 영역의 단음만 한 번 선택하고 쉼표/여러 음은 추측하지 않는다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 r.4 (3.1 5.2).4');
+  const lookup = buildPlaybackLookup(score);
+  const beats = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats;
+  expect(beats.slice(0, 3).map((b) => b.notes.length)).toEqual([1, 0, 2]);
+  const onSelect = vi.fn();
+  render(
+    <ScoreViewport
+      score={score}
+      lookup={lookup}
+      trackIndex={0}
+      tick={0}
+      onSelectNote={onSelect}
+    />,
+  );
+  act(() => clicks.listeners[0]!(beats[0]!));
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(beats[0]!.notes[0]);
+  act(() => {
+    clicks.listeners[0]!(beats[1]!);
+    clicks.listeners[0]!(beats[2]!);
+  });
+  expect(onSelect).toHaveBeenCalledTimes(1);
 });
 it('악보에 초점이 있을 때만 이동 키를 처리하고 조합 키·다른 키·읽기 전용은 유지한다', () => {
   const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
@@ -132,7 +163,7 @@ it('악보에 초점이 있을 때만 이동 키를 처리하고 조합 키·다
   const region = screen.getByRole('region', { name: '실제 TAB 악보' });
   const note =
     score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!.notes[0]!;
-  act(() => clicks.listeners[0]!(note));
+  act(() => clicks.listeners[0]!(note.beat));
   expect(document.activeElement).toBe(region);
   expect(region.tabIndex).toBe(0);
   for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End'])

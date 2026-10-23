@@ -1004,6 +1004,8 @@ native cfg(test) 평가만 이 정책을 추가 수용하고 기존 stable-windo
 최적화 산출물 검증을 위해 개발용 prepare_validation_installer.py의 --profile과 Test-ValidationInstaller.ps1의 -BuildProfile에 debug/release 두 값만 허용합니다. 기존 기본값은debug이며 새 계획의 buildProfile과 검사 인자가 일치하지 않으면 설치 전에 거부합니다. 이전 프로필 없는 계획은debug로만 해석합니다. 목표 경로는 해당 고정target/debug 또는target/release에서 계산하고 임의 경로·profile 이름은 받지 않습니다. UUID별제품명/프로세스/AppData·현재 사용자 설치·데이터 보존/원격 권한은 유지하며 제품 IPC/DB/모델 계약은 변경하지 않습니다. release 검증도 서명/최종배포·새Windows 수용을 뜻하지 않습니다.
 ## TAB 음표 선택 — 구현 전 계약(2026-10-22)
 
+2026-10-23 사용자 수용/요청 후속: 숫자 클릭/오른쪽 화살표 선택을 Windows에서 확인했습니다. 숫자뿐 아니라 같은 박자 열의 줄/세로선 영역도 선택하도록 공개 beatMouseDown을 사용합니다. 현재 기본 단성 범위에서 beat.notes가 정확히1개일 때만 같은 Note 매핑을 사용하고 쉼표/여러 음의 박자는 선택을 유지합니다. 새 음표 생성/줄 변경·화음 음표 추측은 하지 않습니다. 숫자 전용 noteMouseDown은 중복 연결하지 않아 한 번의 클릭을 두 번 처리하지 않으며 includeNoteBounds의 추가 계산도 필요하지 않습니다. 렌더는 score/track 변경에만 재생성하고 콜백/잠금 상태는 최신 참조를 사용합니다. 아래 noteMouseDown/includeNoteBounds 설명은 숫자 전용 첫 구현 이력이며 이 공개 beat 이벤트로 대체합니다.
+
 - 키보드는 카피의 선택 가능한 악보 영역에 초점이 있을 때만 좌/우 화살표와 Home/End를 처리합니다. Ctrl/Alt/Meta/Shift 조합과 입력칸의 기본 동작은 가로채지 않습니다. 숫자 클릭은 페이지 스크롤을 바꾸지 않고 악보에 초점을 두며 처음/끝에서 순환하지 않습니다. 버튼과 키보드는 같은 컨트롤러 이동 명령을 사용하고 잠금/빈 트랙/새 음표 상태에서 무시합니다.
 
 - 편집 안내 확인 후 카피 화면에서 TAB 숫자를 클릭하거나 이전/다음 음표 버튼·기존 목록으로 음표를 선택합니다. 선택은 현재 원본 바이트와 트랙 ID에 묶인 임시 상태이며 악보·history·revision·저장/자동 저장 대상은 바꾸지 않습니다. 잠금·다른 트랙/옛 렌더의 이벤트·없는 ID는 무시합니다.

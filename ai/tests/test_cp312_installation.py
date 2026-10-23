@@ -40,8 +40,9 @@ def test_cp312_prepare_and_marker_never_reuse_or_replace_legacy_environment(tmp_
         setup._read_active(marker)
 
 
-def test_unverified_python_patch_cannot_prepare_a_model(tmp_path,monkeypatch):
-    monkeypatch.setattr(setup.sys,'version_info',(3,12,16))
+@pytest.mark.parametrize('version', [(3, 12, 16), (3, 13, 16)])
+def test_unverified_python_patch_cannot_prepare_a_model(tmp_path,monkeypatch,version):
+    monkeypatch.setattr(setup.sys,'version_info',version)
     with pytest.raises(ModelError,match='AI_SETUP_VERSION'):
         setup.prepare(tmp_path,Event(),lambda _:None)
     assert not list(tmp_path.iterdir())

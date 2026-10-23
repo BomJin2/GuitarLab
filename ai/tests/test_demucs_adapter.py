@@ -1,6 +1,7 @@
 import hashlib
 import struct
 from threading import Event
+from types import SimpleNamespace
 
 import pytest
 
@@ -62,6 +63,7 @@ def test_cancel_existing_outputs_and_invalid_inputs_do_not_load_a_model(tmp_path
 
 def test_model_missing_and_explicit_size_cap_are_checked_before_loading(tmp_path, monkeypatch):
     from importlib import metadata
+    monkeypatch.setattr('guitarlab_ai.model_integrity.sys', SimpleNamespace(version_info=(3, 10, 8)))
     def missing(_):
         raise metadata.PackageNotFoundError()
     monkeypatch.setattr("guitarlab_ai.separation.demucs.metadata.version", missing)

@@ -30,7 +30,6 @@ export function ScoreViewport({
   const [error, setError] = useState(false);
   const selectNoteRef = useRef(onSelectNote);
   selectNoteRef.current = onSelectNote;
-  const selectable = !!onSelectNote;
   const tracks = useMemo(() => new Set([trackIndex]), [trackIndex]);
   useEffect(() => {
     if (!host.current) return;
@@ -39,7 +38,6 @@ export function ScoreViewport({
       core: {
         fontDirectory: '/font/',
         useWorkers: true,
-        includeNoteBounds: selectable,
       },
       display: { staveProfile: StaveProfile.Tab, layoutMode: LayoutMode.Page },
       player: { enablePlayer: false, enableUserInteraction: false },
@@ -47,7 +45,9 @@ export function ScoreViewport({
     apiRef.current = api;
     api.renderFinished.on(() => setRevision((value) => value + 1));
     api.error.on(() => setError(true));
-    api.noteMouseDown.on((note) => {
+    api.beatMouseDown.on((beat) => {
+      const note = beat.notes.length === 1 ? beat.notes[0] : undefined;
+      if (!note) return;
       if (apiRef.current !== api || !selectNoteRef.current) return;
       selectNoteRef.current(note);
       scrollerRef.current?.focus({ preventScroll: true });
@@ -57,7 +57,7 @@ export function ScoreViewport({
       apiRef.current = null;
       api.destroy();
     };
-  }, [score, trackIndex, selectable]);
+  }, [score, trackIndex]);
   useEffect(() => {
     const result = tick === null ? null : lookup.findBeat(tracks, tick);
     const bounds = result

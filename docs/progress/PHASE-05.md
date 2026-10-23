@@ -1,5 +1,40 @@
 # Phase 5 — 수동 TAB 편집
 
+## 숫자 아래 박자 영역 선택 완료 — 2026-10-23
+
+### 1. 작업 개요
+
+완료 날짜2026-10-23. 사용자가 기존 숫자/오른쪽 화살표 선택을 수용한 뒤 ‘숫자 아래 줄도 클릭’하도록 요청한 작은 기능 후속입니다. 구현·회귀/Windows 시작·데이터 보존과 사용자 ‘ㅇㅇ 댐’ 수용까지 완료했습니다. 전체 Phase6B/7/8 완료와는 별도입니다.
+
+### 2. 구현 및 변경 사항
+
+ScoreViewport는 alphaTab1.6.1 공개 beatMouseDown만 구독해 단음이1개인 박자의 줄/세로선/숫자 영역을 선택합니다. 기존 도메인 Note 매핑/반복·트랙/옛 렌더 거부를 재사용하고 쉼표/여러 음의 박자는 추측하지 않습니다. noteMouseDown의 중복 처리와 includeNoteBounds 추가 계산을 없앴고 콜백/잠금 변경만으로 악보 전체를 다시 만들지 않습니다. ScoreEditor 안내, ScoreViewport.test.tsx의 실제 beat 객체 이벤트/쉼표/화음/최신 콜백·해제/키보드 회귀, docs/04·09·12와 진행/로드맵을 수정했습니다. 원본/DB·IPC/모델·의존성/디자인 토큰은 바꾸지 않았습니다.
+
+### 3. 테스트 결과
+
+- `pnpm test src/features/score/ScoreViewport.test.tsx src/app/scoreSession.test.tsx`:18개/2파일10.59초 **성공**.
+- 전체 `pnpm test`:411개/98파일33.83초 **성공**. 타입·전체lint/포맷·`pnpm build` **성공**, Vite1분13초/main1,589.26kB·gzip423.91kB(기존 청크 안내 유지).
+- 최신dist `cargo test --locked --offline --all-features ... bundle_tests`:3개/0.01초·컴파일16.52초 **성공**. 고정 Windows `pnpm tauri build --debug --no-bundle --ci --config ...beat-selection-4b7b2cac-d3a5-4d36-93a6-126e288d456e.conf.json -- --locked --offline`:22.51초 **성공**.
+- 실제 개발 브라우저에서 숫자3 아래 줄 영역을 눌러2번/tick960/3프렛 선택을 확인했습니다. Windows 사용자도 같은 아래 줄/세로선 클릭·숫자/오른쪽 화살표 유지가 정상이라고 확인했습니다. 브라우저 첫 navigation timeout은 렌더 준비 후 같은 탭의 정상 상태를 읽어 해소했으며 새 네트워크 허용/개인 업로드는 하지 않았습니다.
+- 이전 PID16228/PTY83891의 정상 CloseMainWindow/EXITED0/forced=false 후 새PID33044/PTY28650·‘GuitarLab · 박자 영역 선택’ READY/응답을 확인했습니다. EXE40,686,080바이트/SHA `6f983765e15e60dd5cf915f3828c820f1ced377aaadc0a165b08515162d61512`, runtime3393개 전체 지문·새 백업/실제DB9/16테이블·4모델 marker 동일입니다. 기본 모니터 꺼짐/REC 미시작을 유지했습니다.
+- 숫자 전용 직전 ZIP3613파일/39,979,817바이트/SHA9ee90cd5…는 전체 지문/CRC·새 추출·기본PS5.1/독립Python2회 성공했습니다. **박자 확장 최신 ZIP/새 NSIS/Defender/서명·별도Windows 검사는 미실행** — 직전 결과를 소급하지 않고 후속으로 검사합니다. Rust/Python 제품 전체 재검사는 **미실행** — 제품 코드가 변하지 않았으며 CI/테스트 fixture 변경은 PHASE-08 별도 절을 따릅니다.
+
+### 4. 미구현 및 알려진 제약
+
+한 박자에 여러 음이 있는 화음·쉼표를 클릭해 새 음표를 만드는 기능은 미구현입니다. 기본 단성 편집 한도와 alphaTab의 박자 영역 hit test를 따릅니다. 원본 비교/연습·연주는 편집 선택하지 않고 선택은 저장하지 않습니다. UI 리디자인과 다른 악보 표기 방식의 hit test 수용은 후속입니다.
+
+### 5. 다음 작업 계획
+
+현재 수용된 PID33044/PTY28650 앱을 유지하고 beat-selection-candidate.json/portable-candidate.json에 수용을 기록합니다. 최신 ZIP 검증과 GitHub CI의 Python3.13 테스트 fixture 문제를 마무리한 뒤 진행 가능한 기능/안정성 작업을 계속합니다. 별도Windows·특화 모델/실제 주법 참조는 해당 항목만 보류합니다.
+
+## TAB 선택 Windows 후보 적용 — 2026-10-23
+
+최신dist로 `pnpm tauri build --debug --no-bundle --ci --config ...tab-selection-10ed0e65-9235-47d6-94e4-456eb16cfd32.conf.json -- --locked --offline`가24.71초 성공했습니다. 검증runtime3393파일/64,095,996바이트의 전체 지문·링크/경로를 확인해 새portable에 복사했고 EXE40,685,568바이트/SHA `3524d1690bf80b43f753a3661d61e02e851f0a7161e50705a51878e9df3493c3`를 기록했습니다. 기존 앱은 권한 있는 읽기 조회에서 관측되지 않아 종료/강제 종료하지 않았습니다.
+
+제어PTY83891/PID16228·‘GuitarLab · TAB 음표 선택’의 정확한 제목/READY/응답을 확인했습니다. 새 백업과 비교한 실제DB9/16테이블의 행수/전체 지문·4모델 marker는 동일합니다. tab-selection-candidate.json/portable-candidate.json은 WINDOWS_RUNNING_ACCEPTANCE_PENDING이며 기본 모니터 꺼짐·실시간 고급 채점 비활성·입력/REC 미시작을 유지합니다. 사용자에게 프로젝트 없는 자체 악보 숫자3 클릭→목록/프렛 및 오른쪽 화살표 이동만 요청했으며 실제 수용은 응답 대기입니다. 확인 동안 이 앱과 UI 소스를 유지하고 독립적인 CI/패키지를 검사합니다.
+
+이 절은 아래 소스 정리의 새 Windows 적용 미실행 상태를 갱신합니다. 사용자 실제 선택·새 ZIP/설치기/별도Windows 수용은 아직 완료가 아닙니다. 기본5절 구현/변경 파일·자동 테스트·제약/다음 계획은 바로 아래 소스 정리 절을 따릅니다.
+
 ## TAB 클릭·키보드 선택 소스 정리 — 2026-10-23
 
 ### 1. 작업 개요

@@ -41,6 +41,7 @@ def test_hugging_face_policy_only_allows_pinned_origin_and_https_cdn():
 @pytest.fixture
 def demo(tmp_path, monkeypatch):
     # DEMO 바이트를 전송 정책 검사용으로만 사용하며 실제 모델로 로드하지 않습니다.
+    monkeypatch.setattr('guitarlab_ai.model_integrity.sys', SimpleNamespace(version_info=(3, 10, 8)))
     data = {'DEMO.whl': b'WHEL', '5c90dfd2.safetensors': b'DEMO', 'htdemucs_6s.yaml': b'test'}
     plan = demucs_cache.download_plan()
     def artifact(name):

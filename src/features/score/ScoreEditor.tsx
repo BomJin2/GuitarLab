@@ -139,9 +139,10 @@ export function ScoreEditor({
             {selected
               ? `편집 선택: ${selectedIndex + 1}번 · tick ${selected.startTick} · ${selected.stringIndex}번 줄 ${selected.fret}프렛`
               : '편집 선택: 새 음표'}{' '}
-            · TAB 숫자를 클릭하거나 목록·이전/다음 버튼으로 선택하세요. 선택을
-            바꾸면 적용하지 않은 입력값은 사라집니다. 악보에 초점을 두면 좌/우
-            화살표로 이동하고 Home/End로 처음/끝 음표를 선택합니다.
+            · TAB 숫자나 같은 박자 위치의 줄 영역을 클릭하거나 목록·이전/다음
+            버튼으로 선택하세요. 선택을 바꾸면 적용하지 않은 입력값은
+            사라집니다. 악보에 초점을 두면 좌/우 화살표로 이동하고 Home/End로
+            처음/끝 음표를 선택합니다.
           </p>
           <form
             key={`${track.id}:${selected ? JSON.stringify(selected) : 'new'}`}

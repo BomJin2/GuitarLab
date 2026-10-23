@@ -16,6 +16,18 @@ from guitarlab_ai.runtime import Canceled
 @pytest.fixture
 def setup_environment(tmp_path, monkeypatch):
     # 제품과 분리된 DEMO 설치 데이터이며 실제 실행 파일/모델이 아닙니다.
+    monkeypatch.setattr(setup, "sys", SimpleNamespace(version_info=(3, 10, 8), platform="win32"))
+    runner = tmp_path / "demo-pip-runner.py"
+    runner.write_bytes(b"DEMO, never executed")
+    monkeypatch.setattr(setup, "metadata", SimpleNamespace(
+        version=lambda _: "22.2.2",
+        distribution=lambda _: SimpleNamespace(locate_file=lambda _: runner)))
+    bootstrap = {**setup.BOOTSTRAP, "bytes": 4, "sha256": hashlib.sha256(b"DEMO").hexdigest()}
+    bundled = tmp_path / "ensurepip" / "_bundled"
+    bundled.mkdir(parents=True)
+    (bundled / bootstrap["filename"]).write_bytes(b"DEMO")
+    monkeypatch.setattr(setup, "BOOTSTRAP", bootstrap)
+    monkeypatch.setattr(setup, "ensurepip", SimpleNamespace(__file__=str(bundled.parent / "__init__.py")))
     plan = {"freeDiskBytesRequired": 1, "artifacts": [{"name": "demo", "version": "1.0", "filename": "demo.whl",
             "bytes": 4, "sha256": hashlib.sha256(b"DEMO").hexdigest()}]}
     monkeypatch.setattr(setup, "_plan", lambda: plan)
@@ -32,6 +44,17 @@ def setup_environment(tmp_path, monkeypatch):
         calls.append(args)
     monkeypatch.setattr(setup, "_run", run)
     return tmp_path, calls
+
+
+def test_demo_bootstrap_is_still_hash_checked_before_environment_creation(setup_environment):
+    root, calls = setup_environment
+    bundled = Path(setup.ensurepip.__file__).parent / "_bundled"
+    (bundled / setup.BOOTSTRAP["filename"]).write_bytes(b"BAD!")
+    with pytest.raises(ModelError, match="AI_MODEL_INTEGRITY"):
+        setup.prepare(root, Event(), lambda _: None)
+    assert not calls
+    assert not list((root / "ai/environments" / setup.ENV_FOLDER).iterdir())
+    assert (root / "ai/downloads" / setup.PLAN_ID / "demo.whl").read_bytes() == b"DEMO"
 
 
 def test_install_uses_hash_locked_offline_args_then_reuses_active_environment(setup_environment):
