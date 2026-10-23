@@ -1,6 +1,8 @@
 # GuitarLab — Codex 개발 설계 문서
 
-## 현재 소스 상태 — 2026-10-23
+## 현재 소스 상태 — 2026-10-24
+
+처음 사용하는 분은 [기타 입력·모니터·녹음 빠른 시작](docs/21-QUICKSTART.md)을 참고하세요.
 
 Windows용 기타 카피·연습·연주 앱의 개발 소스입니다. Tauri2·React·TypeScript·Tailwind·Rust·Python·SQLite를 사용하며, UI는 기능 검증을 위한 임시 구성입니다.
 
@@ -11,7 +13,7 @@ Windows용 기타 카피·연습·연주 앱의 개발 소스입니다. Tauri2·
 - 트랙 순서 후속(2026-10-23): 편집본의 위/아래 이동은 같은 ID·음표·싱크/선택을 유지하고 기존 Undo/Redo와 저장/출력을 사용합니다.432개 회귀·실제 브라우저/Windows·독립 ZIP을 확인했으며 실제 저장/재열기 수용과 최신 CI는 Phase5 기록에 구분합니다. 원본 비교와 오디오 믹스의 순서는 바꾸지 않습니다.
 - 저장 화면 유지 후속(2026-10-23): 카피/연습/연주에서 저장·같은 프로젝트 다시 열기 후 현재 화면을 유지합니다.436개 회귀·Windows 실행/데이터 보존과 실제 카피 화면 유지 응답을 확인했습니다. 라이브러리 열기는 기존 생성 모드를 따르며 새 ZIP·최신 CI 범위는 Phase5 기록을 따릅니다.
 - 부분 구현: 선택 설치한 Basic Pitch/Demucs의 로컬 분석·초안/전체 기타 분리, YouTube URL 공식 플레이어·수동 TAB 맞춤, 사용자 제공 기타 파일과 실험적 음정 진단. 실제 품질·별도 Windows 수용이 남아 전체 Phase 완료를 의미하지 않습니다.
-- CI: [Windows 전체 회귀39966416679](https://github.com/BomJin2/GuitarLab/actions/runs/39966416679)가 프론트436개·Python113개·개발 도구80개·확장Rust231개/최소1.90 컴파일까지 통과했습니다. 새 Git checkout의 worker3개 LF 지문을 수정했고, 고정 원본에서 모델 없는 격리 설치기를 만드는 [설치CI39966416447](https://github.com/BomJin2/GuitarLab/actions/runs/39966416447)도 빌드/설치/첫 실행/정상 종료/제거·보존까지 성공했습니다. 현재 PC 새 LF 설치/Defender와 구분하며 GitHub Server2025 검사가 실제 별도Windows10/11·최종 배포 완료를 뜻하지 않습니다.
+- CI: [Windows 전체 회귀40002809031](https://github.com/BomJin2/GuitarLab/actions/runs/40002809031)가 프론트436개·기본228/확장231개Rust(각26제외)·타격 synthetic1개·AI113/개발 도구105개·최소Rust1.90과 사후 정리까지 성공했습니다. 후속108개 도구/제한 캐시 검증은 [진행 상태](docs/progress/README.md)를 따릅니다. [독립 설치39966416447](https://github.com/BomJin2/GuitarLab/actions/runs/39966416447)의 Server2025 설치/실행/제거 성공은 별도이며 실제 다른 Windows10/11·모델 품질/최종배포 수용을 대신하지 않습니다.
 - 미구현/보류: 실시간 코드·고급 주법 채점, 검증된 리드/리듬 특화 AI, YouTube 앱 내 API 검색, 서명된 최종 배포·깨끗한 별도 Windows 수용. 기본 모니터는 꺼짐이며 REC 전 녹음하지 않습니다.
 
 [남은 작업과 완료 기준](docs/progress/REMAINING-WORK.md): 14단계 중9개 기본 범위 수용,5개 부분 구현/보류입니다. 단계 수이며 전체 공수의 완료율이 아닙니다.
