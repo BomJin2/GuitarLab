@@ -22,7 +22,8 @@ from fetch_egset12_sample import FILES
 
 
 def checked_source(manifest):
-    external = (Path(__file__).resolve().parents[1] / "fixtures/external/egset12-11406378").resolve(strict=True)
+    # 외부 자료를 아직 받지 않았어도 범위 밖 입력은 내용을 읽기 전에 거부합니다.
+    external = (Path(__file__).resolve().parents[1] / "fixtures/external/egset12-11406378").resolve()
     manifest = manifest.resolve(strict=True)
     if not manifest.is_relative_to(external) or manifest.stat().st_size > 128 * 1024:
         raise ValueError("고정 공개 자료 경로/크기 오류")

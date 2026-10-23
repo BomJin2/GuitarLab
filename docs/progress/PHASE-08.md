@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## CI 개발 도구의 외부 캐시·임시 경로 의존 제거 — 2026-10-23
+
+### 1. 작업 개요
+
+[수정7351ada 실행39888475426](https://github.com/BomJin2/GuitarLab/actions/runs/39888475426)에서 기존 AI 오류는 해결됐지만 그 뒤 개발 도구2개가 실패했습니다. 작업 날짜2026-10-23. 원인 수정/로컬 검사는 완료했고 후속 원격 전체 결과는 대기입니다. 전체 Phase8 완료와 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- scripts/benchmark_egset12.py: 외부 자료 루트가 아직 없어도 범위 밖 입력을 내용 읽기 전에 거부하도록 루트의 strict 존재 조건만 제거했습니다. 실제 manifest의 존재/경로·크기/원본 지문 검사는 유지합니다. 외부 자료를 CI에 다운로드하거나 경계 검사를 생략하지 않습니다.
+- scripts/test_benchmark_egset12.py: 개발 PC의 실제 외부 캐시 대신 자체 임시 프로젝트를 만들고 캐시 없음/있음 두 경우에 범위 밖 파일 읽기 전 거부와 원본 보존을 확인합니다.
+- scripts/test_prepare_validation_installer.py: 임시 PROJECT를 resolve(strict=True)로 정규화해 실제 도구의 canonical PROJECT와 같은 전제를 사용합니다. 공통 checked_path의 경로/링크 보호는 완화하지 않습니다. 앱·네이티브/모델 설치·개인 데이터는 바꾸지 않았습니다.
+
+### 3. 테스트 결과
+
+- 세 번째 실제 CI: 앱 기본 회귀/확장 native **성공**, Rust231개/26개 제외. Python3.13.16의 `pytest ai/tests`: **113개/2.61초 성공**. 사용자가 보낸 이전97성공/8실패·6오류와 구분합니다.
+- 이어 `unittest discover -s scripts -p "test_*.py"`:66개 중2개 오류. 외부 캐시 폴더 strict resolve의 FileNotFoundError와 임시 프로젝트 경로의 BACKUP_PATH_INVALID이며 MSRV는 skipped였습니다.
+- 수정 전 자체 캐시 없음 회귀에서 동일 FileNotFoundError **재현**. 수정 후 개발 도구 전체는 Python3.10.8에서66개 중65개/12.214초 **성공**, 기존 별도Python3.12.14에서65개/12.536초 **성공**. 각 실제 링크 권한1개는 **미실행/skip**이며 거부 검사를 삭제하지 않았습니다.
+- 로컬 `cargo +1.90.0 check --locked --offline --all-targets --all-features --target-dir src-tauri/target/msrv-190 --manifest-path src-tauri/Cargo.toml`: **22.79초 성공**. 실제 원격 MSRV는 후속 실행에서 확인합니다.
+- 앱 재빌드/장치·실제 모델 재검사는 **미실행** — 개발 도구·테스트/문서만 수정했습니다. 사용자 수용한 박자 선택 앱은 유지합니다.
+
+### 4. 미구현 및 알려진 문제
+
+Python3.13의 PurePath.is_reserved 폐기 예정 경고는 실패 원인이 아니며 현재 배포 Python3.12.15를 변경하지 않습니다. 원격 전체 green·원격 MSRV는 아직 확인 전이고 별도Windows/서명·최종배포 수용도 미완료입니다.
+
+### 5. 다음 작업 계획
+
+수정과 최신 ZIP 검사 문서를 일반 커밋/push한 뒤 새 CI가 마지막 단계까지 성공하는지 확인합니다. 추가 실패가 있으면 같은 방식으로 원인을 수정합니다. 아래 Python 실패/대기 기록은 이전 실행 이력입니다.
+
 ## GitHub Python 검사 호스트 의존 제거 — 2026-10-23
 
 ### 1. 작업 개요

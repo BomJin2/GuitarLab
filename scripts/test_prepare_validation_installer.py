@@ -38,7 +38,7 @@ class InstallerTests(unittest.TestCase):
         template = (project / "src-tauri/tauri.validation.conf.json").read_bytes()
         product = (project / "src-tauri/tauri.conf.json").read_bytes()
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
+            root = Path(folder).resolve(strict=True)
             files = {
                 "src-tauri/tauri.validation.conf.json": template,
                 "src-tauri/tauri.conf.json": product,
