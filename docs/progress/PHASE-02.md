@@ -38,6 +38,16 @@ F-03에 정의된 시작/끝 마디 선택을 기존 로컬 A-B 반복 엔진에
 
 최신 dist의 내장 검사·Windows 빌드/실행과 기존 데이터 보존 결과를 추가합니다. 이어 F-03/기존 로드맵의 남은 기능 수용 항목을 점검하고, 이미 완료한 기능을 다시 구현하지 않습니다.
 
+### 최종 Windows 적용 기록
+
+- 최종423개 소스의 내장 bundle/권한 정책3개 성공(컴파일39.76초·실행0.12초), Windows 빌드20.33초 성공. 하드링크 캐시 복사 대체/기존 linker·bundle identifier 경고는 유지합니다.
+- `measure-loop-candidate.json`: 새 portable UUID `11154eda-2f0f-48e6-ba9c-d76cfd1d6171`, EXE40,687,616바이트·SHA256 `f3531763d4b6890a9fa050dfc4dde65a5bbe1d752453496c1a894d453d6d18ae`. runtime3393개 전체 크기/지문을 확인했습니다.
+- **PID4992·PTY38110·‘GuitarLab · 마디 반복 선택’** READY/응답 정상. 이전 PID28404/제어 세션은 이미 종료돼 있었고 새 실행 직전 동명 프로세스 없음을 확인했으며 강제 종료하지 않았습니다. 갱신한 DB9 백업 기준으로16테이블/4모델 marker 보존 검사도 성공했습니다. 현재 앱은 유지하며 입력/REC를 시작하지 않았습니다.
+- 소스 `b582828dfe67dbf0f8b58eb6e4473338f62fb12c`를 main에 push했습니다. [원격 Windows CI39927076556](https://github.com/BomJin2/GuitarLab/actions/runs/39927076556)는 최초 확인 시 앱 기본 회귀 진행 중이며 최종 결론은 미확인입니다. 별도 최신 ZIP 검사는 이어서 기록합니다.
+- 새 검증 ZIP3613파일/39,981,695바이트/SHA256 `dfbe93f86f3629819e62132a820136297306a34d19bbe58c147871d5191821a0` 생성·외부 지문/전체 목록·내용 확인·새 UUID 폴더 추출/재검사 성공입니다. 위치는 `validation-packages/65b2ac79-8c63-4396-a832-4ba5f67c716d/GuitarLab-validation.zip`이며 모델/개인 DB·녹음은 제외합니다. Windows 기본 PowerShell5.1 독립 런타임 검사는 후속 결과에 구분합니다.
+- 새 추출 폴더에서 실제 기본 `powershell.exe -NoProfile -File Test-ValidationPackage.ps1` 검사도 **성공**했습니다. 전체3613파일 지문/누락·추가 없음과 개발 PATH 제외/모델 미설치 조건의 Python3.12.15 실행2회를 확인했습니다. 새 PC·GUI 조작·모델 재설치는 포함하지 않습니다.
+- Windows 창 내부 사용자 조작/실제 기타·REC 동시 수용과 깨끗한 별도 OS/installer는 **미실행**입니다. 실제 개발 브라우저 반복·App 통합 잠금과 Windows 시작/데이터 보존 범위를 구분합니다.
+
 ## 후속 — TAB 기본 표시와 오선보 전환 (2026-10-23)
 
 ### 1. 작업 개요
