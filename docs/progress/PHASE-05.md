@@ -33,6 +33,17 @@ F-06 트랙 관리에서 선택 트랙을 편집본에서 제거하고 기존 Un
 
 현재 후보의 내장 UI/Windows 실행·DB/모델 보존과 새 ZIP을 확인하고 소스/문서를 Git에 보존합니다. 이후 기존 로드맵의 남은 수용 항목을 순차 검토하며 미검증 항목을 완료로 표시하지 않습니다.
 
+### 최종 Windows 적용 기록
+
+- 내장 bundle/권한 정책3개 성공(컴파일12.85초), 최종 Windows 빌드16.73초 성공. 기존 linker/bundle identifier 경고는 유지했습니다.
+- `track-remove-candidate.json`: portable UUID `6662fd9f-372a-444d-9d6a-2ba605452a09`의 EXE40,687,616바이트·SHA256 `d14e3a8736992df686f084c04d8d5ea48e9646e415c87574357def4148801821`, runtime3393개 전체 크기/지문 확인.
+- 기존 PID4992에 정상 종료 요청 accepted=true·exitCode=0·forced=false를 확인한 뒤 새 **PID28196·PTY63814·‘GuitarLab · 악보 트랙 삭제와 복구’** READY/응답을 확인했습니다. 입력/REC를 자동 시작하지 않았고 실제 DB9/16테이블·4모델 marker 지문도 전후 동일합니다. 현재 앱을 유지합니다.
+- 소스 `6a0d7d866e8f2ff873fc8eefd613530026bd8180`를 main에 push했습니다. [Windows CI39930532852](https://github.com/BomJin2/GuitarLab/actions/runs/39930532852)는 최초 조회 앱 기본 회귀 진행 중이며 최종 결론은 대기입니다. 앞선 마디 반복 CI success를 이번 커밋에 대신 적용하지 않습니다.
+- 새 검증 ZIP3613파일/39,983,535바이트·SHA256 `45c79447e6122bffd253547c5b538982768bc1934cbce17ec05e6bd42ddd642e`의 전체 목록/내용 지문·새 폴더 추출 후 재검사 성공입니다. `validation-packages/90826133-eecf-4f65-8d37-86f8debd577e/GuitarLab-validation.zip`, 모델/개인 데이터 제외. 기본 PS5.1/독립 Python 검사는 후속 결과에 구분합니다.
+- 새 추출본의 실제 기본 PowerShell5.1 검사도 **종료0 성공**했습니다. 전체3613파일 지문·개발 PATH 제외·모델 미설치 응답과 독립 Python3.12.15 실행2회를 확인했습니다. 새 PC/모델 추론 수용으로 확대하지 않습니다.
+- 실제 사용자 저장 프로젝트의 삭제/저장/재실행 수용과 실제 녹음 동시 조작·별도 OS/installer는 **미실행**입니다. 원본/저장 revision 보존·JSON/alphaTab 왕복과 UI 연결은 자동 검사, 실제 삭제/Undo/Redo는 개발 브라우저 검사입니다.
+- 새 앱에서 테스트 트랙 추가→삭제 확인/삭제→Undo 복귀의 짧은 사용자 수용을 비동기로 요청했습니다. 응답 대기 동안 현재 앱과 UI 소스는 유지하고 CI/문서 작업만 계속합니다. 사용자 미응답을 수용 성공으로 기록하지 않습니다.
+
 ## 박자 영역 선택 패키지 검증 완료 — 2026-10-23
 
 ### 1. 작업 개요
