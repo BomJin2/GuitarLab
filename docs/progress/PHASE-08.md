@@ -27,6 +27,12 @@
 
 GitHub Windows 실행기는 개발 도구/관리자 토큰/WebView2가 있는 서버 이미지일 수 있습니다. 실제 OS/권한을 기록하며 `cleanWindowsValidated=false`를 유지합니다. 별도 Windows10/11 장치·서명/최종 고지 검토·독립 모델 품질 수용은 미완료입니다. 사용자 수용 앱24920/PTY11472와 이전 CRLF 불변 리소스는 그대로 유지합니다.
 
+### 로컬 최종 결과와 첫 원격 실패
+
+- 새 앱/검사 도구 최적화 빌드 각각1분23초/1분36초·NSIS **성공**. 새 설치기 SHA `3c4a298e10eaa49f9de4203adfc6affbecdecbfc114acec7fd022ace71e56e9f`, 설치 본문22,095,360바이트/SHA0643ed47…입니다.
+- 기본PowerShell5.1의 실제 새 UUID 설치/전체 지문·새v9/quick_check/빈 프로젝트·정상 종료0/APP_EXITED/최소 PATH 독립Python3.12.15 두 번/제거 후 DB·미등록 파일 보존 **성공**. 관리자 토큰false, installer-tests/85072ce6-a97f-44c3-86f6-cad61a9b6250/receipt.json 보존입니다. 제품16테이블/모델4marker 전후 동일·기존PID24920의 정확한 창/응답도 확인했습니다. 새 LF 설치기의 별도 Defender 재검사는 **미실행**이며 앞 절의 다른 SHA 검사로 대신하지 않습니다.
+- cc11fe8의 [원격 설치39965890095](https://github.com/BomJin2/GuitarLab/actions/runs/39965890095)/job120455541572: 프론트/타입·공식 두 원본 명시 다운로드·새 lock3393개 대조 **성공**, 빌드 단계는 pnpm shim이 -- 구분자를 잃어 Tauri가 --locked를 잘못 읽는 오류로 **실패**, 설치 실행은 **미실행**입니다. 설치한 공식 @tauri-apps/cli2.12.2의 tauri.js/process.argv를 확인하고 CI에서 Node 진입점을 직접 호출하도록 수정합니다. 제품/dev 명령이나 패키지 버전은 변경하지 않습니다.
+
 ### 5. 다음 작업 계획
 
 새 LF 패키지의 격리 설치/독립Python을 먼저 확인하고 Git에 반영한 뒤 두 원격 workflow 결과를 추적합니다. 실패하면 실제 단계/원인을 수정하고 원래 앱·자료를 보존합니다. 별도 OS 성공도 실제 Win10/11 장비 부재를 해소한 것으로 표시하지 않습니다.

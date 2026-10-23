@@ -67,7 +67,7 @@ jobs:
       - name: 최적화 설치기와 독립 검사 도구 빌드
         run: |
           $plan = Get-Content src-tauri/target/runtime-validation/validation-installer-plan.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          pnpm tauri build --ci --config $plan.configPath -- --locked
+          node node_modules/@tauri-apps/cli/tauri.js build --ci --config $plan.configPath -- --locked
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --release --locked --manifest-path src-tauri/Cargo.toml --example manage_ai_model
           exit $LASTEXITCODE
