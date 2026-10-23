@@ -22,8 +22,72 @@ function harness(preparePlayback: boolean, locked = false) {
       />
     </Context.Provider>,
   );
-  return { prepare, countIn };
+  return { prepare, countIn, engine };
 }
+it('악보에서 처리한 탐색 키는 반주를 추가로 탐색하지 않는다', () => {
+  const { engine } = harness(false);
+  const seek = vi.spyOn(engine, 'seek').mockImplementation(() => {});
+  const region = document.createElement('section');
+  document.body.append(region);
+  const selected = vi.fn((event: KeyboardEvent) => event.preventDefault());
+  region.addEventListener('keydown', selected);
+  try {
+    fireEvent.keyDown(region, { key: 'ArrowRight' });
+    expect(selected).toHaveBeenCalledTimes(1);
+    expect(seek).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(seek).toHaveBeenCalledExactlyOnceWith(4000);
+  } finally {
+    region.remove();
+    engine.dispose();
+  }
+});
+it('길게 누른 재생·반복과 한글 조합 입력은 재생 상태를 바꾸지 않는다', () => {
+  const { engine, countIn } = harness(false);
+  const loop = vi.spyOn(engine, 'setLoop').mockImplementation(() => {});
+  const seek = vi.spyOn(engine, 'seek').mockImplementation(() => {});
+  for (const key of [' ', 'r']) {
+    fireEvent.keyDown(window, { key, repeat: true });
+    fireEvent.keyDown(window, { key, isComposing: true });
+  }
+  fireEvent.keyDown(window, { key: 'ArrowRight', isComposing: true });
+  expect(countIn).not.toHaveBeenCalled();
+  expect(loop).not.toHaveBeenCalled();
+  expect(seek).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: 'r' });
+  expect(loop).toHaveBeenCalledExactlyOnceWith({ startMs: 0, endMs: 2000 });
+  engine.dispose();
+});
+it.each(['', 'plaintext-only'])(
+  'contenteditable=%s 입력의 Space는 반주를 시작하지 않는다',
+  (value) => {
+    const { countIn, engine } = harness(false);
+    const editable = document.createElement('div');
+    editable.setAttribute('contenteditable', value);
+    editable.innerHTML = '<span>편집 중</span>';
+    document.body.append(editable);
+    try {
+      fireEvent.keyDown(editable.firstElementChild!, { key: ' ' });
+      expect(countIn).not.toHaveBeenCalled();
+    } finally {
+      editable.remove();
+      engine.dispose();
+    }
+  },
+);
+it('버튼 안 SVG에 초점이 있는 키는 버튼의 기본 동작에 맡긴다', () => {
+  const { countIn, engine } = harness(false);
+  const button = document.createElement('button');
+  button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><path /></svg>';
+  document.body.append(button);
+  try {
+    fireEvent.keyDown(button.firstElementChild!, { key: ' ' });
+    expect(countIn).not.toHaveBeenCalled();
+  } finally {
+    button.remove();
+    engine.dispose();
+  }
+});
 it('연습 기본 재생과 Space는 3초 준비를 사용하고 끄기 선택도 유지한다', () => {
   const { prepare, countIn } = harness(true);
   fireEvent.click(screen.getByRole('button', { name: '▶ 재생' }));

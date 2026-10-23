@@ -95,3 +95,23 @@ it('본문 이동 링크는 경로를 바꾸지 않는다', () => {
   expect(window.location.hash).toBe('');
   expect(document.activeElement?.id).toBe('main');
 });
+it('모드·안내 단축키는 조합 입력·반복·이미 처리한 키를 무시한다', () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  for (const properties of [{ isComposing: true }, { repeat: true }]) {
+    fireEvent.keyDown(window, { key: '2', altKey: true, ...properties });
+    fireEvent.keyDown(window, { key: '?', ...properties });
+  }
+  const event = new KeyboardEvent('keydown', {
+    key: '2',
+    altKey: true,
+    cancelable: true,
+  });
+  event.preventDefault();
+  fireEvent(window, event);
+  expect(window.location.hash).toBe('');
+  expect(screen.queryByRole('heading', { name: '키보드 조작' })).toBeNull();
+});

@@ -1,5 +1,9 @@
 # 09. 테스트 전략 / 검증 기준
 
+## 전역 단축키의 중복 실행 방지 — 2026-10-24
+
+실제 ScoreViewport와 TransportBar를 같은 Player Context에 렌더링해 TAB 좌우 선택이 각 한 번 실행되고 seek는 호출되지 않는지 확인합니다. 일반 영역의 좌우 탐색은 유지해야 합니다. Space/R 반복·IME 조합·이미 preventDefault한 이벤트와 빈/상속/plaintext-only contenteditable·SVG 버튼의 Space는 재생을 시작하지 않아야 합니다. 표준/커스텀 텍스트 입력, 잘못된 contenteditable의 상속과 명시적 false 경계도 검사합니다. App 모드/안내 단축키의 같은 보호, 기존 녹음 잠금·3초 준비·일반 재생 회귀를 함께 실행합니다. jsdom 자동 회귀와 실제 Windows 키보드 수용은 구분합니다.
+
 ## Windows 회귀 Rust 캐시 — 2026-10-24
 
 정확한 이미지/컴파일러·MSRV/manifest/lock 키의 캐시 없음→전체 회귀/성공 저장→같은 키 복원/전체 회귀 재실행을 확인합니다. 캐시 여부로 타입/프론트·Rust/AI/Python/MSRV를 생략하지 않으며 공개 registry/debug 컴파일 산출물 외의 runtime/모델/사용자 데이터를 캐시하지 않습니다. 실제 저장/복원 로그와 전후 시간은 관측 후 기록하고 단축을 선기록하지 않습니다. 별도 설치 workflow는 캐시 없는 검증을 유지합니다.

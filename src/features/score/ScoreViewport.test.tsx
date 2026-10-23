@@ -9,6 +9,9 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { buildPlaybackLookup } from './alphaTabAdapter';
 import { ScoreViewport } from './ScoreViewport';
+import { Context } from '../player/playerContextValue';
+import { PlayerEngine } from '../player/PlayerEngine';
+import { TransportBar } from '../player/TransportBar';
 
 const bounds = vi.hoisted(() => ({ x: 30, y: 20 }));
 const clicks = vi.hoisted(() => ({
@@ -326,6 +329,37 @@ it('악보에 초점이 있을 때만 이동 키를 처리하고 조합 키·다
   expect(region.hasAttribute('tabindex')).toBe(false);
   expect(fireEvent.keyDown(region, { key: 'ArrowRight' })).toBe(true);
   expect(onNavigate).toHaveBeenCalledTimes(4);
+});
+it('실제 악보의 좌우 선택과 전역 반주 탐색은 중복 실행되지 않는다', () => {
+  const engine = new PlayerEngine();
+  vi.spyOn(engine, 'getSnapshot').mockReturnValue({
+    ...engine.getSnapshot(),
+    status: 'paused',
+    durationMs: 10000,
+  });
+  const seek = vi.spyOn(engine, 'seek').mockImplementation(() => {});
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
+  const navigate = vi.fn();
+  render(
+    <Context.Provider value={engine}>
+      <ScoreViewport
+        score={score}
+        lookup={buildPlaybackLookup(score)}
+        trackIndex={0}
+        tick={0}
+        onNavigateNote={navigate}
+      />
+      <TransportBar workspace />
+    </Context.Provider>,
+  );
+  const region = screen.getByRole('region', { name: '실제 TAB 악보' });
+  fireEvent.keyDown(region, { key: 'ArrowRight' });
+  fireEvent.keyDown(region, { key: 'ArrowLeft' });
+  expect(navigate.mock.calls).toEqual([['next'], ['previous']]);
+  expect(seek).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: 'ArrowRight' });
+  expect(seek).toHaveBeenCalledExactlyOnceWith(5000);
+  engine.dispose();
 });
 afterEach(() => {
   cleanup();

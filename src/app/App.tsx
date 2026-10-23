@@ -30,6 +30,7 @@ import { useScoreEditing } from '../features/score/useScoreEditing';
 import { useCloseGuard } from './useCloseGuard';
 import { useScoreAutosave } from '../features/library/useScoreAutosave';
 import { ScoreAutosave } from '../features/library/ScoreAutosave';
+import { isTextEntryTarget } from '../shared/keyboard';
 export function App() {
   const player = usePlayer();
   const route = useRoute();
@@ -82,8 +83,10 @@ export function App() {
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
       if (
-        event.target instanceof HTMLElement &&
-        event.target.closest('input,textarea,select,[contenteditable="true"]')
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        isTextEntryTarget(event.target)
       )
         return;
       if (event.key === 'Escape') setHelp(false);

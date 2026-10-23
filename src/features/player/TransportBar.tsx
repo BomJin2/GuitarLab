@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePlayer } from './usePlayer';
+import { isTextEntryTarget } from '../../shared/keyboard';
 function formatTime(ms: number) {
   const seconds = Math.floor(ms / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -58,13 +59,16 @@ export function TransportBar({
     if (!workspace || locked) return;
     const handleKey = (event: KeyboardEvent) => {
       if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        (event.repeat &&
+          (event.key === ' ' || event.key.toLowerCase() === 'r')) ||
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        (event.target instanceof HTMLElement &&
-          event.target.closest(
-            'input,textarea,select,button,a,summary,[contenteditable="true"],[role="separator"]',
-          ))
+        isTextEntryTarget(event.target) ||
+        (event.target instanceof Element &&
+          event.target.closest('button,a,summary,[role="separator"]'))
       )
         return;
       const snapshot = engine.getSnapshot();
