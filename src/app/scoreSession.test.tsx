@@ -58,6 +58,33 @@ function navigate(route: string) {
   window.location.hash = `#/${route}`;
   fireEvent(window, new HashChangeEvent('hashchange'));
 }
+it('추가한 트랙을 삭제하고 되돌리면 목록뿐 아니라 화면 선택도 복구된 트랙으로 돌아간다', async () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '자체 악보 불러오기' }));
+  const selector = await screen.findByLabelText('악보 트랙');
+  fireEvent.click(
+    screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '기타 트랙 추가' }));
+  if (!(selector instanceof HTMLSelectElement))
+    throw new Error('악보 선택기 필요');
+  const addedId = selector.value;
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /편집본에서 제거합니다/ }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '선택 악보 트랙 삭제' }));
+  expect([...selector.options].some((option) => option.value === addedId)).toBe(
+    false,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(selector.options).toHaveLength(2);
+  expect(selector.value).toBe(addedId);
+  expect(screen.getByRole('button', { name: '새 음표 적용' })).toBeTruthy();
+});
 it('트랙 삭제 확인·선택 복귀·Undo/Redo와 독립 원본 선택은 서로의 문서를 바꾸지 않는다', async () => {
   render(
     <PlayerProvider>

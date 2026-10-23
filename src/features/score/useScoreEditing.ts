@@ -59,8 +59,15 @@ export function useScoreEditing(
   ) {
     if (!session || locked) return;
     const rendered = renderStoredScore(document, session.originalBytes);
+    const previousTrackIds = new Set(
+      session.document.tracks.map((track) => track.id),
+    );
+    const restoredTrack = document.tracks.find(
+      (track) => !previousTrackIds.has(track.id),
+    );
     const currentId =
       preferredTrackId ??
+      restoredTrack?.id ??
       session.document.tracks[getActiveTrackIndex(session)]?.id;
     const selected =
       document.tracks.find((track) => track.id === currentId) ??

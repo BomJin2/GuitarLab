@@ -11,6 +11,39 @@ import { transcriptionFixture } from '../../test/transcriptionFixture';
 import { prepareEditingDocument } from './normalizedNotation';
 import { getActiveTrackIndex, selectScoreTrack } from './trackSelection';
 
+it('추가한 트랙 삭제를 되돌리면 복구된 트랙을 바로 선택해 보여준다', () => {
+  const { result, engine } = harness();
+  act(() => result.current.editor.begin());
+  act(() => result.current.editor.structure({ kind: 'ADD_GUITAR_TRACK' }));
+  const restoredId = result.current.session!.activePerformanceTrackId!;
+  act(() =>
+    result.current.editor.structure({
+      kind: 'REMOVE_TRACK',
+      trackId: restoredId,
+      discardNotes: true,
+    }),
+  );
+  expect(
+    result.current.session?.document.tracks.some(
+      (track) => track.id === restoredId,
+    ),
+  ).toBe(false);
+  act(() => result.current.editor.undo());
+  expect(
+    result.current.session?.document.tracks.some(
+      (track) => track.id === restoredId,
+    ),
+  ).toBe(true);
+  expect(result.current.session?.activePerformanceTrackId).toBe(restoredId);
+  act(() => result.current.editor.redo());
+  expect(
+    result.current.session?.document.tracks.some(
+      (track) => track.id === restoredId,
+    ),
+  ).toBe(false);
+  engine.dispose();
+});
+
 it('트랙 삭제/Undo/Redo는 같은 ID와 안전한 선택을 복원하고 원본/저장 revision·잠금을 유지한다', () => {
   const { result, initial, rerender, engine } = harness();
   act(() => result.current.editor.begin());
@@ -214,12 +247,8 @@ it('새 트랙 선택·음표 추가·Undo 삭제의 선택 복귀와 같은 ID 
   expect(result.current.session?.document).toBe(added.document);
   expect(
     result.current.session && getActiveTrackIndex(result.current.session),
-  ).toBe(0);
-  act(() =>
-    result.current.setSession((session) =>
-      session ? selectScoreTrack(session, track.id) : session,
-    ),
-  );
+  ).toBe(1);
+  expect(result.current.session?.activePerformanceTrackId).toBe(track.id);
   act(() => result.current.editor.redo());
   expect(result.current.session?.document.tracks[1]?.notes[0]?.fret).toBe(3);
   expect(result.current.session?.activePerformanceTrackId).toBe(track.id);
