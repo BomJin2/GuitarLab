@@ -4,7 +4,7 @@ import type { ScoreEditingController } from './useScoreEditing';
 import { getActiveTrackIndex } from './trackSelection';
 import { noteDurations } from './normalizedNotation';
 import { ScoreStructureEditor } from './ScoreStructureEditor';
-import { ScoreViewport } from './ScoreViewport';
+import { OriginalScoreComparison } from './OriginalScoreComparison';
 import { useScoreExport } from './useScoreExport';
 
 export function ScoreEditor({
@@ -241,6 +241,7 @@ export function ScoreEditor({
           </p>
           {editor.document && (
             <ScoreStructureEditor
+              key={track.id}
               document={editor.document}
               trackId={track.id}
               editor={editor}
@@ -281,19 +282,10 @@ export function ScoreEditor({
         {editor.originalView ? '원본 비교 닫기' : '원본 악보 비교 보기'}
       </button>
       {editor.originalView && (
-        <section aria-label="읽기 전용 원본 비교">
-          <h3>원본 악보 · 읽기 전용 · 시작 위치</h3>
-          {editor.originalView.score.tracks[getActiveTrackIndex(session)] ? (
-            <ScoreViewport
-              score={editor.originalView.score}
-              lookup={editor.originalView.playbackLookup}
-              trackIndex={getActiveTrackIndex(session)}
-              tick={0}
-            />
-          ) : (
-            <p>추가한 트랙은 원본에 없습니다.</p>
-          )}
-        </section>
+        <OriginalScoreComparison
+          score={editor.originalView.score}
+          lookup={editor.originalView.playbackLookup}
+        />
       )}
       {exporting.busy && (
         <p role="status">

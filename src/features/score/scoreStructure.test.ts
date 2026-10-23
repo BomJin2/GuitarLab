@@ -7,6 +7,49 @@ import { decodeScoreJson } from './scoreJson';
 import { importScore } from './alphaTabAdapter';
 import { timingAt } from '../player/timing';
 
+it('선택한 트랙/음표만 제거하고 마지막/없는 트랙을 거부하며 원본·싱크와 남은 ID를 보존한다', () => {
+  const original = scoreEditingFixture().document;
+  const added = editStructure(original, { kind: 'ADD_GUITAR_TRACK' });
+  const before = JSON.stringify(added);
+  expect(() =>
+    editStructure(added, {
+      kind: 'REMOVE_TRACK',
+      trackId: added.tracks[0]!.id,
+      // @ts-expect-error 잘못된 런타임 요청은 명시적 확인 없이 삭제하지 않습니다.
+      discardNotes: false,
+    }),
+  ).toThrow('확인');
+  const removed = editStructure(added, {
+    kind: 'REMOVE_TRACK',
+    trackId: added.tracks[0]!.id,
+    discardNotes: true,
+  });
+  expect(removed.tracks).toEqual([added.tracks[1]]);
+  expect(removed.tracks[0]).toBe(added.tracks[1]);
+  expect(removed.syncAnchors).toBe(added.syncAnchors);
+  expect(removed.tempoMap).toBe(added.tempoMap);
+  expect(removed.timeSignatures).toBe(added.timeSignatures);
+  expect(JSON.stringify(added)).toBe(before);
+  expect(
+    decodeScoreJson(new TextEncoder().encode(JSON.stringify(removed))),
+  ).toEqual(removed);
+  expect(renderNormalized(removed).score.tracks).toHaveLength(1);
+  expect(() =>
+    editStructure(added, {
+      kind: 'REMOVE_TRACK',
+      trackId: '없는 트랙',
+      discardNotes: true,
+    }),
+  ).toThrow('트랙');
+  expect(() =>
+    editStructure(removed, {
+      kind: 'REMOVE_TRACK',
+      trackId: removed.tracks[0]!.id,
+      discardNotes: true,
+    }),
+  ).toThrow('마지막');
+});
+
 it('빈 기타 트랙을 추가해 기존 트랙·시간·싱크를 보존하고 JSON과 실제 MusicXML 렌더를 왕복한다', () => {
   const document = scoreEditingFixture().document;
   document.tracks[0]!.name = '기타 1';

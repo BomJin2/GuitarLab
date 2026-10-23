@@ -11,6 +11,58 @@ import { transcriptionFixture } from '../../test/transcriptionFixture';
 import { prepareEditingDocument } from './normalizedNotation';
 import { getActiveTrackIndex, selectScoreTrack } from './trackSelection';
 
+it('트랙 삭제/Undo/Redo는 같은 ID와 안전한 선택을 복원하고 원본/저장 revision·잠금을 유지한다', () => {
+  const { result, initial, rerender, engine } = harness();
+  act(() => result.current.editor.begin());
+  act(() => result.current.editor.structure({ kind: 'ADD_GUITAR_TRACK' }));
+  const addedId = result.current.session!.document.tracks[1]!.id;
+  const before = result.current.session!.document;
+  const firstId = before.tracks[0]!.id;
+  act(() =>
+    result.current.setSession((s) => (s ? selectScoreTrack(s, firstId) : s)),
+  );
+  rerender({ locked: true });
+  act(() =>
+    result.current.editor.structure({
+      kind: 'REMOVE_TRACK',
+      trackId: firstId,
+      discardNotes: true,
+    }),
+  );
+  expect(result.current.session?.document).toBe(before);
+  rerender({ locked: false });
+  act(() =>
+    result.current.editor.structure({
+      kind: 'REMOVE_TRACK',
+      trackId: firstId,
+      discardNotes: true,
+    }),
+  );
+  const deleted = result.current.session!.document;
+  expect(deleted.tracks.map((t) => t.id)).toEqual([addedId]);
+  expect(getActiveTrackIndex(result.current.session!)).toBe(0);
+  expect(result.current.session?.activePerformanceTrackId).toBe(addedId);
+  expect(result.current.session?.originalBytes).toBe(initial.originalBytes);
+  expect(result.current.session?.savedRevision).toBe(initial.savedRevision);
+  act(() => result.current.editor.undo());
+  expect(result.current.session?.document).toBe(before);
+  expect(result.current.session?.document.tracks[0]?.notes).toBe(
+    before.tracks[0]?.notes,
+  );
+  act(() => result.current.editor.redo());
+  expect(result.current.session?.document).toBe(deleted);
+  act(() =>
+    result.current.editor.structure({
+      kind: 'REMOVE_TRACK',
+      trackId: addedId,
+      discardNotes: true,
+    }),
+  );
+  expect(result.current.session?.document).toBe(deleted);
+  expect(result.current.editor.error).toContain('마지막');
+  engine.dispose();
+});
+
 it('버튼·키보드 공통 이동은 경계를 순환하지 않고 선택만 바꾸며 새 음표/잠금은 유지한다', () => {
   const { result, initial, rerender, engine } = harness();
   const notes = initial.document.tracks[0]!.notes;

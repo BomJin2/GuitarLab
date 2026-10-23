@@ -4,6 +4,7 @@ import { validateEditable } from './normalizedNotation';
 
 export type StructureEdit =
   | { kind: 'ADD_GUITAR_TRACK' }
+  | { kind: 'REMOVE_TRACK'; trackId: string; discardNotes: true }
   | { kind: 'SET_TRACK_NAME'; trackId: string; name: string }
   | { kind: 'SET_TUNING'; trackId: string; tuningMidi: number[] }
   | { kind: 'SET_TEMPO'; measureIndex: number; bpm: number; resetSync: true }
@@ -34,6 +35,23 @@ export function editStructure(
   edit: StructureEdit,
 ): ScoreDocument {
   const bars = validateEditable(document);
+  if (edit.kind === 'REMOVE_TRACK') {
+    if (
+      edit.discardNotes !== true ||
+      document.tracks.length <= 1 ||
+      !document.tracks.some((track) => track.id === edit.trackId)
+    )
+      throw new Error(
+        '삭제할 트랙과 음표 제거 확인을 확인하세요. 마지막 트랙은 유지해야 합니다.',
+      );
+    const next: ScoreDocument = {
+      ...document,
+      renderSource: 'NORMALIZED',
+      tracks: document.tracks.filter((track) => track.id !== edit.trackId),
+    };
+    validateEditable(next);
+    return next;
+  }
   if (edit.kind === 'SET_TRACK_NAME') {
     const name = edit.name.trim();
     if (

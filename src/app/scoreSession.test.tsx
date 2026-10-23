@@ -7,6 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import xml from '../../public/fixtures/standard.musicxml?raw';
+import dualXml from '../../public/fixtures/dual-guitar.musicxml?raw';
 import jsonScore from '../../fixtures/manual-score-v1.json?raw';
 import { App } from './App';
 import { PlayerProvider } from '../features/player/PlayerContext';
@@ -25,6 +26,7 @@ vi.mock('../features/score/ScoreViewport', () => ({
         display?.notation === 'score' ? '실제 오선보 악보' : '실제 TAB 악보'
       }
       data-display={JSON.stringify(display)}
+      data-track-index={trackIndex}
       data-tick={tick}
       data-first-fret={
         score.tracks[0]?.staves[0]?.bars[0]?.voices[0]?.beats[0]?.notes[0]?.fret
@@ -56,6 +58,66 @@ function navigate(route: string) {
   window.location.hash = `#/${route}`;
   fireEvent(window, new HashChangeEvent('hashchange'));
 }
+it('트랙 삭제 확인·선택 복귀·Undo/Redo와 독립 원본 선택은 서로의 문서를 바꾸지 않는다', async () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  fireEvent.change(screen.getByLabelText('악보 선택'), {
+    target: { files: [new File([dualXml], '두 기타.musicxml')] },
+  });
+  const selector = await screen.findByLabelText('악보 트랙');
+  if (!(selector instanceof HTMLSelectElement))
+    throw new Error('악보 선택기 필요');
+  const ids = [...selector.options].map((option) => option.value);
+  fireEvent.click(
+    screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
+  );
+  const remove = () =>
+    screen.getByRole('button', { name: '선택 악보 트랙 삭제' });
+  const confirm = () =>
+    screen.getByRole('checkbox', { name: /편집본에서 제거합니다/ });
+  expect(remove()).toHaveProperty('disabled', true);
+  fireEvent.click(confirm());
+  fireEvent.click(screen.getByRole('button', { name: '오선보 보기' }));
+  expect(confirm()).toHaveProperty('checked', true);
+  fireEvent.change(screen.getByLabelText('악보 트랙 이름'), {
+    target: { value: '삭제 확인 트랙' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '트랙 이름 적용' }));
+  expect(confirm()).toHaveProperty('checked', false);
+  fireEvent.click(confirm());
+  fireEvent.change(screen.getByLabelText('음표 프렛'), {
+    target: { value: '2' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '음표 수정 적용' }));
+  expect(confirm()).toHaveProperty('checked', false);
+  fireEvent.click(confirm());
+  fireEvent.change(selector, { target: { value: ids[1] } });
+  fireEvent.change(selector, { target: { value: ids[0] } });
+  expect(confirm()).toHaveProperty('checked', false);
+  fireEvent.click(confirm());
+  fireEvent.click(remove());
+  expect([...selector.options].map((option) => option.value)).toEqual([ids[1]]);
+  expect(selector.value).toBe(ids[1]);
+  expect(remove().closest('fieldset')?.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect([...selector.options].map((option) => option.value)).toEqual(ids);
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  expect([...selector.options].map((option) => option.value)).toEqual([ids[1]]);
+  fireEvent.click(screen.getByRole('button', { name: '원본 악보 비교 보기' }));
+  const original = screen.getByLabelText('원본 악보 트랙');
+  expect(original.querySelectorAll('option')).toHaveLength(2);
+  fireEvent.change(original, { target: { value: '1' } });
+  expect(
+    screen
+      .getByLabelText('읽기 전용 원본 비교')
+      .querySelector('[data-track-index]')
+      ?.getAttribute('data-track-index'),
+  ).toBe('1');
+  expect(selector.value).toBe(ids[1]);
+});
 it('표시 선택은 편집/커서/epoch와 history를 보존하고 화면 왕복에도 유지한다', async () => {
   render(
     <PlayerProvider>
@@ -224,7 +286,7 @@ it('이름 적용·오류·Undo/Redo를 선택기와 연결하고 미적용 폼�
   expect(screen.getByRole('alert').textContent).toContain('1~200');
   expect(screen.getByRole('option', { name: /내 리드/ })).toBeTruthy();
 });
-it('추가한 기타에만 음표를 쓰고 원본 없음 표시·Undo 후 안전한 선택·모드 복귀를 연결한다', async () => {
+it('추가한 기타에만 음표를 쓰고 독립 원본 비교·Undo 후 안전한 선택·모드 복귀를 연결한다', async () => {
   render(
     <PlayerProvider>
       <App />
@@ -243,7 +305,10 @@ it('추가한 기타에만 음표를 쓰고 원본 없음 표시·Undo 후 안�
   expect(addedId).not.toBe(firstId);
   expect(screen.getByRole('button', { name: '새 음표 적용' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '원본 악보 비교 보기' }));
-  expect(screen.getByText('추가한 트랙은 원본에 없습니다.')).toBeTruthy();
+  expect(
+    screen.getByLabelText('원본 악보 트랙').querySelectorAll('option'),
+  ).toHaveLength(1);
+  expect(selector.value).toBe(addedId);
   fireEvent.change(screen.getByLabelText('음표 프렛'), {
     target: { value: '3' },
   });
@@ -255,7 +320,9 @@ it('추가한 기타에만 음표를 쓰고 원본 없음 표시·Undo 후 안�
   fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
   fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
   expect(screen.getByLabelText('악보 트랙')).toHaveProperty('value', firstId);
-  expect(screen.queryByText('추가한 트랙은 원본에 없습니다.')).toBeNull();
+  expect(
+    screen.getByLabelText('원본 악보 트랙').querySelectorAll('option'),
+  ).toHaveLength(1);
   expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('0');
 });
 it('JSON 파일 선택·편집·Undo와 읽기 전용 원본 비교를 연결하고 교체 취소 때 유지한다', async () => {

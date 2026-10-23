@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScoreDocument } from '../../entities/score';
+import type { ScoreDocument, ScoreTrack } from '../../entities/score';
 import type { ScoreEditingController } from './useScoreEditing';
 import { editorBars } from './normalizedNotation';
 
@@ -17,10 +17,17 @@ export function ScoreStructureEditor({
   const bars = editorBars(document);
   const [selected, setSelected] = useState(0);
   const [resetSync, setResetSync] = useState(false);
+  const [removalTarget, setRemovalTarget] = useState<ScoreTrack | null>(null);
   const index = Math.min(selected, bars.length - 1);
   const bar = bars[index];
   const track = document.tracks.find((t) => t.id === trackId);
   if (!bar || !track) return null;
+  const removalConfirmed =
+    removalTarget?.id === track.id &&
+    removalTarget.name === track.name &&
+    removalTarget.notes === track.notes &&
+    removalTarget.role === track.role &&
+    removalTarget.tuningMidi.join(',') === track.tuningMidi.join(',');
   const tempo =
     [...document.tempoMap].reverse().find((t) => t.tick <= bar.start)?.bpm ??
     120;
@@ -51,6 +58,38 @@ export function ScoreStructureEditor({
           <button>트랙 이름 적용</button>
         </fieldset>
       </form>
+      <fieldset disabled={locked || document.tracks.length <= 1}>
+        <legend>선택 악보 트랙 삭제</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={removalConfirmed}
+            onChange={(event) =>
+              setRemovalTarget(event.target.checked ? track : null)
+            }
+          />
+          ‘{track.name}’의 음표 {track.notes.length}개를 편집본에서 제거합니다.
+          되돌리기로 복구할 수 있습니다.
+        </label>
+        <button
+          type="button"
+          disabled={!removalConfirmed}
+          onClick={() => {
+            if (locked || !removalConfirmed) return;
+            editor.structure({
+              kind: 'REMOVE_TRACK',
+              trackId,
+              discardNotes: true,
+            });
+            setRemovalTarget(null);
+          }}
+        >
+          선택 악보 트랙 삭제
+        </button>
+      </fieldset>
+      {document.tracks.length <= 1 && (
+        <p>마지막 악보 트랙은 유지해야 합니다.</p>
+      )}
       <fieldset disabled={locked}>
         <legend>마디 선택</legend>
         <select
