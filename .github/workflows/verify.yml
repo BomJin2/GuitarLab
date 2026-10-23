@@ -23,6 +23,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       PYTHONUTF8: '1'
       CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
     steps:
       - name: 소스 읽기
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,6 +43,7 @@ jobs:
           architecture: x64
 
       - name: 고정 개발 도구 준비
+        id: tools
         run: |
           npm install --global pnpm@9.14.3 --ignore-scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -50,7 +52,19 @@ jobs:
           rustup default 1.98.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pip install --disable-pip-version-check -r ai/requirements-test.lock
-          exit $LASTEXITCODE
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "image=$env:ImageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: 같은 Windows 이미지의 Rust 빌드 캐시
+        if: steps.tools.outputs.image != ''
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            src-tauri/target/debug/deps
+            src-tauri/target/debug/build
+            src-tauri/target/debug/.fingerprint
+          key: verify-${{ runner.os }}-${{ runner.arch }}-${{ steps.tools.outputs.image }}-rust1.98.0-msrv1.90.0-${{ hashFiles('.github/workflows/verify.yml', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock') }}
 
       - name: 잠금 파일로 프론트 설치
         run: pnpm install --frozen-lockfile --ignore-scripts
