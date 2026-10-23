@@ -102,3 +102,11 @@ USER_IMPORTED 파일을 같은 프로젝트 불변 UUID의 IMPORTED_STEM 믹스 
 확인 출처(2026-10-20): [Demucs 공식 README](https://github.com/facebookresearch/demucs#separating-tracks), [Sound Razor 제공자의 모델/허가 안내](https://github.com/pedromtcosta/sound-razor), [MVSep 공식 API](https://www.mvsep.com/en/full_api). 공개 후보가 전혀 없다고 단정하지 않습니다. 이번 확인은 원문/메타데이터 검토이며 실제 후보의 Windows 오프라인 추론·정량 품질·허가 검증 완료를 의미하지 않습니다. 신규 다운로드나 개인 오디오 업로드는 하지 않았습니다.
 
 특화 모델 채택은 이 의존성이 해결될 때까지 보류합니다. 현재 어댑터의 미지원 상태를 분리 도메인에서 선언하고 카피 화면에 사용자 WAV 불러오기/기타 전체 제거 잔여 반주의 폴백을 제공합니다. 기존 자동 분리의 LEAD/RHYTHM 가장 응답은 validator에서 거부합니다. 이 폴백 완료가 특화 AI 분리 완료는 아닙니다. 입력 판정과 독립적이므로 사용자 자동 진행 규칙에 따라 Phase7의 순수 판정 엔진 개발은 별도로 진행할 수 있습니다.
+
+## 2026-10-24 후보 이용 조건/출력 재확인
+
+- [Sound Razor 제공자의 현재 설명](https://github.com/pedromtcosta/sound-razor#lead-and-rhythm-guitar)은 listra92 checkpoint의 원 학습 출처/재배포 조건을 여전히 미확인으로 표시합니다. 코드를 MIT로 공개한 사실만으로 해당 가중치의 이용 조건까지 확인된 것으로 간주하지 않습니다. 예측 리드를 입력에서 뺀 잔여 출력이 독립적으로 정답인 리듬 stem이라는 보장도 없습니다.
+- [HTDemucs guitar fine-tune 작성자의 모델 카드](https://huggingface.co/adityalakhani/htdemucs-6s-guitar-ft)는 여러 기타를 하나의 기타 stem으로 모으며 개별 레이어는 구분하지 않는다고 명시합니다. 전체 기타 후보일 뿐 Phase6B의 리드/리듬 요구를 해결하는 모델로 채택하지 않습니다. 카드의 기반 가중치/이용 조건 주장도 기존 검증을 자동 대체하지 않습니다.
+- [MVSep 공식 API](https://www.mvsep.com/en/full_api)는 API token과 오디오 제출 경로를 사용합니다. 기본 로컬 정책을 변경하거나 개인 파일을 업로드하지 않았습니다.
+
+이번 재확인은 문서 검토만 수행했습니다. 모델/코드 다운로드·설치/추론/실제 두 기타 정답 비교는 **미실행**이고 특화 AI·전체 Phase6B는 계속 미완료입니다. 사용자 제공 파일의 로컬 믹스/녹음과 기존 전체 기타 분리는 유지합니다.
