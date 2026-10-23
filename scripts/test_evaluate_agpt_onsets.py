@@ -96,6 +96,16 @@ class EvaluationTests(unittest.TestCase):
             else: benchmark["referencePitchIssues"] = {}
             with self.subTest(mode=mode), self.assertRaises(ValueError): evaluate(benchmark, report, plan)
 
+    def test_json_booleans_cannot_masquerade_as_contract_version_padding_or_count(self):
+        for mode in ("benchmark_version", "report_version", "benchmark_padding", "report_padding", "count"):
+            benchmark, report, plan = fixture()
+            if mode == "benchmark_version": benchmark["schemaVersion"] = True
+            elif mode == "report_version": report["schemaVersion"] = True
+            elif mode == "benchmark_padding": benchmark["tailPaddingFrames"] = False
+            elif mode == "report_padding": report["tailPaddingFrames"] = False
+            else: benchmark["referencePitchIssues"]["OUTSIDE_MIDI_RANGE"] = True
+            with self.subTest(mode=mode), self.assertRaises(ValueError): evaluate(benchmark, report, plan)
+
 
 if __name__ == "__main__":
     unittest.main()

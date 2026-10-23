@@ -58,6 +58,11 @@ def audit_events(targets, events, pairs):
 
 
 def evaluate(benchmark, report, plan):
+    for document in (benchmark, report):
+        if (type(document["schemaVersion"]) is not int or type(document["tailPaddingFrames"]) is not int
+                or not isinstance(document["referencePitchIssues"], dict)
+                or any(type(count) is not int or count <= 0 for count in document["referencePitchIssues"].values())):
+            raise ValueError("타격 평가 버전/프레임/참조 개수는 정수여야 합니다.")
     if (benchmark["schemaVersion"] != 1 or benchmark["state"] != "AGPT_ONSET_BENCHMARK_PREPARED"
             or benchmark["source"] != "AG-PT-set10159492" or benchmark["license"] != "cc-by-4.0"
             or benchmark["planSha256"] != PLAN_SHA256 or benchmark["pitchEvaluationEnabled"] is not False

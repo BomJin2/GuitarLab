@@ -4,6 +4,8 @@
 
 평가 결과 schema2는 기존50ms 일대일 대응을 바꾸지 않고 eventAudit50ms를 추가합니다. 대응/추가 각각의 음정 후보 있음/미확정, 추가가 참조창 내부/외부인지와 각 추가의 가장 가까운 참조·이미 대응된 검출을 기록합니다. 동률 최근접은 낮은 참조 index를 선택합니다. 음정 후보 유무로 재대응·분모 삭제·실제 오류 판정하지 않으며 새 결과만 생성합니다. schema1 결과는 그대로 보존합니다.
 
+입력 schemaVersion/tailPaddingFrames와 referencePitchIssues의 개수는 JSON 정수만 허용합니다. true/false를1/0으로 받아들이지 않으며 개수는 양수여야 합니다. 원문 참조 상태 분모와 일치하지 않는 입력은 지표 생성 전에 거부합니다.
+
 실제 표본에서 pitch_midi=None8개와 MIDI 범위 밖76개(440 등)가 발견되어 음정 참조 해석은 중단합니다. 이 기준선은 onset-sample-column-only-v1/타격 전용이며 pitchEvaluationEnabled=false입니다. 참조마다 rawPitchMidi 원문과 MISSING/INVALID_NUMERIC/OUTSIDE_MIDI_RANGE/UNVERIFIED_RANGE_ONLY 상태를 보존합니다. 범위 안 숫자도 정답으로 검증된 것은 아니므로 MIDI로 강제 변환·보간하거나 pitch 정확도를 계산하지 않습니다. referencePitchIssues는 모든281개 참조의 상태 분모를 보존합니다. 초기 nullable MIDI 계획은 이 실제 검증 후 타격 전용 정책으로 대체했습니다.
 
 고정8개 WAV/CSV의 지문과281개 참조를 검증해 PCM24를2^23으로 나눈 float32 파생 파일만 새 UUID에 만듭니다. gain 정규화/리샘플링/앞뒤 padding은 하지 않습니다. 참조는 CSV의 정수 onset_label_samples를 주 시각으로 사용하고 원문 초 문자열도 보존합니다. 두 열 차이·프레임 범위·주법/줄·행 수/중복을 검사하고 실패 참조를 몰래 제외하지 않습니다. 음정 열은 rawPitchMidi와 상태만 보존하며 None/범위 밖/잘못된 숫자도 타격 시점 분모에서 제외하지 않습니다. 비유한 숫자 문자열은 INVALID_NUMERIC으로 남기고 음정 정답으로 사용하지 않습니다.
