@@ -1,5 +1,9 @@
 # Phase8 — 품질·릴리스
 
+## 화면 유지 수정 원격 CI 완료 — 2026-10-23
+
+소스1c1f874d4b499cb5c605ccf4f33cfe267c278dee의 [Windows39958606255](https://github.com/BomJin2/GuitarLab/actions/runs/39958606255)/job120430592741는 모든 단계/사후 정리 success입니다. 프론트436개/102파일·타입/lint/build/포맷, 기본Rust228개/38.58초·확장231개/38.49초(각26개 환경 의존 제외), Python3.13 AI113개/3.70초·도구66개/12.930초, Rust1.90 전체 컴파일2분00초를 확인했습니다. Phase7 후속 감사 도구의 새74개 검사와 별도 결과입니다. 실제 모델/장치·새 installer/별도 Windows 수용을 대신하지 않습니다.
+
 ## 트랙 순서 소스 원격 CI 완료 — 2026-10-23
 
 소스9245febf38d72bdcc67a1307104fbe3f822d7422의 [Windows39935960081](https://github.com/BomJin2/GuitarLab/actions/runs/39935960081)/job120355440444는 기본/확장 native·Python/백업 도구·최소Rust1.90와 사후 정리까지 전 단계 success입니다. 사용자 순서 이동·저장 재열기 수용도 확인했습니다. 후속 저장/재열기 화면 유지 수정의 CI·수용을 대신하지 않으며 새 installer/별도Windows·최종 배포는 미완료입니다.

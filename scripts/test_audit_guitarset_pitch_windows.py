@@ -1,13 +1,62 @@
 """공개 분석 창 감사가 중심 시각·불확정/다성 문맥과 실패 분모를 구분하는지 검사합니다."""
 
 from copy import deepcopy
+import hashlib
+import math
+from pathlib import Path
+import struct
+import tempfile
 import unittest
 from unittest.mock import patch
 
-from audit_guitarset_pitch_windows import checked_points, context_at, geometry, references_equal
+from audit_guitarset_pitch_windows import checked_pcm, checked_points, context_at, geometry, probe_signal, references_equal
 
 
 class WindowContextTests(unittest.TestCase):
+    def test_spectral_probe_measures_known_subfrequency_without_inventing_confidence(self):
+        reference, detected = 55, 43
+        high, low = [440 * 2 ** ((value - 69) / 12) for value in (reference, detected)]
+        samples = [0.24 * math.sin(2 * math.pi * high * index / 44100)
+                   + 0.08 * math.sin(2 * math.pi * low * index / 44100) for index in range(3072)]
+        result = probe_signal(samples, reference, detected)
+        for kind in ('raw', 'reduced'):
+            self.assertAlmostEqual(result[kind]['referenceAmplitude'], 0.24, delta=0.001)
+            self.assertAlmostEqual(result[kind]['detectedAmplitude'], 0.08, delta=0.001)
+            self.assertAlmostEqual(result[kind]['detectedToReferenceDb'], 20 * math.log10(1 / 3), delta=0.1)
+        self.assertNotIn('confidence', result)
+
+    def test_dc_and_silence_ratios_remain_unknown(self):
+        for value in (0, 0.5):
+            result = probe_signal([value] * 3072, 64, 52)
+            self.assertEqual(result['rmsDbfs'], -120)
+            self.assertIsNone(result['raw']['detectedToReferenceDb'])
+            self.assertIsNone(result['reduced']['detectedToReferenceDb'])
+        same = probe_signal([math.sin(index / 10) for index in range(3072)], 64, 64)
+        self.assertEqual(same['raw']['detectedToReferenceDb'], 0)
+
+    def test_signal_rejects_wrong_frame_count_nonfinite_and_out_of_range_pitch(self):
+        for samples, reference, detected in [([0] * 3071, 64, 52), ([float('nan')] * 3072, 64, 52),
+                                              ([0] * 3072, 0, 52), ([0] * 3072, 64, True)]:
+            with self.assertRaises(ValueError):
+                probe_signal(samples, reference, detected)
+
+    def test_pcm_requires_matching_size_hash_finite_samples_and_local_name(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / 'case-00000.f32'
+            raw = b'\0' * (44100 * 4)
+            path.write_bytes(raw)
+            case = {'file': path.name, 'sha256': hashlib.sha256(raw).hexdigest()}
+            self.assertEqual(len(checked_pcm(case, root)), 44100)
+            with self.assertRaises(ValueError):
+                checked_pcm({**case, 'file': '../case-00000.f32'}, root)
+            with self.assertRaises(ValueError):
+                checked_pcm({**case, 'sha256': '0' * 64}, root)
+            invalid = struct.pack('<f', float('nan')) + raw[4:]
+            path.write_bytes(invalid)
+            with self.assertRaises(ValueError):
+                checked_pcm({**case, 'sha256': hashlib.sha256(invalid).hexdigest()}, root)
+
     def test_geometry_matches_original_sample_footprint_not_1024_at_source_rate(self):
         first, last, center = geometry(0, 44100)
         self.assertEqual(first, 0)
