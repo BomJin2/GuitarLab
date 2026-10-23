@@ -51,6 +51,10 @@ def match_onsets(expected, detected, tolerance_ms):
             raise ValueError("음표 이벤트 오류")
     candidates = [[index for index, note in sorted(enumerate(detected), key=lambda pair: (abs(pair[1]["onsetMs"] - target["onsetMs"]), pair[0]))
         if abs(note["pitchMidi"] - target["pitchMidi"]) <= 0.5 and abs(note["onsetMs"] - target["onsetMs"]) <= tolerance_ms] for target in expected]
+    return maximum_pairs(candidates)
+
+
+def maximum_pairs(candidates):
     owners = {}
     def assign(target, seen):
         for index in candidates[target]:
@@ -61,9 +65,19 @@ def match_onsets(expected, detected, tolerance_ms):
                 owners[index] = target
                 return True
         return False
-    for target in range(len(expected)):
+    for target in range(len(candidates)):
         assign(target, set())
     return sorted((target, index) for index, target in owners.items())
+
+
+def match_times(expected, detected, tolerance_ms):
+    if len(expected) > 512 or len(detected) > 2048 or tolerance_ms not in (5, 10, 25, 50, 120, 180):
+        raise ValueError("타격 시각 비교 한도 오류")
+    if any(type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= 60000 for value in [*expected, *detected]):
+        raise ValueError("타격 시각 숫자/범위 오류")
+    candidates = [[index for index, onset in sorted(enumerate(detected), key=lambda pair: (abs(pair[1] - target), pair[0]))
+                   if abs(onset - target) <= tolerance_ms] for target in expected]
+    return maximum_pairs(candidates)
 
 
 def distribution(values):

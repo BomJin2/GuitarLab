@@ -63,6 +63,8 @@ jobs:
           cargo clippy --locked --all-targets --all-features --manifest-path src-tauri/Cargo.toml -- -D warnings
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --locked --all-features --manifest-path src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --example benchmark_agpt_onsets
           exit $LASTEXITCODE
 
       - name: 모델 없는 Python 계약과 자체 백업 검사

@@ -1,5 +1,7 @@
 pnpm-lock.yaml
 Cargo.lock
+# 원문 SHA로 검증하는 개발 참조 계획이므로 바이트를 자동 재작성하지 않습니다.
+fixtures/agpt-onset-sample-v1.json
 src-tauri/target
 dist
 node_modules
