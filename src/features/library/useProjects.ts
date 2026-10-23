@@ -186,6 +186,9 @@ export function useProjects(
   }
   async function open(projectId: string) {
     if (!(await canReplace())) return;
+    const keepWorkspace =
+      details?.project.id === projectId &&
+      ['#/copy', '#/practice', '#/performance'].includes(window.location.hash);
     engine.pause();
     await run(
       async (signal, progress) => {
@@ -265,7 +268,7 @@ export function useProjects(
           );
         else
           setNotice('저장한 프로젝트를 열었습니다. 재생은 직접 시작해주세요.');
-        window.location.hash = `#/${next.project.mode}`;
+        if (!keepWorkspace) window.location.hash = `#/${next.project.mode}`;
       },
     );
   }

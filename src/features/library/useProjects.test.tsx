@@ -74,6 +74,74 @@ function harness(beforeReplace: () => boolean | Promise<boolean> = () => true) {
   );
   return { ...hook, engine };
 }
+it.each(['copy', 'practice', 'performance'] as const)(
+  '%s 화면은 저장과 같은 프로젝트 재열기 후 유지하고 라이브러리 열기는 생성 모드를 따른다',
+  async (mode) => {
+    const details = projectFixture();
+    const initial = scoreEditingFixture();
+    if (!details.revision) throw new Error('저장 버전 필요');
+    details.project.mode = mode === 'practice' ? 'performance' : 'practice';
+    details.revision.score = initial.document;
+    vi.mocked(projectApi.open).mockResolvedValue(details);
+    vi.mocked(projectApi.read).mockResolvedValue({
+      name: '원본.musicxml',
+      data: new Uint8Array(initial.originalBytes).buffer,
+    });
+    vi.mocked(projectApi.save).mockResolvedValue(details.revision);
+    const { result, engine } = harness();
+    window.location.hash = '#/library';
+    await act(async () => result.current.project.open(details.project.id));
+    expect(window.location.hash).toBe(`#/${details.project.mode}`);
+    window.location.hash = `#/${mode}`;
+    await act(async () => result.current.project.save());
+    expect(window.location.hash).toBe(`#/${mode}`);
+    expect(result.current.project.scoreSaved).toBe(true);
+    await act(async () => result.current.project.open(details.project.id));
+    expect(window.location.hash).toBe(`#/${mode}`);
+    window.location.hash = '#/library';
+    await act(async () => result.current.project.open(details.project.id));
+    expect(window.location.hash).toBe(`#/${details.project.mode}`);
+    engine.dispose();
+  },
+);
+
+it('같은 프로젝트 재열기 실패·취소·늦은 성공은 현재 화면을 이동시키지 않는다', async () => {
+  const details = projectFixture();
+  vi.mocked(projectApi.open).mockResolvedValue({ ...details, revision: null });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  window.location.hash = '#/copy';
+  vi.mocked(projectApi.open).mockRejectedValueOnce(new Error('읽기 실패'));
+  await act(async () => result.current.project.open(details.project.id));
+  expect(window.location.hash).toBe('#/copy');
+  const canceled = deferred<typeof details>();
+  vi.mocked(projectApi.open).mockReturnValueOnce(canceled.promise);
+  let opening: Promise<void>;
+  act(() => {
+    opening = result.current.project.open(details.project.id);
+  });
+  await waitFor(() => expect(result.current.project.busy).toBe(true));
+  act(() => result.current.project.cancel());
+  await act(async () => {
+    canceled.resolve(details);
+    await opening;
+  });
+  expect(window.location.hash).toBe('#/copy');
+  const late = deferred<typeof details>();
+  vi.mocked(projectApi.open).mockReturnValueOnce(late.promise);
+  act(() => {
+    opening = result.current.project.open(details.project.id);
+  });
+  await waitFor(() => expect(result.current.project.busy).toBe(true));
+  window.location.hash = '#/settings';
+  await act(async () => {
+    late.resolve({ ...details, revision: null });
+    await opening;
+  });
+  expect(window.location.hash).toBe('#/settings');
+  engine.dispose();
+});
+
 it('프로젝트 압축 악보 한도·읽기 직후 취소는 기존 문서/원본/저장 버전을 보존한다', async () => {
   const details = projectFixture();
   vi.mocked(projectApi.open).mockResolvedValue({ ...details, revision: null });

@@ -1,5 +1,9 @@
 # Phase8 — 품질·릴리스
 
+## 트랙 순서 소스 원격 CI 완료 — 2026-10-23
+
+소스9245febf38d72bdcc67a1307104fbe3f822d7422의 [Windows39935960081](https://github.com/BomJin2/GuitarLab/actions/runs/39935960081)/job120355440444는 기본/확장 native·Python/백업 도구·최소Rust1.90와 사후 정리까지 전 단계 success입니다. 사용자 순서 이동·저장 재열기 수용도 확인했습니다. 후속 저장/재열기 화면 유지 수정의 CI·수용을 대신하지 않으며 새 installer/별도Windows·최종 배포는 미완료입니다.
+
 ## 트랙 Undo 선택 수정 원격 CI 완료 — 2026-10-23
 
 `e21875462cea4a9d5ac39b0f185d4dadfe4c0007`의 [Windows39933861827](https://github.com/BomJin2/GuitarLab/actions/runs/39933861827)/job120348487238은 사후 정리까지 전 단계 success입니다. 프론트428개/102파일·타입/lint/build/포맷, 기본Rust228개/87.37초·확장231개/40.30초(각26개 환경 의존 제외), Python3.13 AI113개/2.71초·도구66개/16.484초, Rust1.90 전체 컴파일2분18초를 확인했습니다. 사용자 Undo 복구/자동 선택 재수용과 함께 이 버그 수정은 완료입니다. 다음 트랙 순서 소스 `9245febf38d72bdcc67a1307104fbe3f822d7422`의 [CI39935960081](https://github.com/BomJin2/GuitarLab/actions/runs/39935960081)는 진행 중이며 위 성공을 소급하지 않습니다. 실제 모델/장치 재검사·새installer/별도Windows/최종배포는 이번 CI 범위에서 **미실행**입니다.
