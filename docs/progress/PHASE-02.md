@@ -1,5 +1,42 @@
 # Phase 02 — 악보 import와 재생 동기화
 
+## 후속 — TAB 기본 표시와 오선보 전환 (2026-10-23)
+
+### 1. 작업 개요
+
+사용자 요청에 따라 주 악보의 기본 표시를 TAB 전용으로 유지하고 ‘오선보 보기’/‘TAB 보기’ 버튼으로 한 표기씩 전환합니다. 세로/가로 배치와75·100·125·150% 확대도 독립적인 표시 상태로 제공합니다. 이 절은 이번 변경의 최신 기록이며 과거 완료 기록을 삭제하지 않습니다.
+
+### 2. 구현 및 변경 사항
+
+- `src/features/score/scoreDisplay.ts`: 표시 타입·기본값·alphaTab 설정과 렌더 전용 복사본/원본 객체 관계를 분리했습니다. TAB 전용 원본에서도 오선보가 보이게 복사본의 staff 플래그만 바꾸며 원본 음정·운지·시간·ID는 유지합니다.
+- `ScoreDisplayControls.tsx`: 별도 전환 버튼과 배치/확대 선택. `ScoreViewport.tsx`: 기존 인스턴스 정리, 늦은 이벤트 무시, 렌더 준비 상태와 원래 음표 선택·커서 연결 및 악보 내부 가로/세로 추적.
+- `src/app/App.tsx`, `ScoreWorkspace.tsx`: 같은 실행의 카피·연습·연주 주 악보와 화면 왕복에 표시 상태를 유지합니다. 편집/history·프로젝트 저장 모델과 분리했습니다.
+- `scoreDisplay.test.ts`, `ScoreViewport.test.tsx`, `src/app/scoreSession.test.tsx`: 두 기타·쉼표/화음/반복 원본 보존, 표시 전환/선택·Undo·epoch/초점과 늦은 이벤트 회귀를 추가했습니다.
+- `docs/00`, `02`, `04`, `08`, `09`, `12`, 루트 README와 진행 요약에 사용자 결정·계약·검증 범위를 반영했습니다. 앞서 만든 TAB+오선보 동시 표시 후보는 실행/배포하지 않고 이번 단독 전환 버전으로 대체했습니다. 새 의존성·IPC·DB 변경은 없습니다.
+
+### 3. 테스트 결과
+
+- `pnpm test`:417개/99파일 성공(31.05초). `pnpm lint`, `pnpm build`의 TypeScript 검사·Vite 빌드(약61초), `pnpm format:check` 성공.
+- `cargo test --locked --offline --all-features --manifest-path src-tauri/Cargo.toml bundle_tests`: 내장 UI/권한 정책3개 성공, 컴파일41.78초. 하드링크 캐시 복사 대체와 기존 linker 경고는 실패가 아닙니다.
+- `pnpm tauri build --debug --no-bundle --ci --config <이번 검증 설정> -- --locked --offline`: Windows 실행 파일 빌드22.81초 성공.
+- 실제 개발 브라우저에서 기본 TAB만 표시 → 버튼으로 오선보만 표시 → TAB 복귀, 가로 배치/150% 후 세로/100% 복귀, 렌더 완료·오류 없음 확인. 증거: `src-tauri/target/runtime-validation/tab-only-browser-20261023.png`(생성 산출물, Git 제외).
+- 해결: 단순 StaveProfile 변경으로는 TAB 전용 원본의 오선보가 숨겨져 렌더 복사본에만 표시 플래그를 적용했습니다. 복잡한 alphaTab 객체의 테스트 identity matcher 실행이 지연돼 해당 identity를 boolean으로 검사하여 같은 단언을 유지했습니다. 개발 포트는 이미 실행 중인 서버를 재사용했습니다.
+- 최신 Windows 실행/데이터 보존 확인 결과는 아래 적용 기록에 기록합니다. 이번 변경에서 오디오 입력·녹음·AI 실제 분석, 깨끗한 별도 Windows, 새 설치 프로그램 검사는 **미실행**입니다. 해당 엔진/설치 경로를 변경하지 않았고 별도 Windows 환경도 없습니다.
+
+### 4. 미구현 및 알려진 문제
+
+- 표시 설정은 실행 중 유지하며 재실행 저장은 미구현입니다. 원본 비교·AI/YouTube/테이크 미리보기는 기존 TAB 기본값입니다.
+- 오선보 전환이 고급 화음 편집·실제 줄/프렛 판정 지원을 추가하지 않습니다. 표시가 바뀔 때 렌더가 다시 준비되며 그동안 커서를 숨깁니다.
+- Vite의 기존500kB 초과 청크 경고는 남습니다. 원본/저장 형식과 재생·녹음 엔진의 변경은 없습니다.
+
+### Windows 적용 기록
+
+`score-notation-candidate.json`의 새 portable 실행 파일(40,686,592바이트·SHA256 `cdf8a128f0ee1335651e84dcfc2da51fc81547d8461220e189ae91e6631f6fc6`)과 runtime3393개 전체 지문을 확인했습니다. 기존 PID33044는 정상 종료0/강제 종료 없음, 새 **PID28404·PTY74119·‘GuitarLab · TAB와 오선보 전환’**은 READY/응답 정상입니다. `score-display_db_probe.py after`로 실제 DB9/16개 테이블과4개 모델 marker 불변을 확인했습니다. 앱은 유지하며 입력/REC는 시작하지 않았습니다. Windows 창 내부 사용자 조작 수용과 이번 새 ZIP/설치 프로그램 검사는 **미실행**입니다. 자동 검사·실제 개발 브라우저 검증과 Windows 실행/내장 UI 검사를 구분합니다.
+
+### 5. 다음 작업 계획
+
+이번 Windows 적용·보존 결과를 정리한 뒤 기존 순서에 따라 남은 악보/재생 수용 항목을 확인합니다. 특화 AI·실제 고급 주법 품질·깨끗한 Windows·서명/최종 배포 미완료는 별도로 유지하며 이번 표시 기능을 전체 로드맵 완료로 기록하지 않습니다.
+
 ## 1. 작업 개요
 
 - 작업일/완료 날짜: 2026-10-13. 상태: 완료.

@@ -1,5 +1,12 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 악보 표시 선택 — 2026-10-23 후속
+
+- `ScoreDisplaySettings`는 악보 문서/프로젝트 저장과 분리된 앱 실행 중 표시 상태입니다. notation=`tab|score`, layout=`page|horizontal`, scale=`0.75|1|1.25|1.5`만 허용하며 기본값은 TAB/세로/100%입니다. 사용자의2026-10-23 후속 요청으로 기본 TAB만 표시하고 별도 ‘오선보 보기’/‘TAB 보기’ 버튼으로 한 표기씩 전환합니다. 앞선 TAB+오선보 동시 표시 후보는 배포하지 않습니다. 카피·연습·연주 주 악보에 적용하고 다른 화면 왕복에도 같은 실행의 선택을 유지합니다. 재실행 영구 복원/원본 비교·AI/영상/테이크 미리보기 설정은 이번 범위에 포함하지 않습니다.
+- 설치 alphaTab1.6.1의 `StaveProfile.Tab|Score`, `LayoutMode.Page|Horizontal`, display.scale에 매핑합니다. 원본의 TAB 전용 staff 플래그가 오선보를 숨기지 않도록 공개 JsonConverter로 만든 렌더 복사본에만 선택한 트랙의 표시 플래그를 적용합니다. 원본과 복사본의 트랙/staff/마디/voice/beat/note 순서에 따라 직접 객체 관계를 보존해 클릭은 원래 Note로 전달하고 원본 lookup의 beat는 복사본 bounds로 조회합니다. 관계가 없으면 추측하지 않습니다.
+- 표시 선택이 바뀔 때 기존 렌더 인스턴스를 정리하고 새 렌더를 만듭니다. 재생 tick/선택 콜백 변경만으로 인스턴스를 바꾸지 않습니다. 원본 모델/문서·Note ID·선택 트랙·재생 tick/epoch·판정/녹음/Undo·저장 revision은 변경하지 않습니다. 새 IPC/DB/Python 계약이나 네트워크/라이브러리는 없습니다.
+- 변경/새 렌더 준비 중 이전 bounds의 커서는 숨기며 현재 렌더 완료 후 같은 tick으로 갱신합니다. 가로/세로 커서 추적은 악보 내부 scrollLeft/scrollTop만 이동하고 페이지 스크롤·입력/REC 초점은 유지합니다. 렌더 실패/이전 인스턴스의 늦은 이벤트는 현재 정상 렌더로 처리하지 않습니다.
+
 ## 프로젝트별 자동 저장 선택 복원 v1 — 재실행 수용 완료(2026-10-22)
 
 - 자동 저장 선택만 로컬 WebView Storage의 앱 전용 키 `guitarlab.score-autosave.v1`에 저장합니다. `{schemaVersion:1,projectIds:string[]}`의 표준 소문자 UUID/중복 없음·최대128개/8KiB만 허용하고 켠 프로젝트 ID만 보존합니다. 미선택 프로젝트 기본 꺼짐, 끄기는 해당 ID만 제거합니다.

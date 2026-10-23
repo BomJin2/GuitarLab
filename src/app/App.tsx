@@ -1,4 +1,8 @@
 import { ScoreWorkspace } from '../features/score/ScoreWorkspace';
+import {
+  defaultScoreDisplay,
+  type ScoreDisplaySettings,
+} from '../features/score/scoreDisplay';
 import { useEffect, useState } from 'react';
 import { LibraryPage } from '../features/library/LibraryPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
@@ -35,6 +39,8 @@ export function App() {
   const { active: measurementActive, cancel: cancelMeasurement } = measurement;
   const clock = useCaptureClock(input.state, input.native, !measurement.active);
   const [session, setSession] = useState<ScoreSession | null>(null);
+  const [scoreDisplay, setScoreDisplay] =
+    useState<ScoreDisplaySettings>(defaultScoreDisplay);
   const closeGuard = useCloseGuard(session);
   const project = useProjects(
     session,
@@ -195,6 +201,8 @@ export function App() {
           route === 'practice' ||
           route === 'performance' ? (
           <ScoreWorkspace
+            display={scoreDisplay}
+            onDisplayChange={setScoreDisplay}
             session={session}
             setSession={setSession}
             mode={route}

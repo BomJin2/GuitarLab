@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import {
-  AlphaTabApi,
-  StaveProfile,
-  LayoutMode,
-  type model,
-  type midi,
-} from '@coderline/alphatab';
+import { AlphaTabApi, type model, type midi } from '@coderline/alphatab';
 import type { NoteNavigation } from './scoreNoteSelection';
+import {
+  alphaTabDisplay,
+  createDisplayScore,
+  defaultScoreDisplay,
+  type ScoreDisplaySettings,
+} from './scoreDisplay';
 export function ScoreViewport({
   score,
   lookup,
@@ -14,6 +14,7 @@ export function ScoreViewport({
   tick,
   onSelectNote,
   onNavigateNote,
+  display = defaultScoreDisplay,
 }: {
   score: model.Score;
   lookup: midi.MidiTickLookup;
@@ -21,6 +22,7 @@ export function ScoreViewport({
   tick: number | null;
   onSelectNote?: (note: model.Note) => void;
   onNavigateNote?: (direction: NoteNavigation) => void;
+  display?: ScoreDisplaySettings;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const apiRef = useRef<AlphaTabApi | null>(null);
@@ -28,41 +30,91 @@ export function ScoreViewport({
   const scrollerRef = useRef<HTMLElement>(null);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState(false);
+  const [rendering, setRendering] = useState(true);
+  const renderReady = useRef(false);
+  const displayScore = useRef<ReturnType<typeof createDisplayScore> | null>(
+    null,
+  );
+  const { notation, layout, scale } = display;
   const selectNoteRef = useRef(onSelectNote);
   selectNoteRef.current = onSelectNote;
   const tracks = useMemo(() => new Set([trackIndex]), [trackIndex]);
   useEffect(() => {
     if (!host.current) return;
     setError(false);
+    setRendering(true);
+    renderReady.current = false;
+    if (cursorRef.current) cursorRef.current.hidden = true;
+    let rendered: ReturnType<typeof createDisplayScore>;
+    try {
+      rendered = createDisplayScore(score, trackIndex, notation);
+    } catch {
+      setError(true);
+      setRendering(false);
+      displayScore.current = null;
+      return;
+    }
+    displayScore.current = rendered;
     const api = new AlphaTabApi(host.current, {
       core: {
         fontDirectory: '/font/',
         useWorkers: true,
       },
-      display: { staveProfile: StaveProfile.Tab, layoutMode: LayoutMode.Page },
+      display: alphaTabDisplay({ notation, layout, scale }),
       player: { enablePlayer: false, enableUserInteraction: false },
     });
     apiRef.current = api;
-    api.renderFinished.on(() => setRevision((value) => value + 1));
-    api.error.on(() => setError(true));
+    api.renderStarted.on(() => {
+      if (apiRef.current !== api) return;
+      renderReady.current = false;
+      setRendering(true);
+      if (cursorRef.current) cursorRef.current.hidden = true;
+    });
+    api.postRenderFinished.on(() => {
+      if (apiRef.current !== api) return;
+      renderReady.current = true;
+      setRendering(false);
+      setError(false);
+      setRevision((value) => value + 1);
+    });
+    api.error.on(() => {
+      if (apiRef.current !== api) return;
+      renderReady.current = false;
+      setRendering(false);
+      if (cursorRef.current) cursorRef.current.hidden = true;
+      setError(true);
+    });
     api.beatMouseDown.on((beat) => {
       const note = beat.notes.length === 1 ? beat.notes[0] : undefined;
       if (!note) return;
-      if (apiRef.current !== api || !selectNoteRef.current) return;
-      selectNoteRef.current(note);
+      if (
+        apiRef.current !== api ||
+        !renderReady.current ||
+        !selectNoteRef.current
+      )
+        return;
+      const original = rendered.notes.get(note);
+      if (!original) return;
+      selectNoteRef.current(original);
       scrollerRef.current?.focus({ preventScroll: true });
     });
-    api.renderScore(score, [trackIndex]);
+    api.renderScore(rendered.score, [trackIndex]);
     return () => {
       apiRef.current = null;
+      renderReady.current = false;
+      displayScore.current = null;
       api.destroy();
     };
-  }, [score, trackIndex]);
+  }, [score, trackIndex, notation, layout, scale]);
   useEffect(() => {
     const result = tick === null ? null : lookup.findBeat(tracks, tick);
-    const bounds = result
-      ? apiRef.current?.boundsLookup?.findBeat(result.beat)
+    const renderedBeat = result
+      ? displayScore.current?.beats.get(result.beat)
       : null;
+    const bounds =
+      renderedBeat && renderReady.current
+        ? apiRef.current?.boundsLookup?.findBeat(renderedBeat)
+        : null;
     const cursor = cursorRef.current;
     if (!cursor) return;
     cursor.hidden = !bounds;
@@ -84,6 +136,16 @@ export function ScoreViewport({
               scroller.clientHeight / 2 +
               rect.height / 2,
           );
+        const left = parent.left + scroller.clientLeft;
+        if (rect.left < left || rect.right > left + scroller.clientWidth)
+          scroller.scrollLeft = Math.max(
+            0,
+            scroller.scrollLeft +
+              rect.left -
+              left -
+              scroller.clientWidth / 2 +
+              rect.width / 2,
+          );
       }
     }
   }, [tick, lookup, tracks, revision]);
@@ -91,7 +153,8 @@ export function ScoreViewport({
     <section
       ref={scrollerRef}
       className="score-real"
-      aria-label="실제 TAB 악보"
+      aria-label={notation === 'tab' ? '실제 TAB 악보' : '실제 오선보 악보'}
+      aria-busy={rendering}
       tabIndex={onNavigateNote ? 0 : undefined}
       aria-keyshortcuts={
         onNavigateNote ? 'ArrowLeft ArrowRight Home End' : undefined
@@ -122,6 +185,7 @@ export function ScoreViewport({
         }
       }}
     >
+      {rendering && <p role="status">악보 표시 준비 중…</p>}
       {error && <p role="alert">악보를 표시할 수 없습니다.</p>}
       <div ref={host} />
       <div ref={cursorRef} hidden aria-hidden="true" className="score-cursor" />

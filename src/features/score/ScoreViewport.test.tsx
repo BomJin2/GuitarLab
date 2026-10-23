@@ -1,4 +1,4 @@
-import { importer } from '@coderline/alphatab';
+import { importer, LayoutMode, StaveProfile } from '@coderline/alphatab';
 import {
   act,
   cleanup,
@@ -10,31 +10,61 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { buildPlaybackLookup } from './alphaTabAdapter';
 import { ScoreViewport } from './ScoreViewport';
 
-const bounds = vi.hoisted(() => ({ y: 20 }));
+const bounds = vi.hoisted(() => ({ x: 30, y: 20 }));
 const clicks = vi.hoisted(() => ({
   listeners: [] as Array<
     (beat: import('@coderline/alphatab').model.Beat) => void
   >,
   settings: [] as unknown[],
+  scores: [] as import('@coderline/alphatab').model.Score[],
+  deferred: false,
+  events: [] as Array<{
+    start?: () => void;
+    finish?: () => void;
+    error?: () => void;
+    destroy: ReturnType<typeof vi.fn>;
+  }>,
 }));
 vi.mock('@coderline/alphatab', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@coderline/alphatab')>()),
   AlphaTabApi: class {
+    events: (typeof clicks.events)[number] = { destroy: vi.fn() };
     constructor(_host: unknown, settings: unknown) {
       clicks.settings.push(settings);
+      clicks.events.push(this.events);
     }
     beatMouseDown = {
       on: (
         listener: (beat: import('@coderline/alphatab').model.Beat) => void,
       ) => clicks.listeners.push(listener),
     };
-    renderFinished = { on: vi.fn() };
-    error = { on: vi.fn() };
-    boundsLookup = {
-      findBeat: () => ({ onNotesX: 30, realBounds: { y: bounds.y, h: 20 } }),
+    renderStarted = {
+      on: (listener: () => void) => {
+        this.events.start = listener;
+      },
     };
-    renderScore = vi.fn();
-    destroy = vi.fn();
+    postRenderFinished = {
+      on: (listener: () => void) => {
+        this.events.finish = listener;
+      },
+    };
+    error = {
+      on: (listener: () => void) => {
+        this.events.error = listener;
+      },
+    };
+    boundsLookup = {
+      findBeat: () => ({
+        onNotesX: bounds.x,
+        realBounds: { y: bounds.y, h: 20 },
+      }),
+    };
+    renderScore = vi.fn((score: import('@coderline/alphatab').model.Score) => {
+      clicks.scores.push(score);
+      this.events.start?.();
+      if (!clicks.deferred) this.events.finish?.();
+    });
+    destroy = () => this.events.destroy();
   },
 }));
 const originalScroll = Object.getOwnPropertyDescriptor(
@@ -45,6 +75,10 @@ const pageScroll = vi.fn();
 beforeEach(() => {
   clicks.listeners = [];
   clicks.settings = [];
+  clicks.scores = [];
+  clicks.events = [];
+  clicks.deferred = false;
+  bounds.x = 30;
   bounds.y = 20;
   pageScroll.mockClear();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -55,7 +89,7 @@ beforeEach(() => {
     function (this: HTMLElement) {
       if (this.classList.contains('score-cursor'))
         return new DOMRect(
-          30,
+          bounds.x - (this.parentElement?.scrollLeft ?? 0),
           100 + bounds.y - (this.parentElement?.scrollTop ?? 0),
           3,
           20,
@@ -64,6 +98,104 @@ beforeEach(() => {
     },
   );
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(500);
+});
+it('표시 변경만 새 렌더를 만들고 이전 완료/오류는 현재 커서와 선택에 적용하지 않는다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
+  const lookup = buildPlaybackLookup(score);
+  const onSelect = vi.fn();
+  const view = (
+    notation: 'tab' | 'score',
+    layout: 'page' | 'horizontal',
+    scale: 1 | 1.5,
+  ) => (
+    <ScoreViewport
+      score={score}
+      lookup={lookup}
+      trackIndex={0}
+      tick={960}
+      onSelectNote={onSelect}
+      display={{ notation, layout, scale }}
+    />
+  );
+  const { rerender } = render(view('tab', 'page', 1));
+  const region = screen.getByRole('region');
+  const cursor = region.querySelector('.score-cursor');
+  expect(cursor).toHaveProperty('hidden', false);
+  expect(clicks.settings[0]).toMatchObject({
+    display: {
+      staveProfile: StaveProfile.Tab,
+      layoutMode: LayoutMode.Page,
+      scale: 1,
+    },
+  });
+  clicks.deferred = true;
+  rerender(view('score', 'horizontal', 1.5));
+  expect(clicks.events[0]!.destroy).toHaveBeenCalledOnce();
+  expect(clicks.settings[1]).toMatchObject({
+    display: {
+      staveProfile: StaveProfile.Score,
+      layoutMode: LayoutMode.Horizontal,
+      scale: 1.5,
+    },
+  });
+  expect(cursor).toHaveProperty('hidden', true);
+  expect(region.getAttribute('aria-busy')).toBe('true');
+  const beat =
+    clicks.scores[1]!.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  act(() => {
+    clicks.events[0]!.finish?.();
+    clicks.events[0]!.error?.();
+    clicks.listeners[1]!(beat);
+  });
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(cursor).toHaveProperty('hidden', true);
+  expect(onSelect).not.toHaveBeenCalled();
+  act(() => clicks.events[1]!.finish?.());
+  expect(cursor).toHaveProperty('hidden', false);
+  expect(region.getAttribute('aria-busy')).toBe('false');
+  act(() => clicks.listeners[1]!(beat));
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+    score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!.notes[0],
+  );
+  rerender(view('score', 'horizontal', 1.5));
+  expect(clicks.settings).toHaveLength(2);
+  act(() => clicks.events[1]!.error?.());
+  expect(screen.getByRole('alert').textContent).toBe(
+    '악보를 표시할 수 없습니다.',
+  );
+  expect(cursor).toHaveProperty('hidden', true);
+});
+it('가로 커서 추적도 악보 안에서만 움직이고 화면과 REC 초점을 유지한다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
+  const lookup = buildPlaybackLookup(score);
+  const view = (tick: number) => (
+    <>
+      <button>REC 유지</button>
+      <ScoreViewport
+        score={score}
+        lookup={lookup}
+        trackIndex={0}
+        tick={tick}
+        display={{ notation: 'score', layout: 'horizontal', scale: 1.25 }}
+      />
+    </>
+  );
+  const { rerender } = render(view(0));
+  const region = screen.getByRole('region', { name: '실제 오선보 악보' });
+  screen.getByRole('button', { name: 'REC 유지' }).focus();
+  bounds.x = 1000;
+  rerender(view(960));
+  expect(region.scrollLeft).toBe(751.5);
+  expect(region.scrollTop).toBe(0);
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'REC 유지' }),
+  );
+  expect(pageScroll).not.toHaveBeenCalled();
+  bounds.x = 30;
+  rerender(view(0));
+  expect(region.scrollLeft).toBe(0);
+  expect(clicks.settings).toHaveLength(1);
 });
 it('공개 박자 영역 이벤트는 최신 콜백만 호출하고 읽기 전용/해제된 렌더는 전달하지 않는다', () => {
   const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
@@ -85,7 +217,9 @@ it('공개 박자 영역 이벤트는 최신 콜백만 호출하고 읽기 전�
     player: { enablePlayer: false, enableUserInteraction: false },
   });
   expect(clicks.settings[0]).not.toHaveProperty('core.includeNoteBounds');
-  act(() => clicks.listeners[0]!(note.beat));
+  const renderedBeat =
+    clicks.scores[0]!.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  act(() => clicks.listeners[0]!(renderedBeat));
   expect(first).toHaveBeenCalledExactlyOnceWith(note);
   rerender(
     <ScoreViewport
@@ -97,13 +231,13 @@ it('공개 박자 영역 이벤트는 최신 콜백만 호출하고 읽기 전�
     />,
   );
   expect(clicks.listeners).toHaveLength(1);
-  act(() => clicks.listeners[0]!(note.beat));
+  act(() => clicks.listeners[0]!(renderedBeat));
   expect(next).toHaveBeenCalledExactlyOnceWith(note);
   rerender(
     <ScoreViewport score={score} lookup={lookup} trackIndex={0} tick={960} />,
   );
   expect(clicks.listeners).toHaveLength(1);
-  act(() => clicks.listeners[0]!(note.beat));
+  act(() => clicks.listeners[0]!(renderedBeat));
   const replacement = importer.ScoreLoader.loadAlphaTex('. 5.1.4');
   rerender(
     <ScoreViewport
@@ -137,11 +271,13 @@ it('박자 영역의 단음만 한 번 선택하고 쉼표/여러 음은 추측�
       onSelectNote={onSelect}
     />,
   );
-  act(() => clicks.listeners[0]!(beats[0]!));
+  const renderedBeats =
+    clicks.scores[0]!.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats;
+  act(() => clicks.listeners[0]!(renderedBeats[0]!));
   expect(onSelect).toHaveBeenCalledExactlyOnceWith(beats[0]!.notes[0]);
   act(() => {
-    clicks.listeners[0]!(beats[1]!);
-    clicks.listeners[0]!(beats[2]!);
+    clicks.listeners[0]!(renderedBeats[1]!);
+    clicks.listeners[0]!(renderedBeats[2]!);
   });
   expect(onSelect).toHaveBeenCalledTimes(1);
 });
@@ -161,9 +297,9 @@ it('악보에 초점이 있을 때만 이동 키를 처리하고 조합 키·다
     />,
   );
   const region = screen.getByRole('region', { name: '실제 TAB 악보' });
-  const note =
-    score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!.notes[0]!;
-  act(() => clicks.listeners[0]!(note.beat));
+  const beat =
+    clicks.scores[0]!.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  act(() => clicks.listeners[0]!(beat));
   expect(document.activeElement).toBe(region);
   expect(region.tabIndex).toBe(0);
   for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End'])

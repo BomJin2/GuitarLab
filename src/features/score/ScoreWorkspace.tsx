@@ -17,6 +17,8 @@ import { timingAt, validateTiming } from '../player/timing';
 import { usePlayer } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
 import { ScoreViewport } from './ScoreViewport';
+import { ScoreDisplayControls } from './ScoreDisplayControls';
+import type { ScoreDisplaySettings } from './scoreDisplay';
 import { renderedNoteId } from './scoreNoteSelection';
 import { Fretboard } from '../practice/Fretboard';
 import { ResizablePanel } from '../../components/ui/ResizablePanel';
@@ -53,6 +55,8 @@ export function ScoreWorkspace({
   project,
   editor,
   beforeReplace,
+  display,
+  onDisplayChange,
 }: {
   session: ScoreSession | null;
   setSession: Dispatch<SetStateAction<ScoreSession | null>>;
@@ -63,6 +67,8 @@ export function ScoreWorkspace({
   project?: ProjectController;
   editor?: ScoreEditingController;
   beforeReplace: () => boolean | Promise<boolean>;
+  display: ScoreDisplaySettings;
+  onDisplayChange: (settings: ScoreDisplaySettings) => void;
 }) {
   const { engine, state } = usePlayer();
   const [draft, setDraft] = useState<SyncAnchor[]>(
@@ -282,6 +288,9 @@ export function ScoreWorkspace({
           }}
         />
       )}
+      {session && (
+        <ScoreDisplayControls settings={display} onChange={onDisplayChange} />
+      )}
       <ResizablePanel
         label={mode === 'copy' ? '속성 패널 너비' : '판정 패널 너비'}
         side={
@@ -303,6 +312,7 @@ export function ScoreWorkspace({
       >
         {session ? (
           <ScoreViewport
+            display={display}
             score={session.score}
             lookup={session.playbackLookup}
             trackIndex={track}

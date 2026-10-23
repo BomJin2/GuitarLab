@@ -18,9 +18,13 @@ vi.mock('../features/score/ScoreViewport', () => ({
     tick,
     trackIndex,
     onSelectNote,
+    display,
   }: ComponentProps<typeof ScoreViewport>) => (
     <section
-      aria-label="실제 TAB 악보"
+      aria-label={
+        display?.notation === 'score' ? '실제 오선보 악보' : '실제 TAB 악보'
+      }
+      data-display={JSON.stringify(display)}
       data-tick={tick}
       data-first-fret={
         score.tracks[0]?.staves[0]?.bars[0]?.voices[0]?.beats[0]?.notes[0]?.fret
@@ -52,6 +56,60 @@ function navigate(route: string) {
   window.location.hash = `#/${route}`;
   fireEvent(window, new HashChangeEvent('hashchange'));
 }
+it('표시 선택은 편집/커서/epoch와 history를 보존하고 화면 왕복에도 유지한다', async () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '자체 악보 불러오기' }));
+  await screen.findByLabelText('악보 트랙');
+  fireEvent.click(
+    screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'TAB 2 선택' }));
+  fireEvent.change(screen.getByLabelText('음표 프렛'), {
+    target: { value: '4' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '음표 수정 적용' }));
+  const epoch = screen.getByText(/재생 epoch/).textContent;
+  fireEvent.click(screen.getByRole('button', { name: '오선보 보기' }));
+  fireEvent.change(screen.getByLabelText('악보 배치'), {
+    target: { value: 'horizontal' },
+  });
+  fireEvent.change(screen.getByLabelText('악보 확대'), {
+    target: { value: '1.5' },
+  });
+  expect(
+    screen.getByLabelText('실제 오선보 악보').getAttribute('data-display'),
+  ).toBe(
+    JSON.stringify({ notation: 'score', layout: 'horizontal', scale: 1.5 }),
+  );
+  expect(
+    screen.getByLabelText('실제 오선보 악보').getAttribute('data-tick'),
+  ).toBe('960');
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '4');
+  expect(screen.getByText(/재생 epoch/).textContent).toBe(epoch);
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '3');
+  navigate('library');
+  navigate('copy');
+  expect(screen.getByRole('button', { name: 'TAB 보기' })).toBeTruthy();
+  expect(screen.getByLabelText('악보 배치')).toHaveProperty(
+    'value',
+    'horizontal',
+  );
+  expect(screen.getByLabelText('악보 확대')).toHaveProperty('value', '1.5');
+  fireEvent.change(screen.getByLabelText('악보 확대'), {
+    target: { value: '99' },
+  });
+  expect(screen.getByLabelText('악보 확대')).toHaveProperty('value', '1.5');
+  navigate('practice');
+  expect(screen.getByRole('button', { name: 'TAB 보기' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'TAB 보기' }));
+  expect(screen.getByRole('button', { name: '오선보 보기' })).toBeTruthy();
+  expect(screen.getByLabelText('실제 TAB 악보')).toBeTruthy();
+});
 it('TAB 클릭·이전/다음·목록 선택과 커서를 연결하고 선택한 음표만 수정한다', async () => {
   render(
     <PlayerProvider>

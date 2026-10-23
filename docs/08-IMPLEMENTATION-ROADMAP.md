@@ -29,6 +29,7 @@
 
 ## Phase 2 — 악보 import와 재생 동기화
 
+- [x] 2026-10-23 표시 후속: 기본 TAB·별도 버튼으로 오선보 단독 전환, 가로/세로·75~150% 확대. 원본/선택·Undo·epoch 보존과417개 회귀/실제 브라우저·Windows 빌드 확인. 적용 범위/미실행은 PHASE-02 최신 절 참조.
 - [x] alphaTab import/렌더 PoC (자체 제작 fixture 사용).
 - [x] PlayerEngine(재생/일시정지/seek/rate) 및 커서 매핑.
 - [x] 로컬 음원 재생, 악보 sync 앵커(최소 2개), A-B loop, 카운트인/메트로놈.
