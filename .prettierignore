@@ -1,0 +1,13 @@
+pnpm-lock.yaml
+Cargo.lock
+src-tauri/target
+dist
+node_modules
+AGENTS.md
+docs
+README.md
+ai
+src-tauri
+public/fixtures/*
+!public/fixtures/standard.musicxml
+!public/fixtures/dual-guitar.musicxml

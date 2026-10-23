@@ -1,0 +1,10 @@
+# 원문 지문/재현 자료는 Git의 줄바꿈 변환 없이 보존합니다.
+ai/models/** -text
+ai/requirements-test.lock -text
+docs/release/** -text
+public/font/** -text
+public/soundfont/** -text
+public/fixtures/** -text
+fixtures/** -text
+pnpm-lock.yaml -text
+src-tauri/Cargo.lock -text

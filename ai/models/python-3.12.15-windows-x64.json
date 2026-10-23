@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "cpython-3.12.15-20261013-windows-x64",
+  "state": "COMPATIBILITY_VALIDATION_ONLY",
+  "python": "3.12.15",
+  "abi": "cp312",
+  "platform": "win_amd64",
+  "filename": "cpython-3.12.15+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+  "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.12.15%2B20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+  "bytes": 22019610,
+  "sha256": "7a2aef48e5ee569e310b29b32681debbc5d888e92790d85331a47736c6b06aad",
+  "metadataSource": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/20261013",
+  "documentationSource": "https://docs.astral.sh/python-build-standalone/distributions/",
+  "licenseStatus": "ARCHIVE_NOTICES_TO_VERIFY",
+  "releaseValidated": false
+}

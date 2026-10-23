@@ -1,0 +1,66 @@
+import type { AttemptSnapshot } from '../features/practice/practice';
+export const practiceFixtureId = '00000000-0000-4000-8000-000000000001';
+export function practiceFixture(): AttemptSnapshot {
+  return {
+    schemaVersion: 1,
+    attemptId: practiceFixtureId,
+    state: 'RUNNING',
+    errorCode: null,
+    playbackEpoch: 2,
+    scoreRevision: practiceFixtureId,
+    trackId: 'guitar',
+    rate: 1,
+    calibrationRevision: 1,
+    calibrationProfile: {
+      id: practiceFixtureId,
+      key: {
+        deviceId: 'fixture',
+        sampleRate: 48000,
+        sampleFormat: 'f32',
+        channels: 1,
+        channelIndex: 0,
+        bufferFrames: 480,
+        monitorEnvironment: 'HEADPHONES',
+      },
+      biasRealMs: 45.82,
+      method: 'MEASURED',
+      jitterRealMs: 38.18,
+      samplesUsed: 11,
+    },
+    coolMs: 50,
+    goodMs: 120,
+    pitchToleranceCents: 50,
+    score: 1000,
+    combo: 1,
+    maxCombo: 1,
+    cool: 1,
+    good: 0,
+    miss: 0,
+    excluded: 0,
+    accuracy: 100,
+    targetCount: 3,
+    eventSequence: 1,
+    events: [
+      {
+        sequence: 1,
+        noteId: 'a',
+        expectedPitchMidi: 67,
+        confidence: 0.99,
+        feedback: null,
+        finalOutcome: {
+          noteId: 'a',
+          playbackEpoch: 2,
+          deltaRealMs: -25,
+          detectedPitchMidi: 67,
+          comboAfter: 1,
+          outcome: {
+            kind: 'JUDGED',
+            judgement: 'COOL',
+            detail: 'EARLY',
+            scoreAwarded: 1000,
+          },
+        },
+      },
+    ],
+  };
+}

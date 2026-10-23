@@ -1,0 +1,2 @@
+# Python 3.10.8 ensurepip 번들 · resampy의 암묵적 pkg_resources 의존성 · 추가 다운로드 없음
+setuptools==63.2.0 --hash=sha256:0d33c374d41c7863419fc8f6c10bfe25b7b498aa34164d135c622e52580c6b16

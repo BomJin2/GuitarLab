@@ -1,0 +1,216 @@
+# Phase 4A — 입력 녹음과 다시 듣기
+
+## 1. 작업 개요
+
+- 작업 시작: 2026-10-15, 사용자 재개 요청.
+- 완료 날짜: 2026-10-15.
+- 상태: 완료(아래 최종 결과 기준). 중간 진행 기록은 이력으로 보존합니다.
+- 목표: 명시적 REC로 선택한 입력만 WAV에 기록하고, 불변 테이크를 프로젝트/악보 리비전에 연결해 다시 듣기·A/B·부분 재생·중단 복구를 제공합니다.
+
+## 2. 구현 및 변경 사항
+
+- 최종 결과: 입력 전용 녹음·원본 보존 복구·정렬 replay/A-B·부분 반복·메타데이터 저장과 앱 재실행 복원까지 구현/검증했습니다. 아래 단계별 ‘확인 전’ 문구는 당시 이력이며 현재 판정은 최종 결과/제약을 따릅니다.
+- 입력 전용 WAV writer/명시적 시작·중지·진행 조회, 테이크 metadata와 추가 SQLite002, 원본 보존 복구 및 프론트 연결을 구현했습니다. 수정 후 실제 SSL Input 1 무반주 녹음과 WebView 재생을 사용자 확인했습니다. 로컬 정렬·오류 복구·재실행 복원은 확인 전입니다.
+- `docs/progress/README.md`: 중단 상태를 재개 및 Phase 4A 진행 중으로 갱신했습니다.
+- 새 파일: Rust `recording/{model,router,service,wave,mod}.rs`, `commands/recording_api.rs`, `storage/recordings.rs`, `storage/recordings_tests.rs`, `storage/migrations/002-recordings.sql`; 프론트 `features/recordings/{RecordingPanel,RecordingsPage,TakeReplay}.tsx`, `{recordings,useRecording,waveform}.ts` 및 관련 테스트, `src/test/recordingFixture.ts`.
+- 수정 파일: `src-tauri/src/{lib,app}.rs`, `audio/{input,mod}.rs`, `commands/{mod,storage_api}.rs`, `storage/{database,projects,projects_tests,calibration,mod}.rs`; `src/app/{App,AppShell}.tsx`, `features/player/{PlayerEngine.ts,TransportBar.tsx,TransportBar.test.tsx}`, `features/library/projects.ts`, `features/score/ScoreWorkspace.tsx`, `features/practice/{InputPanel,ScorePanel}.tsx`, `shared/{styles.css,logger.ts}`. 입력 분기/시각 검증·API 등록·기존 job 재사용·녹음 중 잠금·상태 안내 및 별도 replay engine 연결 목적입니다.
+- 설계/진행 문서: `README.md`, `docs/{00,07,12,17}` 및 `docs/progress/{README,PHASE-04A}.md`. 기존 초안/이력은 삭제하지 않았습니다.
+- callback은 원본 f32/index/시각을 기존 ring에만 전달합니다. 녹음 분기와 파일 쓰기는 각각 DSP/writer worker에서 수행합니다. 전용 큐는 입력2초 분량으로 제한하고 첫 누락/NaN/clock·장치 실패 시 연속된 앞부분을 보존합니다.
+- REC 중 탐색/배속/반복/프로젝트/장치/목표를 잠그고, native도 세대/epoch/rate/시각을 확인합니다. 창 닫기는 STOP/저장 전 차단합니다. 파일은 최대10분/256MiB, 공간 확인 및 fsync/rename/DB 순서로 확정합니다.
+- 다시 듣기는 원곡 asset을 교체하지 않는 별도 PlayerEngine, 실제 PCM 파형, 당시 악보 리비전/TAB 커서, 부분 반복·A/B 조건 경고/peak 감쇠 음량 맞춤·비파괴 이름/메모/offset을 제공합니다. 복구는 새ID에 복사하고 원본을 남깁니다.
+- 기존 프로젝트·보정값·migration001·녹음 원본을 보존합니다. 새 의존성은 아직 추가하지 않았습니다.
+
+## 3. 테스트 결과
+
+- 실행 전 확인: Git 상태/관련 규칙/로드맵/이전 결과를 읽었습니다. 기존 파일은 untracked 상태이며 commit/push는 실행하지 않았습니다.
+- 프로세스/포트 확인: 실행 중 GuitarLab과 1420 개발 서버 없음. 이전 앱을 종료하지 않았습니다.
+- `pnpm typecheck`, `pnpm lint`: 개별 검사 성공. 새 모듈의 타입 오류/린트 경고를 수정했습니다. 최종 통합 검사는 진행 중입니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --lib`: 중간90개 성공/장치 열거1개 제외. 이후 추가된 검사의 녹음 필터 실행은10개 성공/합성 산출물 생성1개 기본 제외입니다. 최종 전체 수치는 최종 검사 후 갱신합니다.
+- `pnpm exec vitest run src/features/player/TransportBar.test.tsx src/features/recordings`: 핵심10개 성공(계약/시간 변환/출처 거부/파형/명시적 REC/늦은 응답 폐기/중복 방지/잠금/독립 replay·A/B·부분 반복).
+- 실제 임시 파일/DB로192,000프레임(4초)의 bounded queue→WAV→DB→재열기, 메타데이터 편집 시 PCM/리비전 불변, `.part` 미완성 헤더·마지막 부분 프레임, rename 후 commit 전 크래시, 복구 취소·손상/NaN, disconnect·overflow·clock 실패의 앞부분 보존을 검사했습니다. 순수 writer의 디스크 실패 주입도 성공했습니다. 실제 디스크를 가득 채운 검사는 아닙니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --lib recording::wave::tests::export_synthetic_wave_for_independent_decoder -- --ignored --nocapture`: 별도 합성 WAV 생성1개 성공. 산출물은 `src-tauri/target/recording-validation/four-seconds-27599b30-e496-45f6-a480-93d4632925d4.wav`이며 개인 입력이 아닙니다.
+- `ffprobe -v error -show_entries stream=codec_name,sample_fmt,sample_rate,channels,duration,duration_ts,time_base -of json <위 합성 WAV>`: pcm_f32le/flt,48,000Hz/1채널, duration_ts192,000·4.000000초 성공. 이어 Python subprocess/FFmpeg float32 디코드에서192,000개의 유한 샘플·768,000 PCM 바이트·peak0.5를 독립 확인했습니다. FFmpeg는 테스트 도구이며 앱 의존성에 추가하지 않았습니다.
+- 발생 오류/해결: rusqlite의 u64 ToSql 미지원은 검증된 안전 범위의 i64로 저장, sha2 출력 hex는 기존 변환 함수 재사용, closure 오류 타입을 명시했습니다. JSX 닫기/배열 undefined/진단 코드 타입·effect 의존성/컴포넌트 외 함수 분리를 보완했습니다. Clippy의 is_multiple_of/중첩if를 수정했습니다. 첫 프론트 통합 검사의 잠금 테스트 실패로 button 자체 disabled와 handler guard를 추가했고, 후속 변경된 버튼 이름을 테스트에 반영했습니다. 핵심 재검사10개 성공입니다.
+- 실제 REC·재생·장치 분리·복구: 미실행 — 기능 구현 및 자동 검사 후 사용자가 직접 확인합니다.
+- 이전 Phase 2A의116개 프론트/82개 Rust·제외1개/번들1개 성공은 이전 검사 이력입니다.
+
+### 최종 통합 검사 — 2026-10-15
+
+- 최신 `pnpm verify:app` 종료 코드0: TypeScript/ESLint, 프론트125개·35파일, production build, Prettier, cargo fmt, Clippy `-D warnings`, Rust92개 성공/2개 기본 제외, binary/doc-tests 성공.
+- 기본 제외2개는 실제 장치 열거와 합성 WAV 산출물 생성입니다. 합성 WAV 생성은 위 별도 명령으로1개 성공했으며 실제 장치 열거는 오늘 미실행입니다.
+- 마지막 추가 테스트의 this 별칭 린트 오류를 Set에 instance를 수집하는 방식으로 수정했고, 이벤트 listener 실패가 unhandled rejection으로 남지 않고 UI에 STOP 안내를 보이는지 검사했습니다.
+- 빌드 경고: 기존 alphaTab 포함 main chunk약1,367kB. Rust MSVC linker의 라이브러리 생성 안내가 경고로 출력되지만 Clippy/컴파일/테스트는 성공했습니다. 경고를 숨기도록 설정을 바꾸지 않았습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --lib bundle_tests`: 실제 generate_context에 index.html/JavaScript가 내장됨을 확인한1개 검사 성공.
+- `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab`: Windows 제품 실행 파일 빌드 성공. `src-tauri/target/debug/guitarlab.exe` 22,724,096바이트,2026-10-15 14:39:10.
+- 기존 앱 없음 확인 후 제품 실행. 권한 있는 재조회에서 PID28240/14:40:26 시작/창 제목 GuitarLab 확인. CLI의 Start-Process 출력은 혼합 객체 표 형식으로 잘려 실제 PID는 별도 조회 값을 사용합니다. UI 기능은 아직 사용자 확인 전입니다.
+- 실행 후 로컬 DB를 Python sqlite3 `mode=ro`/`query_only=ON`으로 읽어 schemaVersion2·기존 프로젝트2개/시도3개·REC 전 take0개 확인. 오디오 파일은 읽지 않았고 캡처/녹음도 자동 시작하지 않았습니다.
+- 현재 사용자 실제 SSL Input 1 무반주 REC→STOP→READY/프레임·누락/다시 듣기 확인 요청을 준비했습니다. 해당 확인이 시작된 뒤 소스·문서·앱을 수정/재시작하지 않고 기다립니다. 아직 실제 REC/청취/분리/재실행 복원은 미실행입니다.
+
+## 4. 미구현 및 알려진 문제
+
+- 최종 검증 구분: 실제 SSL 녹음/청취·모니터·USB 분리/복구·정렬 테이크 저장·부분 반복·이름 재실행 복원은 확인했습니다. A/B의 논리 위치/커서는 자동 수치 검사 성공이며 사용자 육안 비교는 불명확합니다. crash/디스크 부족은 실패 주입으로 확인했고 실제 디스크 채우기/강제 종료는 미실행입니다. 아래 ‘남음’은 중간 이력으로 보존합니다.
+- 최종 전체 검사/Windows 실행·실제 SSL Input 1 무반주 REC/재생을 확인했습니다. 추가 재생 음량 UI 검사와 로컬 정렬·A/B·녹음 중 장치 분리/복구·재실행 복원이 남았습니다. 로드맵 체크는 아직 하지 않았습니다.
+- 로컬 정렬 REC는 안정된 반주 재생 도중 누른 시점부터 시작합니다. 곡0ms 자동 arming/count-in 결합과 다중 segment는 미구현이며 무반주는 악보 정렬 없이 기록합니다. 기존 재생3초 준비는 유지합니다.
+- 관측 누락 수는 ring gap과 writer queue overflow가 겹칠 수 있어 하한으로 기록하며 경고/불완전 상태와 함께 제공합니다.
+- 판정 시도ID에 연결한 오류 마커, take 삭제·export, 오버더빙/믹스 출력은 미구현입니다. 원본 악보가 누락되면 녹음은 청취 가능하나 TAB 표시를 생략합니다. Rust 최소1.90 실제 실행 검사는 미실행이며 현재1.98에서 검사합니다. Python 변경/검사는 미실행 — 이번 범위가 Rust/프론트입니다.
+- 초기 UI는 선택된 테이크의 정보를 저장·새로고침하면 해당 WAV를 다시 불러옵니다. 원본은 불변이나 재생 위치/부분 반복의 지속 보존은 후속 UX 개선 범위입니다.
+- 기존 첫 음의 채점 준비 구간 SKIPPED 제약과 실제 장치의 음정/onset 분포 미측정은 이전 문서대로 유지합니다.
+- 개인 오디오의 네트워크 전송과 시스템/YouTube 출력 캡처 경로를 만들지 않습니다.
+
+## 5. 다음 작업 계획
+
+최종 다음 작업: Phase 4B의 이전 테이크를 들으며 독립 입력 녹음, gain/mute/solo/정렬 및 허용된 로컬 WAV 믹스 출력을 구현합니다. 녹음 원본/기존 리비전/마이그레이션을 보존하고 계약·엔진·최소 UI를 분리합니다. 아래1~4는 완료 전 계획 이력입니다.
+
+1. 버전1 녹음 요청·상태·테이크·시각/오류/복구 계약을 확정합니다.
+2. WAV writer와 입력 경계/누락·저장 실패·원본 보존을 실제 파일 테스트로 검증합니다.
+3. 추가 migration002·명시적 REC/STOP·다시 듣기/A-B를 연결하고 전체 회귀 검사를 실행합니다.
+4. 실제 SSL Input 1 녹음과 재실행 복원을 확인한 뒤에만 Phase 4A를 완료하고4B로 진행합니다.
+
+## 실제 REC 즉시 중단 문제 — 2026-10-15
+
+- 사용자 결과: REC를 누르면 바로 취소되는 것처럼 보임. 실제 녹음 성공/청취 확인으로 기록하지 않습니다.
+- 로컬 DB의 최근5개 테이크 메타데이터만 읽기 전용 확인: 모두 무반주 transport=null, RECOVERABLE_ERROR/CAPTURE_CLOCK_GAP.480/1,920/7,200/19,680프레임 등 블록 경계에서 종료됐습니다. 개인 PCM은 읽거나 전송하지 않았고 원본과 이전 메타데이터를 보존했습니다.
+- 설치된 CPAL0.18.2 WASAPI 소스가 GetBuffer의 callback별 QPC 시각을 capture timestamp로 쓰는 것을 확인했습니다. 기존 검사에서 다음 블록 첫 시각이 이전 블록의 계산된 마지막 시각보다 조금만 앞서도 실패했습니다.480프레임 단위·±0.2ms 시각 흔들림의 자체4초 fixture에서480번째 프레임에 동일 실패를 재현했습니다(수정 전 회귀 테스트 실패).
+- `recording/service.rs`: PCM 순서는 sample index로 검사하고, 누적 sample clock과 관측 시각의 잔차가100ms를 초과할 때 시각 오류로 중단합니다. NaN·실제 누락/중복·큰 시각 점프·누적 drift·overflow·장치/clock 오류 차단은 유지합니다. 시각 오류/중복만으로 누락1프레임을 추정하지 않습니다.
+- `recording/router.rs`: REC 시작 시각 필터는 첫 샘플 선택까지만 적용하여, 이후 작은 시각 역행이 연속 PCM의 일부를 버리지 않게 했습니다. 상태는 DSP worker의 route clone 사이에서 공유하며 callback에 잠금/파일 작업을 추가하지 않았습니다.
+- `storage/recordings_tests.rs`: writer 통합4초 fixture도 callback별±0.2ms 시각을 적용해192,000개 PCM 보존·프레임 누락0·원본 sample 값 일치를 확인했습니다. 추가 회귀3개(블록 겹침, 시작 경계, 누적 drift/큰 역행)를 포함한 `cargo test --locked --manifest-path src-tauri/Cargo.toml --lib recording`:13개 성공/합성 산출물 생성1개 기본 제외.
+- 전체 native 검사·Windows 빌드/수정 앱 적용·실제 SSL 재확인: 진행 전. 기존 앱 PID28240/14:40:26을 유지했고 직접 종료하지 않았습니다. 이전125개 프론트/92개 Rust 결과와 이번 수정 후 결과를 구분합니다.
+
+수정 후 검사: `cargo fmt --check`·`cargo clippy --locked -- -D warnings` 성공. `cargo test --locked --manifest-path src-tauri/Cargo.toml`은95개 성공/장치 열거·합성 산출물 생성2개 기본 제외, binary/doc-tests 성공입니다. 이번 수정은 Rust 내부 검증/route/tests와 계약·진행 문서에 한정하여 프론트 타입·린트·125개 테스트·production build는 반복하지 않았으며, 앞선 최종 성공 이력을 유지합니다. 실행 중 제품 exe는 아직 수정 전 버전입니다. 사용자가 창을 닫았다고 알려주면 Windows 제품을 빌드·재실행하고 실제 녹음을 다시 확인합니다. 실패한 짧은 테이크의 자동 삭제/메타데이터 재작성은 하지 않습니다.
+
+수정 후 `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --lib bundle_tests`도1개 성공했습니다. 사용자 창 종료 확인을 요청하고 기다립니다. 실제 하드웨어에서 수정이 적용된 결과는 아직 확인하지 못했습니다.
+
+사용자 ‘닫음’ 응답 후 실제 기존 프로세스 없음 확인. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab` 종료 코드0. 수정 exe22,726,656바이트/14:53:22, 새 실제PID34532/14:54:31/창 제목GuitarLab 확인. 입력/REC 자동 시작과 이전 테이크 삭제는 하지 않았습니다. 이제 동일한 무반주 REC 약10초→STOP→READY/누락/청취 재검사를 요청합니다. 확인 동안 파일/앱을 수정하거나 재시작하지 않습니다. 실제 성공 결과는 여전히 대기 중입니다.
+
+## 실제 무반주 녹음 성공 및 음량 요청 — 2026-10-15
+
+- 사용자 실제 재검사 성공: READY·13.48초·647,206프레임·누락0·peak1.000, 녹음 다시 듣기에서 기타 소리가 잘 들림. 앞의 성공 대기는 이 결과로 해소했습니다. 개인 WAV는 읽거나 전송하지 않았습니다.
+- `TakeReplay.tsx`: 테이크 재생 음량0~100%·음소거를 추가했습니다. A/B peak 감쇠와 사용자가 선택한 음량을 곱해 별도 replay engine에 적용합니다. 음량/음소거는 A/B 전환 중 유지하고 페이지를 벗어나면 초기화합니다. WAV·입력 게인·원곡 엔진은 변경하지 않습니다.
+- `TakeReplay.test.tsx`: 음량/음소거/맞춤 해제·A/B 전환 시 음량 유지, 재생 위치/epoch/미디어와 원곡 음량 불변·WAV 중복 읽기 없음 검사를 보강했습니다. 추가 변경 후 실행 결과는 후속 기록합니다.
+- `InputPanel.tsx`: 연주 중 청취를 위한 직접 모니터링 안내를 추가했습니다. 현재 앱 자체 입력→출력 모니터는 미구현입니다. SSL 출력에 연결된 헤드폰·스피커는 MIX로 INPUT/USB 비율, PHONES/MONITOR로 출력 음량을 조절하며 Input 1 단독은 STEREO를 끕니다. [SSL 2 MKII 공식 설명서](https://support.solidstatelogic.com/hc/en-gb/articles/19991374319773-SSL-2-MKII-User-Guide)를 확인했습니다. 사용자가 실제 연주 중 듣는 결과는 아직 대기입니다.
+- 추가 UI의 Windows 적용·실제 음량 청취·로컬 정렬/A-B·녹음 중 USB 복구·앱 재실행 복원은 미실행입니다. 기존 실행 앱을 직접 종료하지 않습니다.
+
+추가 변경 후 `pnpm verify:app` 종료 코드0: TypeScript·ESLint·프론트125개/35파일·production build·Prettier·cargo fmt·Clippy `-D warnings`·Rust95개/기본 제외2개·binary/doc-tests 모두 성공했습니다. `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --lib bundle_tests`도1개 성공했습니다. alphaTab 포함 main chunk1,368.31kB 경고와 MSVC 라이브러리 생성 안내는 남습니다. 새 라이브러리/IPC 계약 변경은 없습니다. 기존 실행 PID34532는 이전 UI를 포함하므로 사용자 종료 확인 후 Windows exe를 다시 빌드·실행해야 새 음량 조절이 적용됩니다. 실제 새 UI 청취 확인 전 완료로 표시하지 않습니다.
+
+사용자 ‘닫음’/직접 모니터링 ‘아직 확인 안 함’ 응답 후 실제 앱 프로세스 없음 확인. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab` 성공, 새 exe22,727,168바이트/2026-10-15 16:26:49. 중복 실행 없음 재확인 후 실행하여 실제PID31700/16:27:01/창 제목GuitarLab을 확인했습니다. 저장 프로젝트와 기존13.48초 테이크 재열기·새 음량/음소거·하드웨어 직접 모니터링 청취는 사용자 확인 대기입니다. 입력·REC를 자동 시작하지 않았고, 확인 동안 파일 수정·앱 종료/재시작을 하지 않습니다. Phase 4A 진행 중을 유지합니다.
+
+## 앱 입력 모니터 추가 — 2026-10-15
+
+- 사용자 결과: 테이크 재생 음량·음소거 정상. 기존 녹음 재생 경로에서 확인한 것으로 기록하며 별도 메타데이터 재실행 복원 전체 검사를 완료한 것으로 확대하지 않습니다. SSL 직접 모니터는 MIX 중간에서 실제 들림을 확인했고, USB 끝에서도 들리는 DAW형 모니터를 추가 요청했습니다.
+- 계약을 `docs/12`에 먼저 추가했습니다. v1 출력 열거·모니터 시작/중단/조회·세션별 음량 명령입니다. 기존 입력/녹음 DTO는 유지합니다.
+- 새 native 파일 `audio/monitor.rs`, `commands/monitor_api.rs`; 수정 `audio/{input,mod}.rs`, `app.rs`, `commands/mod.rs`. 선택 입력 채널을 callback에서 별도100ms bounded ring으로 복사해 CPAL 출력 callback으로 전달합니다. DSP와 녹음 큐를 소비하지 않으며 callback 잠금·파일·로그·할당을 추가하지 않았습니다. 출력에만 음량/유한값 처리/클램프·좌우 복제를 적용하고 WAV는 불변입니다.
+- 기본 꺼짐·음량25%, 명시적 출력 선택/시작, REC와 별도 중단, 입력 종료·장치 실패 시 무음/모니터 정리를 구현했습니다. 세션이 바뀌면 이전 샘플/음량 요청을 거부합니다.20ms prefill,60ms 초과 backlog 감축과 출력 부족·초과 진단을 제공합니다. 전체 왕복 지연 수치로 표시하지 않습니다.
+- 새 front `practice/{monitoring.ts,useInputMonitor.ts,InputMonitor.tsx}` 및3개 테스트; `App.tsx`, `InputPanel.tsx`를 수정했습니다. 전역 모니터 패널은 녹음 중 잠금 영역 밖에 두어 REC 중에도 끌 수 있습니다. 출력 선택/모니터 상태와 재생·녹음을 구분하고, 음량 연속 변경은 마지막 값을 적용하며 이전 조회 응답을 버립니다.
+- API 확인: 설치된 CPAL0.18.2의 `examples/feedback.rs`, `traits.rs`, WASAPI `Stream::drop`과 ringbuf0.5.3의 caching wrapper/단일 consumer 규칙을 읽었습니다. 기존 stream을 drop한 뒤 consumer를 새로 만들고 service 잠금으로 수명을 직렬화합니다. 새 라이브러리/ASIO 기능/리샘플러 설치 없음.
+- 핵심 native `cargo test --locked --manifest-path src-tauri/Cargo.toml --lib audio::monitor`:5개 성공. 유한/비유한·초과 입력·mono→stereo/unsigned 무음·음량0·비활성·재시작 잔여/오류·bounded/drop/underrun·잘못된 입력/추가 필드/없는 장치 세션/멱등 중단을 합성 신호로 검사했습니다. 실제 오디오 출력 스트림은 시작하지 않았습니다.
+- 핵심 front `pnpm exec vitest run src/features/practice/monitoring.test.ts src/features/practice/useInputMonitor.test.tsx src/features/practice/InputMonitor.test.tsx`:6개 성공. 계약/명시적 시작·REC 명령 없음/입력 중단과 독립/늦은 조회/음량 병합·실패 시 재시도 중단/브라우저 비실행을 검사했습니다.
+- 발생 오류: Windows에서 `inputMonitor.ts`와 `InputMonitor.tsx`의 대소문자 파일명 충돌 → 서비스 이름을 `monitoring.ts`로 변경. 테스트의 `Debug` 누락과 `isTauri` mock 누락을 보완했습니다. mock 상태 조회가 성공한 음량 변경을 반영하지 않아 rollback 검사 실패 → 실제 native와 같은 상태 전이로 fixture 수정 후6개 성공.
+- 제약: 동일 sample rate의 mono/stereo 출력만 지원하며 mismatch를 명시 거부합니다. Windows 공유 모드로 ASIO/지연0/앰프·이펙트는 미구현입니다. 모니터 경로 변경 후 기존 채점 보정값의 적합성은 재확인이 필요합니다. 실제 USB 끝 청취·지연/음량/끄기·REC 동시 동작은 미실행입니다. 기존 앱을 직접 종료하지 않습니다. Phase 4A 전체 미완료입니다.
+
+### 모니터 최종 검사 및 적용 대기
+
+- `pnpm verify:app`: 종료 코드0. 타입·ESLint·프론트131개/38파일·production build·Prettier·Rust fmt/Clippy·native100개 성공/3개 기본 제외·binary/doc-tests 성공입니다.
+- 이후 코드 검토에서 출력 장치 초기화 중 입력 상태 잠금이 DSP/녹음 검사를 지연시킬 가능성을 보완했습니다. 입력 버퍼/실패 플래그/설정만 짧게 복사한 뒤 잠금을 해제하고 출력 장치를 엽니다. 입력 수명 플래그와 오류 원자값으로 종료/재시작 경합을 검사해 끊긴 입력의 소리를 재개하지 않습니다. 모니터 조회도 입력 잠금을 기다리지 않습니다. 관련 합성 검사를 보강했고 수정 후 `cargo fmt --check`, `cargo clippy --locked --manifest-path src-tauri/Cargo.toml -- -D warnings`, `cargo test --locked --manifest-path src-tauri/Cargo.toml`100개/기본 제외3개가 다시 통과했습니다. 프론트는 이 보완에서 변경하지 않았습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --lib bundle_tests`: 최신 UI index.html/JavaScript 내장 검사1개 성공.
+- 실제 출력 장치 열거만 별도 실행: `cargo test --locked --manifest-path src-tauri/Cargo.toml --lib audio::monitor::tests::enumerate_connected_monitor_outputs -- --ignored --nocapture`1개 성공. SSL Output과 NVIDIA Broadcast Speakers가 각각48,000Hz·stereo·f32로 반환됐습니다. 입력 캡처와 출력 스트림은 시작하지 않았습니다.
+- 기본 제외3개는 실제 입력 장치 열거·실제 출력 장치 열거·합성 WAV 생성입니다. 출력 열거는 이번에 위 별도1개 성공, WAV 생성은 이전 독립 검사 성공, 입력 열거는 오늘 미실행입니다. 개인 WAV는 읽지 않았습니다.
+- 남은 경고: alphaTab 포함 main chunk1,375.09kB, MSVC 라이브러리 생성 안내. Rust 최소1.90·Python 검사는 이번에 미실행이며 실제 Rust1.98 검사를 사용했습니다.
+- 기존 실행PID31700이 남아 있어 실행 파일 교체/앱 재시작은 아직 미실행입니다. 사용자 창 종료 확인 후 Windows 제품을 빌드·열고, MIX USB 끝에서 입력 모니터 켜기/음량/끄기와 실제 지연을 확인합니다. 실제 청취/REC 동시 사용과 Phase 4A 남은 로컬 정렬·녹음 중 USB 복구 검사는 완료로 표시하지 않습니다.
+
+### 앱 모니터 Windows 제품 적용 — 2026-10-15 17:49
+
+사용자 ‘닫음’ 후 실제 프로세스가 없음을 확인했습니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab` 종료 코드0, exe23,035,392바이트/17:48:51. 중복 실행 없음 재확인 후 제품 실행, 실제PID22000/17:49:02/창 제목GuitarLab 확인. 기본 모니터 꺼짐·음량25%이며 입력 캡처·오디오 출력·녹음을 자동 시작하지 않았습니다. 앞선131개 프론트/100개 native·번들1개 결과를 유지하고 이번에는 제품 빌드/실행만 확인했습니다. 기존 MSVC 라이브러리 생성 안내 외 빌드 실패는 없습니다.
+
+다음 실제 확인은 SSL Input 1 입력 시작→모니터 출력 새로고침/SSL Output 선택→MIX USB 끝→모니터 켜기·음량 변경·끄기·체감 지연입니다. 실제 청취·REC 동시 동작·장치 분리 복구/로컬 정렬은 아직 미실행입니다. 확인 요청 후 파일·앱 상태를 유지하고 사용자 결과를 기다립니다. Phase 4A 전체 완료로 표시하지 않습니다.
+
+### 앱 모니터 실제 청취 확인 — 2026-10-15
+
+- 사용자 실제 결과: SSL USB 끝의 앱 모니터에서 기타 소리가 잘 들림. 모니터 큐480/960프레임 교대, 출력 부족0프레임·큐 초과/지연 조정0프레임·출력 버퍼480프레임을 제공했습니다.
+- 기존48kHz 기준 큐는 약10~20ms 분량입니다. OS·입출력 장치 버퍼를 포함한 전체 왕복 지연 측정값이 아니며, 실제 지연 분포나 장시간 무결성을 측정한 것으로 기록하지 않습니다. 모니터 음량/끄기는 이번 답변에서 명시 확인되지 않았습니다.
+- 새 코드/의존성 변경과 자동 검사 반복은 하지 않았습니다. 이전 최종 프론트131개/native100개·번들1개·Windows 빌드 성공 이력을 유지합니다. 변경 파일은 진행 문서와 녹음 명세뿐입니다.
+- 다음 수동 검사: 모니터를 켠 무반주 REC 도중 청취 음량·끄기·켜기 조작에도 녹음 프레임이 계속 증가하고 STOP 후 READY·청취가 되는지 확인합니다. 이어 실제 녹음 중 USB 분리의 오류/원본 보존 복구와 로컬 정렬/A-B·부분 재생을 확인합니다. 이들은 미실행이며 Phase 4A 전체 진행 중입니다. 사용자 테스트 동안 제품PID22000과 소스를 그대로 유지합니다.
+
+### 모니터 토글과 녹음 독립 실제 확인 — 2026-10-15
+
+- 사용자 결과: ‘모니터 끄기 다시 켜기 해도 녹음 프레임이 정상 작동하고 기타도 남아있음’. 녹음 중 모니터 토글이 입력 저장을 끊지 않음을 실제 확인했습니다.
+- 새 테이크의 정확한 READY 문구/길이/프레임/누락 수는 미제공이므로0 누락이나 특정 녹음 길이를 추정하지 않습니다. 모니터 음량 변경의 청취 결과도 별도 명시 확인 전입니다. 테이크 재생 음량·음소거는 앞선 사용자 확인 완료와 구분합니다.
+- 제품 소스 변경·자동 검사 반복은 하지 않았습니다. 이번 변경은 `docs/progress/{README,PHASE-04A}.md`, `docs/17`에 실제 결과/남은 항목을 기록하는 문서 갱신입니다. 기존 자동 검사131개 front/100개 native·기본 제외3개·번들1개·Windows 빌드 성공 이력을 유지합니다.
+- 다음은 새 무반주 테스트 REC 약5초 뒤 USB 분리→입력/모니터 오류 및 녹음 중단→USB 재연결/Input 1 튜너 복구입니다. 상태 확인 후 방금의 불완전 테이크를 ‘원본 보존하여 복구’하고 끊기기 전 기타를 다시 듣는 실제 검사를 진행합니다. 장치 분리 REC 복구와 로컬 정렬/A-B/부분 재생은 아직 미실행이며 Phase 4A 전체 진행 중입니다. 실제 검사 요청 후 소스·문서·앱을 수정/재시작하지 않고 기다립니다.
+
+### REC 중 USB 분리 실제 결과 — 2026-10-15
+
+- 사용자 원문: `테이크 안내: INPUT_NOT_ACTIVE · 불완전 테이크는 다시 듣기에서 복구할 수 있습니다.`, 모니터 오류 해제 버튼 표시, 녹음 프레임 정지. 장치 분리의 오류/REC 중단·모니터 오류 표시를 실제 확인했습니다. ‘복구도 되는거 같은데’는 입력 재연결과 테이크 파일 복구 중 어느 쪽인지 명확하지 않아 파일 복구 성공으로 확대하지 않습니다.
+- Python sqlite3로 앱 데이터 DB의 최근6개 테이크 메타데이터만 `mode=ro`/`PRAGMA query_only=ON` 조회했습니다. 개인 WAV/원시 PCM을 읽거나 전송하지 않았으며 DB/파일을 수정하지 않았습니다. SELECT는 ID/state/metadata_json/metadata_sha256에 한정하고 출력은 프레임/샘플레이트/누락/오류/복구 원본ID/메타데이터 해시 검증만 허용했습니다.
+- 최신 불완전 원본ID `55470f00-3099-4dfc-b73c-dc34a1dd4abb`: RECOVERABLE_ERROR/INPUT_NOT_ACTIVE,443,040프레임/48,000Hz=9.23초, 관측 droppedFrames0, recoveredFrom=null, 메타데이터 SHA-256 일치. 직전 불완전 원본ID `5df410e1-a440-4a1a-bfb5-6cb1deb9ad0b`도 동일 상태/오류,637,440프레임=13.28초/관측 누락0입니다. 분리 뒤 미수신 구간이 없었다는 뜻은 아니며 불완전 표시를 유지합니다.
+- 기존 READY 테이크647,206프레임 및 최근 READY2개도 남아 있고 메타데이터 해시가 일치했습니다. 최신6개에는 복구한 새 테이크가 없어 방금 원본의 파일 복구/청취는 아직 확인 전입니다.
+- 다음: 다시 듣기에서 최신9.23초 불완전 테이크의 ‘원본 보존하여 복구’→새 ‘복구한 테이크’ READY/길이와 끊기기 전 연주 청취 확인. 이후 로컬 정렬 리플레이/A-B/부분 재생과 이름·메모 재실행 복원을 검사합니다. 제품 소스/의존성 변경·자동 검사 반복은 없고 문서만 갱신했습니다. 사용자 수동 확인 동안 앱·파일을 유지합니다. Phase 4A 전체 진행 중입니다.
+
+### USB 분리 테이크 복구·청취 성공 — 2026-10-15
+
+- 사용자 ‘기타 소리 잘 들림’으로 복구 후 청취를 실제 확인했습니다. 이어 DB 메타데이터만 같은 읽기 전용 방식으로 조회했습니다. 개인 WAV·PCM은 읽거나 전송하지 않았습니다.
+- 새 복구ID `810f0bd2-9e5e-489b-af1f-bdeb8560094c`: READY,443,040프레임/48kHz=9.23초, 관측 droppedFrames0, errorCode=RECOVERED_PARTIAL, recoveredFrom=`55470f00-3099-4dfc-b73c-dc34a1dd4abb`, transport/songStartMs=null, 메타데이터 SHA-256 일치.
+- 불완전 원본ID `55470f00-3099-4dfc-b73c-dc34a1dd4abb`는 RECOVERABLE_ERROR/INPUT_NOT_ACTIVE·동일443,040프레임으로 남고 메타데이터 해시가 일치했습니다. 원본을 READY로 덮어쓰지 않고 새 테이크로 연결됨을 확인했습니다. 실제 원본 WAV 바이트 비교는 수행하지 않았으며 원본 바이트 보존은 앞선 합성 파일 회귀 테스트 범위로 구분합니다.
+- 로드맵4A의 첫 항목(InputOnly WAV recorder/명시적 REC·Stop/.part 복구)을 실제 확인 후 `[x]`로 갱신했습니다. 전체 Phase 완료 표시는 하지 않았습니다. 최신 자동 검사는 기존131개 front/100개 native·기본 제외3개·번들1개이며 이번에는 메타데이터 조회와 문서 갱신만 수행했습니다.
+- 남은 실제 검사는 로컬 반주에 정렬한 REC/악보 커서, 정렬된 두 테이크 A/B·부분 반복, 이름/메모/오프셋 저장 후 앱 재실행 복원입니다. 다음은 반복 끄기·0.5× 반주 재생/clock 안정→정렬 REC→STOP/리플레이 확인입니다. 모니터의 전체 왕복 지연은 미측정이며 ASIO/리샘플링은 미구현입니다. 사용자 테스트 동안 소스·문서·앱을 그대로 유지합니다.
+
+첫 로컬 정렬 실제 검사는 기존4초 합성 반주를0.5×/반복 끄기로 재생하고, REC가 활성화된 뒤 녹음해 재생 종료 시 상태와 다시 듣기의 악보 커서를 확인합니다. 재생 종료와 clock reset/녹음 확정의 순서도 아직 실제 확인 전이므로 READY를 미리 단정하지 않으며 오류 원문을 요청합니다. 이 검사 동안 파일과 앱 상태를 유지합니다.
+
+### 정렬 REC 접근 방해·비활성 사유 수정 — 2026-10-15
+
+- 사용자 결과: 정렬 체크 시 REC가 비활성화된 것 같음. 재생 중에도 같은지 요청하자 ‘재생을 누르면 악보에 고정되어 위에를 확인할 수 없음’을 확인했습니다. 실제 재생 중 REC 활성 조건 충족 여부와 로컬 정렬 녹음은 아직 확인하지 못했습니다.
+- 원인: 앱 `ScoreViewport.tsx`의 커서 효과가 본문 `#main`과 위치를 비교한 뒤 `cursor.scrollIntoView()`를 호출했습니다. 커서가 움직일 때 전체 스크롤 체인이 악보로 이동해 사용자의 상단 REC 접근을 방해했습니다. alphaTab 자체 재생은 비활성이며 이 호출은 앱 코드였습니다.
+- 수정 전 `ScoreViewport.test.tsx`에서 커서가 화면 아래로 넘어갈 때 전체 페이지 스크롤 함수가 호출됨을 재현했습니다(회귀1개 실패). 수정 후 로컬 악보 section의 scrollTop만 바꾸고 페이지 위치·REC 키보드 포커스를 유지하며, 보이는 커서는 이동하지 않고 위로 seek하면 내부만 복귀하는 동일 검사1개가 성공했습니다. 주 작업 공간·테이크 replay 양쪽이 같은 컴포넌트를 사용합니다.
+- `shared/styles.css`: 악보 높이 최소240px/최대40vh와 내부 overflow/overscroll containment를 적용했습니다. `.recording-panel`은 본문 상단 sticky로 유지하고 일반 준비 설명은 details로 접었습니다. 전체 페이지를 자동으로 되돌리지 않으면서 REC/STOP을 계속 사용할 목적입니다. 실제 Windows 화면 크기별 육안 확인은 미실행입니다.
+- `RecordingPanel.tsx`: 기존 시작 조건을 유지하며 네이티브/사용 가능 모드·프로젝트 작업/악보 저장·정상 입력·보정값·프로젝트 반주 연결·반복/재생 준비·재생 중·동기화 준비의 구체적인 비활성 이유를 표시합니다. 준비 완료 시 현재 반주 위치부터 녹음됨을 안내합니다. REC aria-describedby로 상태 안내를 연결하고 녹음 중 잠금·STOP 접근·native 검증은 유지합니다.
+- `RecordingPanel.test.tsx`: 정지 중 이유/버튼 비활성, 재생+동기화 후 정확한 INPUT_ONLY transport 요청, 동기화 대기/프로젝트 음원 미연결/반복 중 차단, 무반주 전환 시 transport=null을 검사했습니다. 핵심2개 및 TypeScript 성공입니다. 최초 테스트의 node:fs 타입 미설치 오류는 자체 AlphaTex fixture를 사용해 해결했으며 새 의존성을 추가하지 않았습니다.
+- 변경 파일: `src/features/score/{ScoreViewport.tsx,ScoreViewport.test.tsx}`, `src/features/recordings/{RecordingPanel.tsx,RecordingPanel.test.tsx}`, `src/shared/styles.css`, UI 명세·진행 문서. Rust/IPC/SQLite/개인 WAV는 변경하지 않았습니다. 전체 검사 및 새 UI 번들/Windows 적용·실제 재확인은 진행 전/진행 중으로 구분합니다. 기존 앱을 자동 종료하지 않습니다.
+
+수정 후 `pnpm verify:app` 종료 코드0: 프론트133개/40파일, TypeScript·ESLint·production build·Prettier·cargo fmt·Clippy·native100개/기본 제외3개·binary/doc-tests 성공. `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --lib bundle_tests`1개도 성공했습니다. main chunk1,376.40kB와 MSVC 라이브러리 생성 안내 경고는 유지합니다. 기존 실행 파일은 이전 UI를 내장하고 있으므로 사용자 종료 확인 후 제품 exe 재빌드/실행이 필요합니다. 새 Windows UI에서 sticky/내부 스크롤·정렬 REC 사유 확인과 로컬 정렬 녹음은 아직 미실행입니다.
+
+### REC 접근 수정 Windows 적용 — 2026-10-15 18:23
+
+사용자 ‘닫음’ 후 실제 프로세스 없음 확인, `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab` 종료 코드0. exe23,035,904바이트/18:22:55. 중복 실행 없음 재확인 후 실행해 실제PID33128/18:23:08/창 제목GuitarLab 확인. 입력·모니터·REC를 자동 시작하지 않았고 기존 프로젝트/테이크를 수정하지 않았습니다. 이번에는 제품 빌드/프로세스 실행만 확인했으며133개 front/100개 native·기본 제외3개·번들1개는 앞선 최종 검사입니다.
+
+이제 저장 프로젝트·SSL Input 1·연주0.5×·반복 끄기·로컬 정렬 켜기→재생 중 상단 REC 접근과 옆의 준비 상태를 확인합니다. 활성화되면 REC 후 반주 종료 시 상태, 계속 비활성이면 구체적인 안내 문구를 요청합니다. 실제 UI/로컬 정렬 녹음은 아직 미실행이며 검사 요청 이후 파일·앱을 수정/재시작하지 않고 기다립니다. Phase 4A 전체 진행 중입니다.
+
+### 기능·안정성 우선 규칙 반영 및 정렬 REC 저장 확인 — 2026-10-15
+
+- 사용자 결정: 현재 UI를 완성형으로 보지 않고 추후 전면 리디자인합니다. UI/비즈니스 로직 분리, 핵심 기능의 UI 비종속, 공통 토큰, 재사용 UI, 최소 UI, 전체 UI 교체 시 기능·데이터 구조 보존의6개 규칙을 `AGENTS.md`10절에 추가했습니다. `README.md`, `docs/{00,02,03,08}` 및 진행 문서에 같은 결정을 반영했고 기존 내용/로드맵 순서/검증 조건을 삭제하지 않았습니다.
+- 이번 규칙 반영은 문서 변경입니다. 전체 UI 리팩터링·추가 디자인·새 의존성·제품 소스/데이터 변경·앱 재실행은 하지 않았습니다. 기존 모든 디자인 값의 토큰 이행을 완료했다고 주장하지 않습니다. 후속 기능 변경에서 공통 토큰과 도메인/서비스 경계를 유지합니다.
+- 사용자가 REC 활성화가 조금 늦게 느껴진다고 확인했습니다. clock의 실제 준비 조건은 최소3개 anchor·400ms 관측 구간이며 프론트는200ms 간격으로 동기화합니다. 정확한 실제 활성화 소요시간은 미측정입니다. 검증 없이 동기화 조건을 완화하거나 지연을0으로 기록하지 않습니다.
+- 앱 데이터 DB를 mode=ro/query_only로 읽어 최근 정렬 테이크2개가 READY임을 확인했습니다. 최신ID60af7e3d-b5c7-4850-a084-66b34d321904:291,698프레임/48kHz≈6.08초, transport.rate0.5/epoch9/songStartMs≈900.63. 직전IDcf9a2c88-5c4b-4968-ac34-b118e3b8c175:340,022프레임≈7.08초, rate0.5/epoch8/songStartMs≈395.60. 두 테이크의 backingAssetId가 같고 오류 코드는null입니다. 개인 WAV는 읽지 않았습니다.
+- 실제 정렬 REC가 저장된 상태까지 확인했으며 TAB 커서/정렬 재생·A-B·부분 반복의 실제 청취와 메타데이터 재실행 복원은 아직 미실행입니다. 다음은 이미 저장된 두 테이크를 사용해 이 기능들을 확인합니다. 문서 반영은 변경 내용 검색으로 확인했으며 Markdown은 기존 Prettier 제외 대상입니다. 타입/린트/테스트/빌드 재실행은 미실행 — 문서만 변경했고 제품 소스/의존성이 동일하기 때문입니다. 기존133개 front/100개 native·기본 제외3개·번들1개 성공 이력을 유지합니다. 전체 Phase 완료/4B 착수는 아직 아닙니다.
+
+추가 메타데이터 비교에서 두 정렬 테이크의 프로젝트/악보 리비전/대상 트랙/보정값/반주/배속이 모두 같고 관측 droppedFrames가 각각0임을 확인했습니다. 따라서 새 녹음 요청 없이 기존 최신6.08초(A)·직전7.08초(B)로 정렬 replay/A-B·부분 반복을 확인합니다. 실제 소리와 TAB 커서, A/B 전환 시 논리 위치 유지, 부분 반복 청취는 아직 사용자 확인 전이며 요청 후 파일·앱을 유지합니다.
+
+### A/B·부분 반복 자동 검증 보강 — 2026-10-15
+
+- 사용자가 앞선 복합 수동 요청을 ‘잘 모르겠음’으로 답했습니다. 수동 커서 위치 비교/부분 반복 청취는 결론 보류이며 통과로 기록하지 않습니다. 현재 기능 중심 원칙에 따라 디자인 작업이나 화면 교체 없이 부족했던 자동 검증을 보강했습니다.
+- 변경 파일: `src/features/recordings/TakeReplay.test.tsx`, 진행 문서, `docs/17`. 공통 재생 테스트 준비를 재사용하고 기존 악보 누락 시 WAV 청취/음량 검사에 더해 저장 원본 악보를 정상 읽는 경로1개를 추가했습니다. 제품 UI/핵심 구현·IPC·데이터/의존성을 수정하지 않았습니다.
+- 자체 AlphaTex를 설치된 alphaTab1.6.1의 Gp7Exporter로 GP 바이트에 변환하고 실제 importer/lookup/정규화/시간 매핑을 사용했습니다. native 파일 읽기 응답은 자체 GP/WAV fixture로 모의하며 실제 사용자 오디오는 읽지 않습니다. alphaTab 화면 렌더러는 전달받은 tick을 표시하는 테스트 대역, HTMLMediaElement.play는 모의입니다. 따라서 실제 청취나 시각적 커서 검증으로 확대하지 않습니다.
+- 실제 PlayerEngine에서 A의1000ms→B의600ms로 바뀌어도 같은 악보 tick2860.8이 유지되고 원곡 media가 그대로임을 확인했습니다. 부분 시작500/끝1500ms에서 timeupdate가 구간을 넘을 때 시작500ms로 돌아가는 동작을3회 반복해 검사했습니다. 단순히 loop 설정값만 비교하지 않고 재생 위치·계속 재생 상태와 커서 tick을 확인했습니다.
+- `pnpm exec vitest run src/features/recordings/TakeReplay.test.tsx`:2개 성공. `pnpm typecheck`, `pnpm lint`, `pnpm test`134개/40파일, `pnpm format:check` 성공. 새 오류 없음.
+- 빌드/Rust/Windows 재실행은 미실행 — 테스트와 문서만 바뀌어 기존 제품 동작/실행 파일이 동일합니다. 직전133개 front/100개 native·기본 제외3개·번들1개/Windows 제품 빌드 성공 이력과 구분합니다.
+- 다음 수동 확인은 최근 테이크 하나에서500~1500ms의 약1초 구간이 반복되는지만 요청합니다. 이후 이름·메모·오프셋 저장/앱 재실행 복원을 검증합니다. A/B 시각 비교는 사용자 확인 불명확으로 남기며 Phase 4A 전체 완료 표시를 하지 않습니다. 새 요청 이후 파일/앱을 그대로 유지합니다.
+
+### 부분 반복 실제 청취 성공·저장 재실행 준비 — 2026-10-15
+
+- 사용자 결과: ‘같은 짧은 구간이 계속 반복됨’.500~1500ms 부분 반복의 실제 청취를 확인했습니다. A/B 커서 위치의 수동 판단과 혼합하지 않고, 자동 수치 검증/실제 청취를 구분합니다.
+- 다음 수동 검사는 최신6.08초 테이크의 이름만 ‘복원 확인’으로 저장하고 앱을 닫은 뒤 재실행하는 단순 경로로 줄입니다. 메모·오프셋 변경/재열기는 기존 native 자동 파일·SQLite 테스트에서 검증했으며 이번 실제 수동 변경 성공으로 주장하지 않습니다. 사용자에게 같은 복합 시나리오를 반복 요청하지 않습니다.
+- 최신ID60af7e3d-b5c7-4850-a084-66b34d321904의 편집 전 메타데이터(ID/READY/이름/메모/오프셋0/291,698프레임/48kHz/PCM 파일 해시/리비전/트랙)를 mode=ro/query_only로 읽어 비교 기준으로 보관했습니다. 오디오 파일 자체는 읽지 않았습니다. 첫 터미널 한글 표시가 깨져 JSON ensure_ascii=True로 다시 읽어 정확한 기준값을 보관했고 앱 데이터를 수정하지 않았습니다.
+- 이번 변경 파일은 `docs/progress/{README,PHASE-04A}.md`, `docs/17`입니다. 제품 소스·데이터·의존성 변경/빌드/타입·린트·테스트 재실행은 미실행 — 문서와 읽기 전용 진단뿐이기 때문입니다. 최신134개 front/100개 native·기본 제외3개·번들1개/제품 빌드 성공 이력을 유지합니다. 새 빌드 없이 기존exe를 사용자가 닫은 뒤 다시 엽니다.
+- 저장/종료·재실행 후 UI 복원과 기존 PCM 메타데이터 보존 확인은 아직 미실행입니다. 이 검사를 마친 뒤 남은 로드맵 체크·Phase 4A 최종 문서화를 검토하고 다음4B로 진행합니다. 실제 확인 전 완료 표시는 하지 않으며 요청 이후 파일·앱을 유지합니다.
+
+### 이름 저장·종료 후 유지 및 개발 실행 콘솔 수정 — 2026-10-15
+
+- 사용자가 이름 저장 후 앱을 닫았다고 확인했고 실제 GuitarLab 프로세스가 없었습니다. 종료 후 읽기 전용 DB 결과를 편집 전 기준과 비교해 ID60af7e3d-b5c7-4850-a084-66b34d321904의 이름이 ‘복원 확인’으로 유지됨을 확인했습니다. READY/291,698프레임/48kHz 및 저장된 원본 해시·리비전·트랙·메모·오프셋은 동일했습니다. 실제 WAV를 다시 읽어 바이트 비교한 것으로 확대하지 않습니다.
+- 사용자 추가 질문: cmd 창이 하나 더 열리는 이유. 기존 `main.rs`는 release에서만 windows_subsystem을 설정해 직접 실행한 debug exe가 PE 서브시스템3(Console)이었습니다. 일반 Windows 앱 실행에는 debug도 GUI 서브시스템을 사용하도록 한 줄을 변경하고 테스트 실행은 제외했습니다. 다른 기존 cmd/conhost 프로세스는 종료하지 않았고 사용자가 본 개별 cmd의 정체까지 모두 확인한 것은 아닙니다.
+- 실행: `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `cargo clippy --locked --manifest-path src-tauri/Cargo.toml -- -D warnings`, `cargo test --locked --manifest-path src-tauri/Cargo.toml` 성공(100개/제외3개, binary/doc-tests 성공). `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab` 성공. 자체 PE 헤더 검사에서 새 exe 서브시스템2(Windows GUI)·23,035,904바이트 확인. 사용자 종료 후 새PID33628/19:01:36으로 실행했습니다. MSVC 라이브러리 생성 안내 경고는 남았습니다.
+- 추가 검사 실패: 표준보다 넓은 `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`에서 기존 테스트의 `chunks_exact_to_as_chunks`1개(`audio/monitor.rs`)와 `err_expect`7개(`judgement/practice.rs`, `storage/projects_tests.rs`)가 검출됐습니다. 이번 실행 속성 변경 원인으로 보지 않으며 테스트 코드 lint 정리는 후속 작업으로 남깁니다. 이 확장 검사를 통과했다고 기록하지 않습니다.
+- 프론트/번들 검사는 미실행 — 변경이 Rust binary의 Windows 실행 속성 한 줄뿐이며 기존134개 프론트·번들1개 성공 이력을 유지합니다. 의존성·IPC·데이터는 변경하지 않았습니다. 앱에서 ‘복원 확인’ 이름·재생 복원과 별도 콘솔이 새로 생기지 않는지는 사용자 확인 대기입니다. 해당 요청 후 파일·앱을 유지하며 Phase 4A는 최종 확인 중입니다.
+
+### 최종 사용자 확인·완료 — 2026-10-15
+
+- 사용자 ‘보이고 재생도 됨 cmd창도 안생김’: 재실행한 제품에서 ‘복원 확인’ 이름 표시와 실제 녹음 청취, 별도 콘솔 미생성을 확인했습니다. 앞선 읽기 전용 메타데이터 유지 검사와 구분해 실제 UI/청취 결과로 기록합니다.
+- 최종 검사: 프론트134개/40파일·타입/린트/포맷, native100개/기본 제외3개·fmt/표준 Clippy, 번들1개와 Windows 빌드/실행 성공. 각 명령 시점과 미실행 범위는 위 이력을 따르며 이번 답변 수신만으로 검사를 다시 실행한 것으로 기록하지 않습니다.
+- 로드맵4A의 나머지 항목과 진행표를 완료로 갱신했습니다. 원본/네트워크/YouTube 정책과 실제 A/B 육안 판단·실제 왕복 지연/ASIO·다중 segment·곡0ms 자동 REC 등 기존 제약은 유지합니다. 다음은 승인 요청 없이 Phase 4B입니다.

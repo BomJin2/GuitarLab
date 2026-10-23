@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "state": "INSTALLER_NOTICE_PREPARATION",
+  "legalReviewCompleted": false,
+  "tools": [
+    {
+      "id": "nsis",
+      "version": "3.11",
+      "scope": "INSTALLER_TOOL_AND_ZLIB_STUB",
+      "declaredLicense": "zlib/libpng (zlib compressor selected)",
+      "sourceUrl": "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip",
+      "notices": [
+        {
+          "name": "COPYING",
+          "file": "notices/e7dd514003ab96cb3ddccbc028fe5c795fccf57dc41f21cfb9d4dd16ead23bf5.txt",
+          "bytes": 15632,
+          "sha256": "e7dd514003ab96cb3ddccbc028fe5c795fccf57dc41f21cfb9d4dd16ead23bf5",
+          "sourceUrl": "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip"
+        }
+      ],
+      "binaries": [
+        {
+          "file": "makensis.exe",
+          "bytes": 2560,
+          "sha256": "f497e92deb9f179f7b8f7553fcb3bd04f511bb2949e5e4a2aee80a10f7b20431"
+        },
+        {
+          "file": "Stubs/zlib_solid-x86-unicode",
+          "bytes": 40960,
+          "sha256": "e6c2afdd03c7bc5f1dc24449e5c92f3859f7586f399dff01c175d52e052bc943"
+        }
+      ]
+    },
+    {
+      "id": "nsis-tauri-utils",
+      "version": "0.5.3",
+      "scope": "INSTALLER_PLUGIN",
+      "declaredLicense": "MIT or Apache-2.0",
+      "sourceCommit": "13d9edd27b69310e108d6fbd49f90992f8a05390",
+      "sourceUrl": "https://github.com/tauri-apps/nsis-tauri-utils/tree/13d9edd27b69310e108d6fbd49f90992f8a05390",
+      "notices": [
+        {
+          "name": "LICENSE_MIT",
+          "file": "notices/1c1020fa10a6bf318717e82c911bcc54ebdfb9bb280460ae332bcb2f82f57fbe.txt",
+          "bytes": 1110,
+          "sha256": "1c1020fa10a6bf318717e82c911bcc54ebdfb9bb280460ae332bcb2f82f57fbe",
+          "sourceUrl": "https://raw.githubusercontent.com/tauri-apps/nsis-tauri-utils/13d9edd27b69310e108d6fbd49f90992f8a05390/LICENSE_MIT"
+        },
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "file": "notices/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt",
+          "bytes": 10174,
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "sourceUrl": "https://raw.githubusercontent.com/tauri-apps/nsis-tauri-utils/13d9edd27b69310e108d6fbd49f90992f8a05390/LICENSE_APACHE-2.0"
+        }
+      ],
+      "binaries": [
+        {
+          "file": "nsis_tauri_utils.dll",
+          "bytes": 34304,
+          "sha256": "5ba143b5db4a87d32d6e7802e033330aae56cbceabe0d1e3ba41948385ad4709"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "renderSource": "NORMALIZED",
+  "id": "manual-json-fixture",
+  "title": "기타 {제목} [왕복]",
+  "ppq": 960,
+  "tempoMap": [{ "tick": 0, "bpm": 120 }],
+  "timeSignatures": [{ "tick": 0, "numerator": 4, "denominator": 4 }],
+  "syncAnchors": [
+    { "scoreTick": 0, "audioTimeMs": 5000 },
+    { "scoreTick": 3840, "audioTimeMs": 7000 }
+  ],
+  "tracks": [
+    {
+      "id": "lead-json",
+      "name": "직접 작성 리드",
+      "instrument": "GUITAR",
+      "role": "LEAD",
+      "tuningMidi": [64, 59, 55, 50, 45, 40],
+      "notes": [
+        {
+          "id": "lead-1",
+          "trackId": "lead-json",
+          "measureIndex": 0,
+          "startTick": 0,
+          "durationTicks": 960,
+          "pitchMidi": 67,
+          "stringIndex": 1,
+          "fret": 3,
+          "attack": true,
+          "source": "manual"
+        },
+        {
+          "id": "lead-2",
+          "trackId": "lead-json",
+          "measureIndex": 0,
+          "startTick": 960,
+          "durationTicks": 960,
+          "pitchMidi": 64,
+          "stringIndex": 2,
+          "fret": 5,
+          "attack": true,
+          "source": "manual"
+        }
+      ]
+    },
+    {
+      "id": "rhythm-json",
+      "name": "직접 작성 리듬",
+      "instrument": "GUITAR",
+      "role": "RHYTHM",
+      "tuningMidi": [64, 59, 55, 50, 45, 40],
+      "notes": [
+        {
+          "id": "rhythm-1",
+          "trackId": "rhythm-json",
+          "measureIndex": 0,
+          "startTick": 0,
+          "durationTicks": 1920,
+          "pitchMidi": 40,
+          "stringIndex": 6,
+          "fret": 0,
+          "attack": true,
+          "source": "manual"
+        }
+      ]
+    }
+  ]
+}

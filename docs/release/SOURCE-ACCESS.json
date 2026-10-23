@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "state": "SOURCE_ACCESS_REVIEW",
+  "legalReviewCompleted": false,
+  "scope": "현재 Windows 의존성 목록의 정확한 MPL-2.0 선언 6개",
+  "components": [
+    {
+      "ecosystem": "cargo",
+      "name": "cssparser",
+      "version": "0.37.0",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/cssparser/cssparser-0.37.0.crate",
+      "sourceArchiveSha256": "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98",
+      "localSourceFilesVerified": 24,
+      "bundledSource": {
+        "file": "sources/cssparser-0.37.0.crate",
+        "bytes": 56860,
+        "sha256": "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98"
+      },
+      "sourceUrl": "https://crates.io/crates/cssparser/0.37.0"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cssparser-macros",
+      "version": "0.7.1",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/cssparser-macros/cssparser-macros-0.7.1.crate",
+      "sourceArchiveSha256": "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a",
+      "localSourceFilesVerified": 6,
+      "bundledSource": {
+        "file": "sources/cssparser-macros-0.7.1.crate",
+        "bytes": 8197,
+        "sha256": "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
+      },
+      "sourceUrl": "https://crates.io/crates/cssparser-macros/0.7.1"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dtoa-short",
+      "version": "0.3.5",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/dtoa-short/dtoa-short-0.3.5.crate",
+      "sourceArchiveSha256": "cd1511a7b6a56299bd043a9c167a6d2bfb37bf84a6dfceaba651168adfb43c87",
+      "localSourceFilesVerified": 6,
+      "bundledSource": {
+        "file": "sources/dtoa-short-0.3.5.crate",
+        "bytes": 8287,
+        "sha256": "cd1511a7b6a56299bd043a9c167a6d2bfb37bf84a6dfceaba651168adfb43c87"
+      },
+      "sourceUrl": "https://crates.io/crates/dtoa-short/0.3.5"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "option-ext",
+      "version": "0.2.0",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/option-ext/option-ext-0.2.0.crate",
+      "sourceArchiveSha256": "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d",
+      "localSourceFilesVerified": 8,
+      "bundledSource": {
+        "file": "sources/option-ext-0.2.0.crate",
+        "bytes": 7345,
+        "sha256": "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+      },
+      "sourceUrl": "https://crates.io/crates/option-ext/0.2.0"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "selectors",
+      "version": "0.38.0",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/selectors/selectors-0.38.0.crate",
+      "sourceArchiveSha256": "8adfa1c298912827b8a28b223b3b874357397ae706e6190acd9bf28cee99114d",
+      "localSourceFilesVerified": 22,
+      "bundledSource": {
+        "file": "sources/selectors-0.38.0.crate",
+        "bytes": 69601,
+        "sha256": "8adfa1c298912827b8a28b223b3b874357397ae706e6190acd9bf28cee99114d"
+      },
+      "sourceUrl": "https://crates.io/crates/selectors/0.38.0"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@coderline/alphatab",
+      "version": "1.6.1",
+      "declaredLicense": "MPL-2.0",
+      "sourceUrl": "https://github.com/CoderLine/alphaTab/tree/4f78524781ce9441cba1267d45a983c6ac92b977",
+      "gitCommit": "4f78524781ce9441cba1267d45a983c6ac92b977",
+      "npmTarballUrl": "https://registry.npmjs.org/@coderline/alphatab/-/alphatab-1.6.1.tgz",
+      "npmTarballIntegrity": "sha512-EAvtcymJ7sv6l6tvRsKppjTIMxHqHV2BKGJLDIv4BEFHt9URfZx3dqn086xEsRz4lCeqKaUAz0gs0XDnGzvtKw==",
+      "bundledSource": null,
+      "sourceTreeMetadataSha256": "bc804086bb2984a659a540a4ea8461b30ec7030deab3d2efe7dd6573b934833e"
+    }
+  ]
+}

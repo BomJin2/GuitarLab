@@ -1,0 +1,80 @@
+name: Windows 기능 회귀
+
+'on':
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: 소스 읽기
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node 22 준비
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: 기본 검사 Python 준비
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13.16'
+          architecture: x64
+
+      - name: 고정 개발 도구 준비
+        run: |
+          npm install --global pnpm@9.14.3 --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default 1.98.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install --disable-pip-version-check -r ai/requirements-test.lock
+          exit $LASTEXITCODE
+
+      - name: 잠금 파일로 프론트 설치
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: 앱 기본 회귀
+        run: pnpm verify:app
+
+      - name: 확장 native 회귀
+        run: |
+          cargo clippy --locked --all-targets --all-features --manifest-path src-tauri/Cargo.toml -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --all-features --manifest-path src-tauri/Cargo.toml
+          exit $LASTEXITCODE
+
+      - name: 모델 없는 Python 계약과 자체 백업 검사
+        run: |
+          python -B -X utf8 -m pytest ai/tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B -X utf8 -m unittest discover -s scripts -p "test_*.py"
+          exit $LASTEXITCODE
+
+      - name: 선언한 Rust 최소 버전 컴파일
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +1.90.0 check --locked --all-targets --all-features --manifest-path src-tauri/Cargo.toml
+          exit $LASTEXITCODE
