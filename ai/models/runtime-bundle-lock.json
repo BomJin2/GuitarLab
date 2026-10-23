@@ -16845,8 +16845,8 @@
     },
     {
       "path": "worker/guitarlab_ai/model_cache.py",
-      "bytes": 8547,
-      "sha256": "555b865f3123cc90ab204420d272e35500c80df92f819909a4787063bf6fe170"
+      "bytes": 8361,
+      "sha256": "24147269c7aa6b1eb1216a92e7b2de30c9256270433e3467792921a4d68d520b"
     },
     {
       "path": "worker/guitarlab_ai/model_integrity.py",
@@ -16880,8 +16880,8 @@
     },
     {
       "path": "worker/guitarlab_ai/runtime_packages.py",
-      "bytes": 8291,
-      "sha256": "f78164034e380728194adb37d6741e60a142ff972bc645e2bfe1d03ca24622ab"
+      "bytes": 8127,
+      "sha256": "1089bb2d3080216e5626fbaf781c2a39c5247e89d477806a5457cf89bb9c3c5c"
     },
     {
       "path": "worker/guitarlab_ai/runtime_paths.py",
@@ -16935,8 +16935,8 @@
     },
     {
       "path": "worker/guitarlab_ai/worker.py",
-      "bytes": 10545,
-      "sha256": "432b3d222037754fdf53062e676cb6e6643213efb2c61143d692b5184f07bb52"
+      "bytes": 10365,
+      "sha256": "622bf7cf803cb5c98a025638f94ddd0f2d7855df5b4bd088ff04f9f6e9a39bda"
     },
     {
       "path": "worker/launch_worker.py",

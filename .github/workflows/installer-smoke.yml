@@ -1,0 +1,88 @@
+name: Windows 격리 설치 검증
+
+'on':
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/installer-smoke.yml'
+      - 'scripts/prepare_ci_installer.py'
+      - 'scripts/prepare_validation_installer.py'
+      - 'scripts/Test-ValidationInstaller.ps1'
+      - 'ai/guitarlab_ai/runtime_bundle.py'
+      - 'ai/models/runtime-bundle-lock.json'
+      - 'src-tauri/tauri.validation.conf.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: 소스 읽기
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 준비
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: 준비용 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13.16'
+          architecture: x64
+      - name: 고정 빌드 도구와 자체 검사 Python 준비
+        run: |
+          npm install --global pnpm@9.14.3 --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup toolchain install 1.98.0 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default 1.98.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m venv --without-pip ai/.venv
+          exit $LASTEXITCODE
+      - name: 프론트 잠금 설치/빌드
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm build
+          exit $LASTEXITCODE
+      - name: 모델 없는 고정 런타임/별도 식별자 준비
+        run: python -B -X utf8 scripts/prepare_ci_installer.py --download-runtime
+      - name: 최적화 설치기와 독립 검사 도구 빌드
+        run: |
+          $plan = Get-Content src-tauri/target/runtime-validation/validation-installer-plan.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          pnpm tauri build --ci --config $plan.configPath -- --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --release --locked --manifest-path src-tauri/Cargo.toml --example manage_ai_model
+          exit $LASTEXITCODE
+      - name: 별도 Windows 실행 환경 정보
+        run: |
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber | ConvertTo-Json -Compress
+          Write-Output 'GitHub Windows 실행기 검사이며 실제 Windows 10/11 사용자 PC 수용과 별개입니다.'
+      - name: 격리 설치 실행 정상 종료 제거/보존
+        run: |
+          powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/Test-ValidationInstaller.ps1 -BuildProfile release
+          exit $LASTEXITCODE
+      - name: 성공/실패 영수증 기록
+        if: always()
+        run: |
+          $root = 'src-tauri/target/runtime-validation/installer-tests'
+          if (Test-Path -LiteralPath $root) {
+            Get-ChildItem -LiteralPath $root -Filter receipt.json -File -Recurse | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 }
+          }

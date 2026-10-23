@@ -29,12 +29,14 @@ def validate_template(template, product):
         raise ValueError("제품과 분리한 고정 설치 검증 설정이 아닙니다.")
 
 
-def prepare(profile="debug"):
+def prepare(profile="debug", runtime_resources=None):
     if profile not in ("debug", "release"):
         raise ValueError("지원하지 않는 빌드 프로필입니다.")
     validation = (PROJECT / "src-tauri/target/runtime-validation").resolve(strict=True)
-    candidate = json.loads((validation / "portable-candidate.json").read_bytes())
-    resources = Path(candidate["resourcePath"]).resolve(strict=True)
+    if runtime_resources is None:
+        candidate = json.loads((validation / "portable-candidate.json").read_bytes())
+        runtime_resources = candidate["resourcePath"]
+    resources = Path(runtime_resources).resolve(strict=True)
     if not resources.is_relative_to((PROJECT / "src-tauri/target/ai-runtime-resources").resolve(strict=True)):
         raise ValueError("고정 런타임 리소스 경로가 아닙니다.")
     lock_raw = (PROJECT / "ai/models/runtime-bundle-lock.json").read_bytes()

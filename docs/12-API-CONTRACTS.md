@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 독립 설치 CI의 런타임 준비 — 2026-10-23
+
+기존 고정 CPython3.12.15 stripped/full 원본 두 개(합계65,751,269바이트)만 캐시/크기/SHA 검증 후 사용합니다. 다운로드는 개발 CLI의 명시적 --download-runtime에서만 허용하며 AI 모델/사용자 자료는 수신·전송하지 않습니다. 캐시 변조/주소·한도 오류·취소에서 기존 파일을 보존하고 자신이 새로 만든 partial만 정리합니다. 준비기는 immutable runtime lock을 갱신하지 않고 새 UUID 리소스만 생성합니다. 설치 설정 준비는 명시적 검증 리소스 경로도 받을 수 있으며 현재 사용자 앱의 portable 후보 영수증을 덮어쓰지 않습니다.
+
+Git LF checkout과 기존 작업 트리 CRLF의 worker3개(model_cache.py/runtime_packages.py/worker.py) 지문 차이는 Git 기준 LF 소스와 새 runtime lock을 대조해 해결합니다. 실행 중인 이전 후보/리소스·사용자 모델/DB는 그대로 유지하고 이전 리소스를 새 lock에 맞춰 변조하지 않습니다. Python 의미/IPC/모델 ABI 버전은 변경하지 않습니다. GitHub Windows 실행기 설치 검사는 별도 OS 증거이며 실제 Windows10/11 사용자 PC/모델 추론·서명 배포 완료로 확대하지 않습니다.
+
 ## 공개 음정 오류의 분석 창 문맥 감사 — 2026-10-23
 
 개발 도구는 기존 GuitarSet continuous-note-mask-v1 원본/고정91창과 native schema2 보고서의 SHA 연결을 검증합니다. native와 같은 블록 평균 축소율·1024점/25ms hop의 원본 샘플 범위/중심을 재구성하고, 모든 단음 참조 지점에 대해 창 전체의 고정17개 시각에서 연속 참조를 조회합니다. 다성·다른 음정·무성·불확정 주석의 존재를 각각 보존하며 주석 공백을 무음으로 바꾸지 않습니다. 창 내 참조가 모두 한 음/중심±50cents 이내인 경우만 ANNOTATED_MONO_CONTEXT로 분류합니다. 이는 실제 신호에 다른 성분이 없다는 보장이 아닙니다.

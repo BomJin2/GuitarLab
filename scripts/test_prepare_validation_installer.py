@@ -66,9 +66,19 @@ class InstallerTests(unittest.TestCase):
                 for profile in ("debug", "release"):
                     prepare_validation_installer.prepare(profile)
                     plans.append(json.loads((validation / "validation-installer-plan.json").read_bytes()))
+                current = validation / "portable-candidate.json"
+                current.write_bytes(b"current candidate must not be read or replaced")
+                prepare_validation_installer.prepare("release", runtime_resources=root / "src-tauri/target/ai-runtime-resources/fixture")
+                plans.append(json.loads((validation / "validation-installer-plan.json").read_bytes()))
+                self.assertEqual(current.read_bytes(), b"current candidate must not be read or replaced")
+                current.unlink()
+                prepare_validation_installer.prepare("release", runtime_resources=root / "src-tauri/target/ai-runtime-resources/fixture")
+                plans.append(json.loads((validation / "validation-installer-plan.json").read_bytes()))
+                self.assertFalse(current.exists())
             self.assertNotEqual(plans[0]["identifier"], plans[1]["identifier"])
             self.assertNotEqual(plans[0]["configPath"], plans[1]["configPath"])
-            self.assertEqual([plan["buildProfile"] for plan in plans], ["debug", "release"])
+            self.assertEqual(len({plan["identifier"] for plan in plans}), 4)
+            self.assertEqual([plan["buildProfile"] for plan in plans], ["debug", "release", "release", "release"])
             for plan in plans:
                 self.assertRegex(plan["identifier"], r"^com\.guitarlab\.validation\.run[0-9a-f]{32}$")
                 run_id = plan["identifier"].removeprefix("com.guitarlab.validation.run")

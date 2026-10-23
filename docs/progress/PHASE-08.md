@@ -1,5 +1,36 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 새 체크아웃의 런타임 재현성 및 격리 설치 CI (2026-10-23)
+
+### 1. 작업 개요
+
+작업 날짜2026-10-23. 개발 PC의 기존 리소스를 복사한 결과와 별개로 새 Windows 실행기가 고정 원본에서 설치기를 준비하도록 자동화합니다. 구현/로컬 검증 중이며 원격 결과·실제 Windows10/11 사용자 PC 수용·전체 Phase8 완료는 아닙니다.
+
+### 2. 구현 및 변경 사항
+
+- `scripts/prepare_ci_installer.py`: 고정 CPython3.12.15 stripped/full 원본 두 개 합계65,751,269바이트의 경로/주소/크기/SHA를 검증합니다. 캐시가 없을 때 명시적 `--download-runtime`만 다운로드를 허용합니다. AI 가중치/개인 자료는 받거나 전송하지 않습니다. 실패/취소 시 자신의 새 partial만 정리하고 기존 파일은 보존합니다.
+- `scripts/prepare_validation_installer.py`: 검증된 명시적 리소스 경로도 받아 현재 사용자 앱의 portable 후보 영수증 없이 새 격리 설정을 생성합니다. 기존 후보/설정/AppData·제품 프로세스를 변경하지 않습니다.
+- `.github/workflows/installer-smoke.yml`: 기존 고정 Actions·Node22/pnpm9.14.3/Rust1.98/Python3.13.16을 재사용해 고정 설치기·독립 검사 도구를 빌드하고 기본PowerShell5.1로 설치/첫 실행/정상 종료/제거·보존을 확인합니다. 모델 추론이나 깨끗한Windows10/11 수용으로 확대하지 않습니다.
+- `ai/models/runtime-bundle-lock.json`: 새 Git checkout을 준비하며 worker3개(model_cache.py/runtime_packages.py/worker.py)의 기존 CRLF 지문과 Git LF blob 차이를 발견했습니다. 소스 의미 변경 없이 LF로 정규화하고 새3393개 목록에서 해당3개 지문/크기만 갱신했습니다. 파일 총합64,095,996→64,095,466바이트, 나머지3390개 동일입니다. 이전 불변 리소스/실행 앱의 내장 lock·설치 이력은 유지합니다. `docs/12`에 계약을 먼저 기록했습니다.
+- 두 준비기 테스트에서 다운로드/캐시 보존·변조/크기/경로·취소·동시 게시·명시적 리소스/후보 부재 경계를 검증합니다.
+
+### 3. 테스트 결과
+
+- 새/기존 설치 준비 검사12개 **성공**(1.087초). 전체도구80개 수행 **79성공/링크권한1제외**(8.645초).
+- `python -B -X utf8 -m pytest ai/tests -q`: 제한 실행의 임시 rename WinError5로14실패/99성공 후, 코드 변경 없이 같은 일반 Windows 검사에서 **113성공/2.67초**. 제품 실패로 숨기거나 접근 제약을 제품 코드로 우회하지 않았습니다.
+- 새 lock과 이전 lock의 목록/모든 지문 대조 및 변경3개 소스의 실제 바이트=Git HEAD LF blob **성공**. `--refresh-lock`은 개발 수동 준비1회에만 사용했으며 CI 준비기는 갱신하지 않습니다.
+- 실제 `python scripts/prepare_ci_installer.py` 캐시 재사용 **성공**. 새 리소스 c1f06f7b-fc00-4232-be25-f72e6bb1209c/3393개 전수 SHA·현재 portable 영수증 보존, 네트워크/모델 다운로드 없음입니다. 새 release 계획 f6f193ca-1ef3-4d4f-841a-3b349e227fdf·lock SHA191c1e80…을 생성했습니다.
+- 새 workflow Prettier 구문/포맷·Python4개 구문·CRLF 고정 자료를 고려한 diff 검사 **성공**. LF 리소스의 최적화 앱 컴파일1분23초·NSIS 생성 **성공**이며 독립 검사 도구는 빌드 중입니다. 해당 설치 실행/원격 workflow는 아직 **미실행**입니다.
+- 직전 소스df8ff43의 [원격39961565269](https://github.com/BomJin2/GuitarLab/actions/runs/39961565269)는 프론트436·Rust228/231(각26제외)·AI113·도구74·최소Rust1.90·사후 정리까지 **success**입니다. 새 CI 준비기 검증과 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+GitHub Windows 실행기는 개발 도구/관리자 토큰/WebView2가 있는 서버 이미지일 수 있습니다. 실제 OS/권한을 기록하며 `cleanWindowsValidated=false`를 유지합니다. 별도 Windows10/11 장치·서명/최종 고지 검토·독립 모델 품질 수용은 미완료입니다. 사용자 수용 앱24920/PTY11472와 이전 CRLF 불변 리소스는 그대로 유지합니다.
+
+### 5. 다음 작업 계획
+
+새 LF 패키지의 격리 설치/독립Python을 먼저 확인하고 Git에 반영한 뒤 두 원격 workflow 결과를 추적합니다. 실패하면 실제 단계/원인을 수정하고 원래 앱·자료를 보존합니다. 별도 OS 성공도 실제 Win10/11 장비 부재를 해소한 것으로 표시하지 않습니다.
+
 ## 후속 — 최신 작업 화면/트랙 기능의 격리 release 설치 검증 (2026-10-23)
 
 ### 1. 작업 개요
