@@ -1,5 +1,15 @@
 # 13. Windows 개발 환경 · 실행 · 패키징
 
+## 동일 소스의 검증 도구 재빌드 — 2026-10-24
+
+불변 runtime lock 또는 worker 소스가 변경되면 앱 실행 파일뿐 아니라 패키지에 넣는 `manage_ai_model.exe`도 같은 체크아웃에서 다시 빌드합니다. 과거 CRLF lock을 내장한 검증 도구와 새 LF 리소스를 조합하면 파일 복사/ZIP 지문은 맞아도 `inspect`에서 `AI_RUNTIME_INTEGRITY`로 거부됩니다. 이때 실제 모델/사용자 데이터를 다시 설치하거나 lock을 느슨하게 만들지 않습니다.
+
+```powershell
+cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --example manage_ai_model
+```
+
+새 후보의 `ai-runtime`을 대상으로 빌드한 도구의 고정 `inspect`를 먼저 실행하고, 패키지 ZIP을 만든 뒤 새 폴더 추출/전체 지문과 동봉 `Test-ValidationPackage.ps1`의 최소 PATH 독립 실행2회도 확인합니다. `inspect`는 모델을 설치하지 않습니다. `package_validation.py`의 ZIP 생성 성공만으로 런타임 실행 수용을 완료 처리하지 않으며 실패한 후보는 새 후보와 구분합니다. 사용 중인 `portable-candidate.json`은 새 패키지 자동 검사만으로 덮어쓰지 않습니다.
+
 ## 두 모델 관리 환경 및 배포 런타임 의존성 — 2026-10-18
 
 Basic Pitch와 Demucs는 앱 데이터의 별도 UUID 환경/7필드 marker로 관리합니다. 앱 설치 선택은 고정된 두 모델만 허용하며 기존 환경은 재검증해 재사용합니다. Demucs는 로컬 이관 캐시33개/707,117,623바이트와 고정 setuptools로 오프라인 설치했습니다. 새 환경 실제 크기는3,325,310,044바이트/15,767파일이며 자체4초 분리·native의 관리 환경 선택/재사용/취소를 확인했습니다. 기존 개발 환경/Basic Pitch marker는 유지합니다. Demucs 네트워크 다운로드 UI는 아직 없습니다.

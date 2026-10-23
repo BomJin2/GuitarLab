@@ -1241,3 +1241,21 @@ Phase5 이름 편집 후보의 최신 UI 내장/기존 데이터 보존·개발�
 ### 최신 내장 자산 검사
 
 `cargo test --locked --offline --all-features --manifest-path src-tauri/Cargo.toml bundle_tests`는 **3개 성공**(컴파일18.44초/테스트0.00초)입니다. 최신 프론트 진입점/JS와 허용 fixture·원격 권한 제한을 검사했습니다. 기존 incremental hardlink 실패→복사와 MSVC 라이브러리 생성 안내가 있었지만 빌드/테스트는 성공했습니다. 별도 실행 파일 빌드와 원격 전체 회귀는 다음으로 진행하며 앱은 실행하지 않습니다.
+
+### 실행하지 않는 고정 Windows 후보/패키지 검사
+
+- 소스 `3e0ada0`을 GitHub main에 보존했습니다. 새회귀는 [Windows40013246581](https://github.com/BomJin2/GuitarLab/actions/runs/40013246581)/job120618689178에서 진행 중입니다.
+- 고정 LF 리소스 `c1f06f7b-fc00-4232-be25-f72e6bb1209c`의3393파일/64,095,466바이트를 현재 lock의 전체 지문과 대조했습니다. `pnpm tauri build --debug --no-bundle --ci --config src-tauri/target/runtime-validation/keyboard-00649c1a-9a3a-408f-83c5-4acb55aa6138/tauri.conf.json -- --locked --offline`는 **21.31초 성공**했습니다. EXE40,688,128바이트/SHA `46eae0bcbd47d78c3447b6020027b060d2e1e6953b82d2986d9c7d5f4cf23d4b`와 리소스를 새 portable/keyboard-00649c1a… 폴더에 복사/재검사했습니다. `keyboard-candidate.json`의 상태는 WINDOWS_BUILT_HASH_CHECKED_NOT_LAUNCHED이며 앱을 실행하지 않았습니다.
+- 첫 ZIP은3613파일/39,983,874바이트/SHA `c78dd2b3e9df617786915d709c8b8c953f00fa34237f1aabbaa9c74d4a69cc9f`이고 ZIP/추출 전체 지문은 성공했지만 PowerShell5.1의 독립 Python 검사는 **실패(exit1)**했습니다. 구형 `manage_ai_model.exe`의 고정 inspect가 AI_RUNTIME_INTEGRITY를 반환했습니다. 해당 실패 ZIP/keyboard-package-roundtrip.json을 보존했으며 런타임 실행 성공으로 표시하지 않습니다.
+- `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --example manage_ai_model`로 검증 도구도 같은 소스에서 다시 빌드해 **14.71초 성공**했습니다. 같은 후보 리소스의 inspect가 **Python3.12.15/두 모델 PACKAGE_MISSING·usable=false, exit0**으로 성공해 구형 lock을 내장한 도구와 새 LF 리소스 조합 문제를 확인했습니다. 기존 모델/실제 AppData를 읽거나 재설치하지 않았고 검사/지문을 완화하지 않았습니다. 재발 방지 절차를 `docs/13`에 추가했습니다.
+- 재생성 ZIP은3613파일/39,981,202바이트/SHA `fb8524f766ad139329f6a60b08dadb175dbfec3a761222fc181a0d2399903ed6`, validation-packages/91a9bb08-17ff-4ac0-a87c-9b91044ef46d에 보존합니다. 새 추출/PowerShell 검사는 진행 중이며 현재 수용된 이전 `portable-candidate.json`은 유지합니다.
+
+### 독립 패키지 재검사 확정
+
+위 재생성 ZIP의 manifest/경로·전체 지문과 새 roundtrip-243d195f-070d-4576-81c3-a4340b9cb5ea 추출 파일 전체 지문은 **성공**했습니다. 기본 Windows PowerShell5.1의 `Test-ValidationPackage.ps1`도 **exit0 성공**했으며, PATH를 Windows/System32만 남긴 상태에서 독립 Python3.12.15를2회 실행해 두 모델 PACKAGE_MISSING 응답을 확인했습니다. 기록은 `keyboard-package-roundtrip-rebuilt.json`의 ZIP_AND_POWERSHELL51_CHECKED_NOT_LAUNCHED입니다. 새 앱 GUI/입력·REC는 실행하지 않았고 이 결과를 새PC/실제 모델 설치·Windows 키보드 수용으로 표시하지 않습니다. 이전 실패 영수증과 수용된 portable 후보도 그대로 보존했습니다.
+
+### 원격 전체 회귀 확정과 재개 지점
+
+소스 `3e0ada0`의 [Windows40013246581](https://github.com/BomJin2/GuitarLab/actions/runs/40013246581)/job120618689178은 **사후 정리 포함 전 단계 success**입니다. 정확한 기존 이미지/도구 키의 캐시 복원을 확인했지만 모든 검사를 다시 실행했습니다. 프론트 **444개/103파일**, 타입/lint/빌드/Prettier·cargo fmt/기본Clippy, 기본Rust **228개/39.09초**와 확장Clippy/all-features Rust **231개/37.91초**(각26개 제외), native synthetic **1개/0.15초**, AI pytest **113개/2.26초**, 개발 도구 unittest **108개/15.450초·OK**, MSRV1.90 all-targets/all-features **9.23초 성공**을 로그로 확인했습니다.
+
+이 단축키 수정/자동 검증/문서화는2026-10-24 완료했습니다. 앞선 빌드/원격 대기 문구는 당시 진행 이력입니다. 전체 Phase8/남은5개 단계와 실제 GUI 수용은 미완료이며 기존 수용된 앱을 바꾸지 않았습니다. 다음 세션은 `keyboard-candidate.json`/성공한 `keyboard-package-roundtrip-rebuilt.json`과 이전 실패 영수증을 구분해 재사용하세요. 사용자 직접 테스트 없는 조건에서는 새 앱/입력·REC를 시작하지 않고, 기존 공개 참조의 미확정 단위·고급 점수 비활성·특화 가중치/별도Windows의 외부 조건을 유지합니다. 같은 임계값 가설/다운로드·구형 실행 파일과 새 리소스 조합 검사를 처음부터 반복하지 않습니다.
