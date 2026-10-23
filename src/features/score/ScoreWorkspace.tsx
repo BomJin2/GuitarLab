@@ -18,6 +18,7 @@ import { usePlayer } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
 import { ScoreViewport } from './ScoreViewport';
 import { ScoreDisplayControls } from './ScoreDisplayControls';
+import { ScoreLoopPanel } from './ScoreLoopPanel';
 import type { ScoreDisplaySettings } from './scoreDisplay';
 import { renderedNoteId } from './scoreNoteSelection';
 import { Fretboard } from '../practice/Fretboard';
@@ -57,6 +58,7 @@ export function ScoreWorkspace({
   beforeReplace,
   display,
   onDisplayChange,
+  playbackLocked = false,
 }: {
   session: ScoreSession | null;
   setSession: Dispatch<SetStateAction<ScoreSession | null>>;
@@ -69,6 +71,7 @@ export function ScoreWorkspace({
   beforeReplace: () => boolean | Promise<boolean>;
   display: ScoreDisplaySettings;
   onDisplayChange: (settings: ScoreDisplaySettings) => void;
+  playbackLocked?: boolean;
 }) {
   const { engine, state } = usePlayer();
   const [draft, setDraft] = useState<SyncAnchor[]>(
@@ -290,6 +293,14 @@ export function ScoreWorkspace({
       )}
       {session && (
         <ScoreDisplayControls settings={display} onChange={onDisplayChange} />
+      )}
+      {session && (
+        <ScoreLoopPanel
+          key={session.document.id}
+          lookup={session.playbackLookup}
+          anchors={session.document.syncAnchors}
+          locked={playbackLocked || loading || !!project?.busy}
+        />
       )}
       <ResizablePanel
         label={mode === 'copy' ? '속성 패널 너비' : '판정 패널 너비'}

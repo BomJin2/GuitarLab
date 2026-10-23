@@ -18,6 +18,12 @@ export function TransportBar({
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(2000);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (state.loop) {
+      setStart(state.loop.startMs);
+      setEnd(state.loop.endMs);
+    }
+  }, [state.loop]);
   const [countInChoice, setCountInChoice] = useState<CountInChoice | null>(
     null,
   );

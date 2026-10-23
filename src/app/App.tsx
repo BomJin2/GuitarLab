@@ -201,6 +201,7 @@ export function App() {
           route === 'practice' ||
           route === 'performance' ? (
           <ScoreWorkspace
+            playbackLocked={recording.locked}
             display={scoreDisplay}
             onDisplayChange={setScoreDisplay}
             session={session}
