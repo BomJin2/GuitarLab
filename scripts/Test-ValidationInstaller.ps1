@@ -79,7 +79,7 @@ if ($expected.Count -ne 0) { throw '설치 리소스가 누락됐습니다.' }
 if ((Get-FileHash -LiteralPath (Join-Path $installRoot 'LICENSE') -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot 'LICENSE') -Algorithm SHA256).Hash) { throw 'MIT 원문이 다릅니다.' }
 if ((Get-FileHash -LiteralPath (Join-Path $installRoot 'BACKUP-README.ko.md') -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot 'docs/19-BACKUP-AND-RECOVERY.md') -Algorithm SHA256).Hash) { throw '백업 안내 원문이 다릅니다.' }
 Write-Output '실제 사용자 설치·원본 실행 파일·runtime·고지 전체 지문 확인'
-$app = Start-Process -FilePath $installedBinary -PassThru
+$app = Start-Process -FilePath $installedBinary -WindowStyle Hidden -PassThru
 $null = $app.WaitForInputIdle(15000)
 if ($app.WaitForExit(3000)) { throw "설치 앱이 종료됐습니다: $($app.ExitCode)" }
 $app.Refresh()

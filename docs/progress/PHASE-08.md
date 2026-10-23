@@ -1,5 +1,37 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 최신 작업 화면/트랙 기능의 격리 release 설치 검증 (2026-10-23)
+
+### 1. 작업 개요
+
+작업 날짜2026-10-23. 고급 판정의 독립 정답/특화 모델 및 별도Windows 조건은 미완료로 유지하고, 독립적인 현재 제품 코드의 최적화 설치 패키지·첫 실행/정상 종료/제거를 현재 PC에서 확인합니다. 현재 준비/실행 중이며 전체 Phase8·최종 배포 수용은 아닙니다.
+
+### 2. 구현 및 변경 사항
+
+기존 prepare_validation_installer.py와 Test-ValidationInstaller.ps1을 사용합니다. 설치용 식별자/제품명/실행명에 새 UUID31c6a1da-c2fd-4ee0-8f13-f4f4f067ba6e를 붙여 제품 앱/DB·기존 검증 데이터를 보존합니다. 검증 앱 실행에도 WindowStyle Hidden을 명시했고 PowerShell 구문 검사를 통과했습니다. 실제 사용자 앱24920/PTY11472는 닫지 않습니다. 새 제품 코드/의존성·모델 가중치를 추가하지 않았습니다.
+
+### 3. 테스트 결과
+
+- 고정 runtime3393개 전체 파일 지문·템플릿/새 UUID/최신 dist index SHA 검증으로 release 계획 준비 **성공**.
+- 최초 제한 실행 환경의 `pnpm tauri build --ci --config <생성설정> -- --locked --offline`: 최적화 실행 파일 컴파일1분37초 **성공**, NSIS 묶음은 공식 nsis-3.11.zip 주소의 DNS11001 오류로 **실패**. 설치/실행은 하지 않았습니다. 같은 설정을 표준 Windows 실행 환경에서 재시도 중입니다.
+- 새 실제 설치·전체 고지/runtime·독립Python/새v9·정상 종료/제거·Defender 검사는 현재 **미실행/진행 중**이며 후속 결과를 기록합니다. 제품 DB/모델 보존용 새 읽기 전용 기준 백업은 생성했습니다.
+
+### 4. 미구현 및 알려진 문제
+
+검증 식별자/현재 PC의 내부 설치본이며 서명된 최종 제품 설치기가 아닙니다. 현재 WebView2가 있는 OS의 조건이고 별도Windows/깨끗한 PC는 사용자 장비 부재로 미실행입니다. legalReviewCompleted/cleanWindowsValidated=false를 유지합니다.
+
+### 5. 다음 작업 계획
+
+NSIS 생성 성공 후 해당 파일만 백신 점검하고, 자체 새 폴더/등록·빈DB로 설치/실행/정상 종료/제거와 보존을 확인합니다. 실패하면 기존 제품이나 검증 데이터를 지우거나 강제 종료하지 않고 원인과 미실행 항목을 기록합니다. 사용자 수용 앱/프로젝트·녹음은 유지합니다.
+
+### 최종 실행 결과
+
+- 표준 Windows 환경의 동일 설정 재시도: 최적화 컴파일1분18초와 NSIS 생성 **성공**. 기존 공식 도구/캐시 경로를 사용했고 보안 설정을 바꾸지 않았습니다. 설치기31,444,397바이트/SHA256 `956f12a04f4bfb7d5621bff7c75cc627cab37aaee128d98a9367ecec0358546d`입니다.
+- 기존 Defender의 단일 파일 custom scan 종료0/“found no threats”·검사 전후 SHA 보존 **성공**. 정의1.461.161.0/2026-10-23 기준이며 다른 백신/정의·최종 서명 배포의 안전성 보증이 아닙니다. release-current-defender.json에 보존했습니다.
+- 실제 기본PowerShell5.1 `Test-ValidationInstaller.ps1 -BuildProfile release` **종료0 성공**. 관리자 토큰false·새 currentUser 등록/설치, runtime3393개/고지/MIT/백업 안내 전체 지문·원본 NSIS 표식 외 본문 동일, 별도 새v9/quick_check/빈 프로젝트·휴지통/녹음 없음, 정상 종료0/APP_EXITED·개발 PATH 제외 독립Python3.12.15 두 번을 확인했습니다.
+- 설치 본문22,095,360바이트/SHA `4bcbd6590c4a3e3c041ce98ceaf54a091ef49337dc3665a3455687f08d8ba328`, 원본표식 전 SHA48699309…입니다. 제거 후 등록 소멸·설치 파일 제거·검증 DB와 자체 미등록 파일 지문 보존도 성공했습니다. 영수증 installer-tests/c20ef32a-b015-45d3-b774-7361ee9d72e7/receipt.json을 보존합니다.
+- 실제 제품 DB9/16테이블·4모델 marker 전후 동일, 제품PID24920/PTY11472의 정확한 창/응답을 확인했습니다. 제품 앱을 종료/재실행하지 않았습니다. 이 현재 PC 검증 후속은 완료이며 별도Windows10/11·서명/최종 배포는 미완료입니다. 다음은 GitHub Windows 실행기의 같은 검사 자동화입니다.
+
 ## 화면 유지 수정 원격 CI 완료 — 2026-10-23
 
 소스1c1f874d4b499cb5c605ccf4f33cfe267c278dee의 [Windows39958606255](https://github.com/BomJin2/GuitarLab/actions/runs/39958606255)/job120430592741는 모든 단계/사후 정리 success입니다. 프론트436개/102파일·타입/lint/build/포맷, 기본Rust228개/38.58초·확장231개/38.49초(각26개 환경 의존 제외), Python3.13 AI113개/3.70초·도구66개/12.930초, Rust1.90 전체 컴파일2분00초를 확인했습니다. Phase7 후속 감사 도구의 새74개 검사와 별도 결과입니다. 실제 모델/장치·새 installer/별도 Windows 수용을 대신하지 않습니다.
