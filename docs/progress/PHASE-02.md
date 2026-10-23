@@ -33,6 +33,8 @@
 
 `score-notation-candidate.json`의 새 portable 실행 파일(40,686,592바이트·SHA256 `cdf8a128f0ee1335651e84dcfc2da51fc81547d8461220e189ae91e6631f6fc6`)과 runtime3393개 전체 지문을 확인했습니다. 기존 PID33044는 정상 종료0/강제 종료 없음, 새 **PID28404·PTY74119·‘GuitarLab · TAB와 오선보 전환’**은 READY/응답 정상입니다. `score-display_db_probe.py after`로 실제 DB9/16개 테이블과4개 모델 marker 불변을 확인했습니다. 앱은 유지하며 입력/REC는 시작하지 않았습니다. Windows 창 내부 사용자 조작 수용과 이번 새 ZIP/설치 프로그램 검사는 **미실행**입니다. 자동 검사·실제 개발 브라우저 검증과 Windows 실행/내장 UI 검사를 구분합니다.
 
+소스/문서는 `3d7e2424502a84cda25829c1c8783eef41f2f214`로 main에 일반 push했습니다. [Windows CI39913241783](https://github.com/BomJin2/GuitarLab/actions/runs/39913241783)는 최초 조회 시 in_progress이며 최종 성공/실패는 아직 미확인입니다. 직전 성공 실행을 이번 커밋의 성공으로 기록하지 않습니다.
+
 ### 5. 다음 작업 계획
 
 이번 Windows 적용·보존 결과를 정리한 뒤 기존 순서에 따라 남은 악보/재생 수용 항목을 확인합니다. 특화 AI·실제 고급 주법 품질·깨끗한 Windows·서명/최종 배포 미완료는 별도로 유지하며 이번 표시 기능을 전체 로드맵 완료로 기록하지 않습니다.
