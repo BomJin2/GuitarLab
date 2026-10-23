@@ -3,7 +3,7 @@
 import copy
 import unittest
 
-from evaluate_agpt_onsets import evaluate
+from evaluate_agpt_onsets import audit_events, evaluate
 from fetch_agpt_audio_sample import PLAN_SHA256
 
 
@@ -50,6 +50,37 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(result["totals"]["5"]["detected"], 9)
         self.assertEqual(result["totals"]["5"]["extraDetectedEvents"], 1)
         self.assertEqual(result["totals"]["5"]["matched"], 8)
+        self.assertEqual(result["eventAudit50ms"], {"matchedWithPitch": 8, "matchedUnverified": 0,
+            "extraWithPitch": 0, "extraUnverified": 1,
+            "extraInsideReferenceWindow": 0, "extraOutsideReferenceWindow": 1})
+
+    def test_pitch_candidate_does_not_replace_already_matched_unverified_attack(self):
+        benchmark, report, plan = fixture()
+        events = report["clips"][0]["events"]
+        events[0].update(onsetSample=4320, pitchMidi=None, confidence=None)
+        events.append({"onsetSample": 5760, "emittedSample": 9856, "pitchMidi": 64, "confidence": 0.99})
+        result = evaluate(benchmark, report, plan)
+        row = result["perClip"]["demo0.wav"]
+        self.assertEqual(row["perTolerance"]["50"]["pairs"][0]["detectedIndex"], 0)
+        self.assertEqual(row["eventAudit50ms"], {"matchedWithPitch": 0, "matchedUnverified": 1,
+            "extraWithPitch": 1, "extraUnverified": 0,
+            "extraInsideReferenceWindow": 1, "extraOutsideReferenceWindow": 0,
+            "extraEvents": [{"detectedIndex": 1, "nearestReferenceIndex": 0,
+                "nearestReferenceMatchedDetectedIndex": 0, "deltaToNearestMs": 20,
+                "insideReferenceWindow": True, "pitchReturned": True}]})
+        self.assertEqual(result["totals"]["50"]["detected"], 9)
+
+    def test_nearest_reference_tie_and_exact_window_boundary_are_deterministic(self):
+        events = [{"onsetSample": 7200, "pitchMidi": None}, {"onsetSample": 12048, "pitchMidi": None}]
+        row = audit_events([100, 200], events, [])
+        self.assertEqual(row["extraInsideReferenceWindow"], 1)
+        self.assertEqual(row["extraOutsideReferenceWindow"], 1)
+        self.assertEqual(row["extraEvents"][0]["nearestReferenceIndex"], 0)
+        self.assertEqual(row["extraEvents"][0]["deltaToNearestMs"], 50)
+        self.assertIsNone(row["extraEvents"][0]["nearestReferenceMatchedDetectedIndex"])
+        self.assertEqual(audit_events([100], [], []), {"matchedWithPitch": 0, "matchedUnverified": 0,
+            "extraWithPitch": 0, "extraUnverified": 0, "extraInsideReferenceWindow": 0,
+            "extraOutsideReferenceWindow": 0, "extraEvents": []})
 
     def test_changed_mode_missing_clips_and_invalid_timestamps_never_produce_metrics(self):
         for mode in ("pitch", "source", "duplicate", "negative", "bool", "late", "nan", "denominator"):

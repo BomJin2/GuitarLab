@@ -34,6 +34,29 @@ def read_json(path):
     return json.loads(raw, object_pairs_hook=unique_object), hashlib.sha256(raw).hexdigest()
 
 
+def audit_events(targets, events, pairs):
+    # 검증을 마친 기존 대응을 그대로 분해하며 후보 유무로 재대응하지 않습니다.
+    owners = dict(pairs)
+    used = set(owners.values())
+    extras = []
+    for index, event in enumerate(events):
+        if index in used: continue
+        onset = event["onsetSample"] / 48
+        nearest = min(range(len(targets)), key=lambda i: (abs(targets[i] - onset), i))
+        delta = onset - targets[nearest]
+        extras.append({"detectedIndex": index, "nearestReferenceIndex": nearest,
+                       "nearestReferenceMatchedDetectedIndex": owners.get(nearest),
+                       "deltaToNearestMs": delta, "insideReferenceWindow": abs(delta) <= 50,
+                       "pitchReturned": event["pitchMidi"] is not None})
+    matched_pitch = sum(events[index]["pitchMidi"] is not None for index in used)
+    extra_pitch = sum(row["pitchReturned"] for row in extras)
+    inside = sum(row["insideReferenceWindow"] for row in extras)
+    return {"matchedWithPitch": matched_pitch, "matchedUnverified": len(used) - matched_pitch,
+            "extraWithPitch": extra_pitch, "extraUnverified": len(extras) - extra_pitch,
+            "extraInsideReferenceWindow": inside, "extraOutsideReferenceWindow": len(extras) - inside,
+            "extraEvents": extras}
+
+
 def evaluate(benchmark, report, plan):
     if (benchmark["schemaVersion"] != 1 or benchmark["state"] != "AGPT_ONSET_BENCHMARK_PREPARED"
             or benchmark["source"] != "AG-PT-set10159492" or benchmark["license"] != "cc-by-4.0"
@@ -54,7 +77,7 @@ def evaluate(benchmark, report, plan):
     issues = dict(Counter(row["pitchReferenceStatus"] for case in benchmark["cases"] for row in case["references"]))
     if issues != benchmark["referencePitchIssues"]:
         raise ValueError("음정 참조 보류 분모 오류")
-    result = {"schemaVersion": 1, "state": "COMPLETED", "pitchEvaluationEnabled": False,
+    result = {"schemaVersion": 2, "state": "COMPLETED", "pitchEvaluationEnabled": False,
               "referencePitchIssues": issues, "actualAppJudgements": False, "actualDeviceLatencyMeasured": False,
               "independentHeldOutEvaluation": False, "noiseGateDbfs": -50, "coldStart": True, "tailPaddingFrames": 0,
               "pairingPolicy": "maximum-cardinality-nearest-candidate-not-global-minimum-error",
@@ -101,6 +124,8 @@ def evaluate(benchmark, report, plan):
                 "pairs": [{"referenceIndex": r, "detectedIndex": d, "deltaMs": detected[d] - targets[r]} for r, d in pairs]}
             for key, value in counts.items(): totals[str(tolerance)][key] += value
             delta_groups[str(tolerance)].extend(deltas)
+        details["eventAudit50ms"] = audit_events(targets, events,
+            [(row["referenceIndex"], row["detectedIndex"]) for row in details["perTolerance"]["50"]["pairs"]])
         result["perClip"][case["clipId"]] = details
         all_delays.extend(delays); discontinuities += clip["discontinuities"]
         pitch_events += available; processing_ms += clip["processingMs"]
@@ -110,6 +135,8 @@ def evaluate(benchmark, report, plan):
             "extraDetectedEvents": counts["detected"] - counts["matched"]}
     result.update(emissionDelayMs=distribution(all_delays), discontinuities=discontinuities,
                   pitchReturnedEvents=pitch_events, unverifiedEvents=len(all_delays) - pitch_events, processingMs=processing_ms)
+    result["eventAudit50ms"] = {key: sum(row["eventAudit50ms"][key] for row in result["perClip"].values())
+                              for key in next(iter(result["perClip"].values()))["eventAudit50ms"] if key != "extraEvents"}
     return result
 
 
