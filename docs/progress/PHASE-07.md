@@ -21,13 +21,15 @@
 - `pnpm build`: **성공**,Vite1분17초/기존 큰 chunk 경고 유지. 내장 `bundle_tests`: **3개 성공**,0.00초/컴파일10.82초. 기본 icon resource 조회 경고2회는 검사 문맥에서 유지하며 실제 창 아이콘은 확인하지 않았습니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,11.43초/40,804,864바이트/SHA `27b59d5c20e3a528af9d5bfc0ce450dd80a8020e8588f4a648cda28b619b2140`. 기존 MSVC 링크 산출물 경고를 유지합니다.
 - 로그는 `src-tauri/target/runtime-validation/long-take-frontend-20261025.log`, `long-take-rust-20261025.log`, `long-take-build-20261025.log`에 보존했습니다. 새 독립 ZIP/원격 CI·실제 앱/기타 입력/개인 장기 녹음 검사는 **미실행** — ZIP/원격은 다음 검증 단계이며 합성 임시 자료만 사용했습니다. Python/AI 코드는 변경하지 않았고 별도 로컬 전체 AI/도구 반복 검사는 미실행입니다.
 
+후속 패키지 검사도 **완료**했습니다. source `0495a61bc4338e7d13a09f78a8f99a2e0ff0b327`의 `long-take-candidate-59484bb2-971f-4ff6-aaf9-468f834f91e7.json`은 **WINDOWS_BUILT_NOT_LAUNCHED**입니다. 기존 고정 runtime3393파일/64,095,466바이트와 lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`를 대조해 새 폴더에만 보존했습니다. ZIP `validation-packages/d04ec7da-8ae2-4a0c-92b1-f913fe5f8ebb/GuitarLab-validation.zip`은 **3613파일/40,199,906바이트·SHA `42081230a6cab417577b2358d710cda6b0242f496595355814a8631f7901d297`**입니다. 기존 `package_validation.py`/`verify_archive`의 전체 SHA·CRC/목록을 확인하고 같은 지문의 바이트를 새 `long-take-roundtrip-b3f4790d-c7ef-42f9-bd09-3ed5fb077e47`에 추출했습니다. 실제 `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File Test-ValidationPackage.ps1`은 **exit0**, 개발 경로 제외 후 독립 Python3.12.15/모델 미설치 점검 두 번도 성공했습니다. 영수증 `long-take-package-receipt-557b09e7-f1c2-4cec-b758-e7d96fa810bb.json`/로그 `long-take-package-check-73e1c193-a735-468b-b221-24ccef7fbbe7.log`를 보존합니다. 위 ZIP 미실행은 소스 커밋 당시 이력이며 실제 앱·기타/개인 자료·새 설치 검사는 계속 미실행입니다. generic portable-candidate/기존 후보는 변경하지 않았습니다.
+
 ### 4. 미구현 및 알려진 문제
 
 무결성을 위해 최대256MiB 전체를 읽으므로 느린 디스크에서는 대기가 생깁니다. 선택 PCM 최대192000샘플/768000바이트와64KiB 버퍼는 **읽기 경로의 할당 상한**이며 분석기/전체 프로세스의 실측 최고 메모리가 아닙니다. 진행률은 읽은 전체 바이트입니다.400ms/1초의 후보 품질·배음/옥타브 한계와 기존 고급 점수 비활성은 그대로입니다. 일반 재생의 전체 파일 버퍼 정책은 이 변경 범위가 아닙니다.
 
 ### 5. 다음 작업 계획
 
-정확한 소스 커밋의 새 독립 ZIP·실제 PowerShell5.1/번들 Python 검증 후 Git/원격 전체 결과를 확정합니다. 실제 앱/장치 조작을 반복 요청하지 않습니다. 별도 Windows10/11·독립 정답/허위 감점률·검증된 특화 가중치가 필요한 남은 수용 조건은 유지하고 이 제한 메모리 개선으로 완료 표시하지 않습니다.
+정확한 소스 커밋의 새 독립 ZIP·실제 PowerShell5.1/번들 Python 검증은 완료했고 다음은 Git 업로드/원격 전체 결과 확정입니다. 실제 앱/장치 조작을 반복 요청하지 않습니다. 별도 Windows10/11·독립 정답/허위 감점률·검증된 특화 가중치가 필요한 남은 수용 조건은 유지하고 이 제한 메모리 개선으로 완료 표시하지 않습니다.
 
 ## 후속 — 골페 표기의 일반 피킹 채점 누락 보호 (2026-10-25)
 
