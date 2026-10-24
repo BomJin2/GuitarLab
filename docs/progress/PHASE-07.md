@@ -25,6 +25,16 @@ alphaTabAdapter.ts에 Beat.graceType!==None 조건1개를 추가했습니다. al
 
 새 내장/Windows·독립 패키지를 검증해 기존 정상 종료 경로로 적용하고 DB내용 보존을 확인합니다. 같은 수동 검사를 반복 요청하지 않고 원격466개를 확인합니다. 실제 주법 품질/특화 가중치·새 Windows의 외부 제약은 유지합니다.
 
+### Windows·독립 패키지 적용 확정
+
+구현 커밋 **b6a14fa**의 custom-protocol 내장 검사 **3개/0.01초 성공**(컴파일12.97초) 및 고정 설정의 Windows debug/no-bundle 빌드 **15.80초 성공**입니다. EXE40,689,152바이트/SHA **fdb463871ddf767570803cb91a225babadbe914cc9bbe76303fa69d3d7eaf8a4**를 새 portable/grace-support-76176131-5880-4616-9072-6247bfd5954f에 보존했습니다. 기존 identifier/MSVC 출력 경고 외 오류는 없습니다. 원본/복사 runtime3393개·64,095,466바이트를 고정lock과 대조했습니다.
+
+새 ZIP f05eb312…/3613파일·40,165,715바이트/SHA **aa0b7400071a73bc96b03cde49b82b4f32c55a2ab4271fb7e85610a39f7545ff**를 전체지문/CRC·새추출 후 실제 PowerShell5.1의 전체 파일과 개발 PATH 없는 독립Python3.12.15 두 번 실행까지 **exit0**으로 확인했습니다. grace-package-roundtrip.json에 성공을 기록했습니다.
+
+이전 PID32076/PTY61414는 CloseMainWindow 정상 종료 **exit0/forced=false**였습니다. 새 **PID34928/PTY81995·‘GuitarLab · 꾸밈음 보호’**가 READY/응답 중이며 입력/REC를 자동 시작하지 않았습니다. 읽기 전용 snapshot/시작 후 **DB9/15사용자테이블의 전체 행 지문 동일**을 grace-startup-data-comparison.json에 보존했습니다. 실제 DB를 복원하지 않았고 grace-support-candidate.json/현재 portable-candidate.json과 이전 포인터·앱을 보존했습니다.
+
+이 보호 슬라이스/문서화는 완료입니다. 실제 사용자 grace import/연주·고급 점수 품질/새 Windows 수용은 **미실행**이며 파서/실행/데이터 보존 자동 검사와 구분합니다.466개를 포함한 새 원격은 다음 확정 결과로 기록하고 현재 앱은 유지합니다.
+
 ## 후속 — 네 종류 장식음의 채점/편집 보호 누락 수정 (2026-10-24)
 
 ### 1. 작업 개요

@@ -1,5 +1,7 @@
 # 개발 진행 상태
 
+**꾸밈음 보호 적용 완료 — 2026-10-24**: b6a14fa의466개·내장3개/Windows15.80초·고정runtime/새 ZIP·실제PS5.1/독립Python2회가 성공했습니다. 기존 앱 정상 종료0 후 **PID34928/PTY81995·‘GuitarLab · 꾸밈음 보호’**가 READY이며 DB9/15사용자테이블의 모든 내용 동일을 확인했습니다. grace-support-candidate.json/portable-candidate.json이 현재 앱을 가리키고 이전 후보는 보존합니다. 첫 마디 전 음수 grace는 기존 도메인 거부이며 실제 꾸밈음 검출/고급 점수는 미지원입니다. 직전664f7af의 [Windows40075167130](https://github.com/BomJin2/GuitarLab/actions/runs/40075167130)은463프론트·230/233Rust·AI113/도구123·MSRV/정리 **전체 success**입니다. 다음은466개 후속 업로드/새 원격이며 앱과 사용자 자료를 유지한 별도 Phase7 관측 연구를 이어갑니다.
+
 **꾸밈음 보호 후속 진행 — 2026-10-24**: on-beat·마디 안 before-beat grace의 미지원 누락2개를 재현해 같은 공통 어댑터에 조건1개를 추가했습니다. 실제 파서/GP7왕복·구형 원본/840tick 보존 등30개·전체466개/타입/lint·Vite74초/포맷 성공입니다. 첫 마디 전 음수 grace는 기존 거부를 유지하며 전체 grace import 지원은 아닙니다. 현재 장식음 보호 앱 PID32076/PTY61414는 유지하고 새 내장/Windows 적용을 준비합니다.463개까지의40075167130/job120816843498은 확장Rust검사 중이며466개 후속은 아직 로컬입니다.
 
 **장식음 보호 적용 완료 — 2026-10-24**:01a1d80의463개·native 감점 제외6개/내장3개·Windows21.02초·고정runtime/새 ZIP·실제 PS5.1/독립Python2회 검사를 완료했습니다. 기존 앱 정상 종료0 후 **PID32076/PTY61414·‘GuitarLab · 장식음 보호’**가 READY이며 DB9/15사용자테이블 전체 내용 보존을 확인했습니다. 현재 ornament-support-candidate.json/portable-candidate.json이 이 앱을 가리키고 이전 후보는 보존합니다. 실제 주법 검출/고급 점수는 비활성으로 유지합니다. 직전675718a의 [Windows40073869598](https://github.com/BomJin2/GuitarLab/actions/runs/40073869598)은458프론트·기본230/확장233Rust·AI113/도구123·분리된 검사/새캐시/MSRV/정리 **전체 success**입니다. 다음은 장식음463개 후속 업로드와 새 원격 회귀이며 사용자의 같은 수동 확인을 반복 요청하지 않습니다.
@@ -429,7 +431,7 @@
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
 | 7 | 고급 판정 | 진행 중(공개 음정/신호 감사·281타격 기준선/EG-IPT31창 관측·박자/장식음 보호 완료, 독립 정답/주법·고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
-| 8 | 품질과 릴리스 | 진행 중(백업/보관· 미저장/압축악보 보호·실제 합성 종료 복구/CI 교착 해소,458개·Rust기본230/확장233·예제2·AI113·도구123·분리CI/MSRV 원격 성공; 장식음463개·새Windows/ZIP는 로컬 검증. 현재 PC release/Defender·GitHub Server 설치/제거 통과. 실제 데이터 교체/영구 삭제·서명/최종배포·별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
+| 8 | 품질과 릴리스 | 진행 중(백업/보관·미저장/압축악보 보호·실제 합성 종료 복구/CI 교착 해소,463개·Rust기본230/확장233·예제2·AI113·도구123·분리CI/MSRV 원격 성공; 꾸밈음466개·새Windows/ZIP는 로컬 검증. 현재 PC release/Defender·GitHub Server 설치/제거 통과. 실제 데이터 교체/영구 삭제·서명/최종배포·별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
 
 ## 현재 작업 위치
 
