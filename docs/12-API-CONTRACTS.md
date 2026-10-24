@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## EG-IPT 주기 조건의 사후 감사 v1 — 2026-10-24
+
+개발용 audit_egipt_periodicity.py는 고정 공개 관측 JSON(SHA a524f4f17a1477046364832dbd3ed378c02c3dd3d2a26400619da9c74b86625e)만 읽습니다. 기존31창 중 vibrato 라벨/coverage90% 이상3창의 점 시각·음정으로 현재3~9Hz/0.1Hz 탐색의 적합도·깊이·주기 수·선형 경향을 별도 계산합니다. 원본/모델 재분석·네트워크·제품 threshold 변경은 없고 입력SHA와 사후 선택/계산임을 표시합니다. 경향 guard 실패 후 계산한 최적 곡선은 제품이 반환한 주기 후보가 아닙니다. 고정 관측의 허용 경로/크기512KiB·원문SHA·유효 점을 확인하고 새 UUID JSON/POSTHOC_PERIODICITY_CONDITIONS_AUDITED만 기록합니다. 연속 정답/실제 점수·독립 평가 필드는 false입니다.
+
 ## EG-IPT 고정 표본 수신 도구 v1 — 2026-10-24
 
 후속 관측 계약 v1: cfg(test)의 public_egipt_pitch_motion_observations는 명시한 GUITARLAB_EGIPT_SAMPLE manifest의 고정SHA71e721ef7039c65d944a34770ebbf116d0838c3fee8304fd60c8a6f2371c03ff·원본8개 SHA/계획을 확인합니다. 결과를 보기 전에 각 원본0초부터 겹치지 않는 완전1초 창만 분석하고 짧은 파일/나머지 프레임을 보존합니다. padding·gain 정규화·배속/리샘플링은 하지 않습니다. PCM24를 정확한 f32 비율로 디코딩해 기존96kHz analyze_pitch_track에 전달합니다. 기존 내부 블록 평균/음정 탐색은 그대로입니다. 출력은 새 UUID JSON/EGIPT_PITCH_MOTION_OBSERVED, source/probe hash·원곡 창 시각·coverage·motion·변화cents/주기성·관측점·보류 경고/처리 시간이며 continuousPitchGroundTruthVerified/actualAppJudgements=false입니다. 파일명 라벨과 검출 motion의 일치율을 주법 정확도로 계산하지 않습니다. 원본은 실행 전후 SHA가 같아야 합니다.
