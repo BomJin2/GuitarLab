@@ -165,6 +165,74 @@ Write-Output 'UNINSTALL_PROBE_BOUNDARIES_PASSED'
 
 
     @unittest.skipUnless(os.name == "nt", "Windows 기본 PowerShell의 종료 경계를 검사합니다.")
+    def test_startup_probe_waits_for_journal_but_never_hides_exit_corruption_or_io_errors(self):
+        powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+        script = r"""
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $parseErrors = $null
+$source = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/Test-ValidationInstaller.ps1'), [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count -ne 0) { throw 'PowerShell syntax' }
+$functions = @($source.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ValidationReadyJournal'}, $false))
+if ($functions.Count -ne 1) { throw 'Expected one startup probe' }
+. ([scriptblock]::Create($functions[0].Extent.Text))
+$process = [pscustomobject]@{HasExited=$false; ExitCode=0; Responding=$true; MainWindowTitle='GuitarLab · 설치 검증'; RefreshCalls=0}
+$process | Add-Member ScriptMethod Refresh { $this.RefreshCalls++ }
+$path = Join-Path $env:GUITARLAB_STARTUP_TEST_ROOT 'native-v1.json'
+foreach ($attempt in 1..6) {
+    if ($null -ne (Get-ValidationReadyJournal $process $path)) { throw 'Missing journal accepted' }
+}
+$valid = '{"schemaVersion":1,"events":[{"unixMs":1,"code":"APP_STARTED"}]}'
+[System.IO.File]::WriteAllText($path, $valid)
+$journal = Get-ValidationReadyJournal $process $path
+if ($journal.events[-1].code -cne 'APP_STARTED' -or $process.RefreshCalls -ne 7) { throw 'Delayed journal lost' }
+$process.Responding = $false
+if ($null -ne (Get-ValidationReadyJournal $process $path)) { throw 'Unresponsive accepted' }
+$process.Responding = $true; $process.MainWindowTitle = 'other'
+if ($null -ne (Get-ValidationReadyJournal $process $path)) { throw 'Wrong window accepted' }
+$process.MainWindowTitle = 'GuitarLab · 설치 검증'; $process.HasExited = $true
+$rejected = $false
+try { $null = Get-ValidationReadyJournal $process $path } catch { $rejected = $true }
+if (-not $rejected) { throw 'Exited process accepted' }
+$process.HasExited = $false
+foreach ($invalid in @('', ('x' * 16385), '{bad', '{"schemaVersion":true,"events":[{"code":"APP_STARTED"}]}',
+    '{"schemaVersion":2,"events":[{"code":"APP_STARTED"}]}', '{"schemaVersion":1,"events":[]}',
+    '{"schemaVersion":1,"events":{"code":"APP_STARTED"}}',
+    '{"schemaVersion":1,"events":[{"code":"STORAGE_INIT_FAILED"}]}')) {
+    [System.IO.File]::WriteAllText($path, $invalid)
+    $rejected = $false
+    try { $null = Get-ValidationReadyJournal $process $path } catch { $rejected = $true }
+    if (-not $rejected) { throw 'Corrupt or failed startup accepted' }
+}
+$rejected = $false
+try { $null = Get-ValidationReadyJournal $process $env:GUITARLAB_STARTUP_TEST_ROOT } catch { $rejected = $true }
+if (-not $rejected) { throw 'Directory accepted as journal' }
+[System.IO.File]::WriteAllText($path, $valid)
+foreach ($code in @(-2147024864, -2147024863, -2147024891)) {
+    $script:ioCode = $code
+    function Get-Content { throw [System.IO.IOException]::new('DEMO read failure', $script:ioCode) }
+    $pending = $false; $rejected = $false
+    try { $pending = $null -eq (Get-ValidationReadyJournal $process $path) } catch { $rejected = $true }
+    if ($code -eq -2147024891) {
+        if (-not $rejected) { throw 'Unrelated IO failure hidden' }
+    } elseif ($rejected -or -not $pending) { throw 'Sharing/lock race not pending' }
+    Remove-Item Function:Get-Content
+}
+function Get-Content { throw [System.UnauthorizedAccessException]::new('DEMO denied') }
+$rejected = $false
+try { $null = Get-ValidationReadyJournal $process $path } catch [System.UnauthorizedAccessException] { $rejected = $true }
+if (-not $rejected) { throw 'Access denial hidden' }
+Remove-Item Function:Get-Content
+Write-Output 'APPLICATION_STARTUP_BOUNDARIES_PASSED'
+"""
+        with tempfile.TemporaryDirectory(prefix="guitarlab-startup-probe-") as folder:
+            environment = {**os.environ, "GUITARLAB_STARTUP_TEST_ROOT": folder}
+            result = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-Command", script],
+                                    cwd=Path(__file__).resolve().parents[1], capture_output=True, timeout=15,
+                                    env=environment, creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertEqual(result.returncode, 0, repr(result.stdout + result.stderr))
+        self.assertIn(b"APPLICATION_STARTUP_BOUNDARIES_PASSED", result.stdout)
+
+    @unittest.skipUnless(os.name == "nt", "Windows 기본 PowerShell의 종료 경계를 검사합니다.")
     def test_application_close_refusal_timeout_missing_or_nonzero_exit_never_passes(self):
         powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
         script = r"""

@@ -79,14 +79,52 @@ if ($expected.Count -ne 0) { throw '설치 리소스가 누락됐습니다.' }
 if ((Get-FileHash -LiteralPath (Join-Path $installRoot 'LICENSE') -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot 'LICENSE') -Algorithm SHA256).Hash) { throw 'MIT 원문이 다릅니다.' }
 if ((Get-FileHash -LiteralPath (Join-Path $installRoot 'BACKUP-README.ko.md') -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot 'docs/19-BACKUP-AND-RECOVERY.md') -Algorithm SHA256).Hash) { throw '백업 안내 원문이 다릅니다.' }
 Write-Output '실제 사용자 설치·원본 실행 파일·runtime·고지 전체 지문 확인'
+function Get-ValidationReadyJournal {
+    param($Process, [string]$JournalPath)
+    $Process.Refresh()
+    if ($Process.HasExited) { throw "설치 앱이 초기화 중 종료됐습니다: $($Process.ExitCode)" }
+    if (-not $Process.Responding -or $Process.MainWindowTitle -ne 'GuitarLab · 설치 검증') { return $null }
+    try {
+        $info = Get-Item -LiteralPath $JournalPath -ErrorAction Stop
+        if ($info.PSIsContainer -or $info.Length -lt 1 -or $info.Length -gt 16384 -or
+            ($info.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw '설치 앱 시작 기록의 파일 경계가 다릅니다.' }
+        $journal = Get-Content -LiteralPath $JournalPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    } catch [System.Management.Automation.ItemNotFoundException] {
+        # 창 생성과 비동기 시작 기록의 게시 시점이 같다고 가정하지 않습니다.
+        return $null
+    } catch [System.IO.FileNotFoundException] {
+        return $null
+    } catch [System.IO.DirectoryNotFoundException] {
+        return $null
+    } catch [System.IO.IOException] {
+        if (($_.Exception.HResult -band 0xffff) -in @(32, 33)) { return $null }
+        throw
+    }
+    if (($journal.schemaVersion -isnot [int] -and $journal.schemaVersion -isnot [long]) -or $journal.schemaVersion -ne 1 -or
+        $journal.events -isnot [array] -or $journal.events.Count -lt 1 -or $journal.events.Count -gt 64 -or
+        $journal.events[-1].code -cne 'APP_STARTED') { throw '설치 앱의 정상 초기화 기록이 아닙니다.' }
+    return $journal
+}
 $app = Start-Process -FilePath $installedBinary -WindowStyle Hidden -PassThru
 $null = $app.WaitForInputIdle(15000)
-if ($app.WaitForExit(3000)) { throw "설치 앱이 종료됐습니다: $($app.ExitCode)" }
-$app.Refresh()
-if (-not $app.Responding -or $app.MainWindowTitle -ne 'GuitarLab · 설치 검증') { throw '설치 앱 창 상태를 확인하지 못했습니다.' }
 $journalPath = Join-Path $dataRoot 'diagnostics/native-v1.json'
-$journal = Get-Content -LiteralPath $journalPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($journal.events[-1].code -ne 'APP_STARTED') { throw '설치 앱 초기화 기록이 없습니다.' }
+$receipt.state = 'APPLICATION_INITIALIZATION_WAIT'
+$receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
+$startupTimer = [System.Diagnostics.Stopwatch]::StartNew()
+$journal = $null
+do {
+    $journal = Get-ValidationReadyJournal -Process $app -JournalPath $journalPath
+    if ($null -ne $journal) { break }
+    [System.Threading.Thread]::Sleep(200)
+} while ($startupTimer.ElapsedMilliseconds -lt 30000)
+$receipt.applicationStartupWaitMs = $startupTimer.ElapsedMilliseconds
+if ($null -eq $journal) {
+    $receipt.state = 'APPLICATION_INITIALIZATION_TIMEOUT'
+    $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
+    throw '설치 앱 창/APP_STARTED의 초기화 확인 시간이 초과됐습니다. 기존 상태를 보존합니다.'
+}
+$receipt.state = 'APPLICATION_INITIALIZED'
+$receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
 $python = Join-Path $projectRoot 'ai/.venv/Scripts/python.exe'
 @'
 import sqlite3,sys
