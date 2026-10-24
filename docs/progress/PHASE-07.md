@@ -1,5 +1,35 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 고정 EG-IPT31창의 기존 음정 변화 관측 (2026-10-24)
+
+### 1. 작업 개요
+
+작업 완료일2026-10-24. 수신 다음 독립 슬라이스로 원본을 바꾸지 않고 완전1초 창의 현재 엔진 동작을 기록했습니다. 관측/회귀 완료이며 실제 벤딩/비브라토 정답 수용·고급 점수 지원은 미완료입니다. 파일명 라벨은 구간별 연속F0 정답이 아니므로 맞춤률/정확도를 계산하지 않았습니다.
+
+### 2. 구현 및 변경 사항
+
+- src-tauri/src/audio/egipt_benchmark.rs: cfg(test) 전용 PCM24 mono96kHz 경계 검사/고정 manifest SHA·계획·원본8개SHA/크기·원본 전후 불변,0초부터 겹치지 않는1초 관측/부분·짧은 파일 제외·새 UUID JSON 보존을 추가했습니다. PCM은2^23 비율을 유지해 f32로 바꾸며 gain/padding·외부 리샘플링/배속을 하지 않습니다.
+- 기존 technique_benchmark.rs의 제한 경로/파일 읽기 helper만 테스트 간 재사용하고 audio/mod.rs에 cfg(test) 모듈을 연결했습니다. 제품 analyze_pitch_track의96kHz 경로/내부 블록 평균·보류 기준은 그대로입니다. 새 의존성/IPC·DB/UI 변경이 없습니다.
+- docs/12의 관측 계약을 구현 전에 기록하고 docs/09·08·진행/남은 작업에 결과와 제약을 반영합니다.
+
+### 3. 테스트 결과
+
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml pcm24_keeps_exact_polarity`: **1개 성공**,PCM24 극성/정확한 비율·잘못된 fmt/속도/채널/길이·중복data·잘린 입력 거부를 확인했습니다. 컴파일17.86초.
+- 고정 GUITARLAB_EGIPT_SAMPLE manifest를 지정한 `cargo test ... public_egipt_pitch_motion_observations -- --ignored --exact audio::egipt_benchmark::public_egipt_pitch_motion_observations --nocapture`: **1개 성공/10.07초**,31창 관측 처리 합계9171.9ms입니다. 실시간 성능/왕복 지연 수치가 아닙니다.
+- 결과: 같은 수신 폴더의 pitch-observations-265c2c14-27b6-401d-b037-859f4adcd6ae.json, SHA256 **a524f4f17a1477046364832dbd3ed378c02c3dd3d2a26400619da9c74b86625e**. Steady22/Unverified7/Rising1/Falling1. 일반음6번줄17창은 모두 유지,1번줄8창 중유지5/보류3입니다. 반음 파일 첫1초는 각각+128.62/-134.43cents·coverage97.37%였으나 실제 연주 정답 오차로 해석하지 않습니다.
+- vibrato-fast 첫창은coverage97.37%·최소주기성0.9714·범위74.91cents, slow 첫두창은coverage100%/최소0.9524~0.9763·범위55.45~60.19cents이나 모두 NON_MONOTONIC_OR_AMBIGUOUS입니다. slow 마지막창은 LOW_LEVEL입니다. 이름에 맞게 결과/임계값을 바꾸지 않았습니다.
+- 온음 상/하행2파일은1초 미만이라 제외했습니다. 전체 미사용 부분409998프레임(짧은2파일 포함)을 결과에 보존했습니다.
+- 확장Clippy 최초 **실패**: 상수 chunks_exact 사용 지적. 의미가 같은 as_chunks로 바꾼 뒤 **성공/5.02초**. `cargo fmt --check` **성공**,전체확장 `cargo test --locked --all-features ...` **233개 성공/28개 기본 제외·11.19초**,`cargo +1.90.0 check --locked --all-targets --all-features ...` **성공/12.16초**.28개 중 본 공개관측1개와 기존자식helper1개는 명시 실행했습니다. 숫자 순회 변경 외 분석 알고리즘은 바꾸지 않아 실제 관측은 반복하지 않았습니다.
+- 프론트/제품 앱 빌드·실장치: **미실행** — 테스트 모듈/문서뿐이며 이전 Windows 수용 앱을 그대로 유지했습니다. 최신 관측 코드 원격은 별도 기록합니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 관측기는 이 실제 vibrato 파일의 유효 세 창도 주기적 변화로 수용하지 않았습니다. 보류가 곧 해당 연주가 틀렸다는 의미는 아니며 연속 음정/주법 정답 부재와 한 연주자 조건 때문에 검출 실패율/허위 감점률을 산정하지 않습니다. 작은 신호/짧은 온음 파일을 정규화·padding해 강제로 맞추지 않습니다. 실제 코드/주법 점수·모든 주법/외부환경 수용은 미완료입니다.
+
+### 5. 다음 작업 계획
+
+새 도구/관측 회귀를 원격에 포함하고, 보류3창의 시간·주기성/주파수 구간·경향 조건을 고정 산출물에서 감사합니다. 결과를 본 뒤 표본/임계값을 바꿔 제품 지원으로 채택하지 않습니다. 독립 정답이 확보되면 별도 평가 표본/수용 기준으로 검증하며 특화 가중치/새 Windows 제약은 유지합니다.
+
 ## 후속 — EG-IPT 출처 검토와 고정 DI8개 제한 수신 (2026-10-24)
 
 ### 1. 작업 개요

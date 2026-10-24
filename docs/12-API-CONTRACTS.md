@@ -2,6 +2,8 @@
 
 ## EG-IPT 고정 표본 수신 도구 v1 — 2026-10-24
 
+후속 관측 계약 v1: cfg(test)의 public_egipt_pitch_motion_observations는 명시한 GUITARLAB_EGIPT_SAMPLE manifest의 고정SHA71e721ef7039c65d944a34770ebbf116d0838c3fee8304fd60c8a6f2371c03ff·원본8개 SHA/계획을 확인합니다. 결과를 보기 전에 각 원본0초부터 겹치지 않는 완전1초 창만 분석하고 짧은 파일/나머지 프레임을 보존합니다. padding·gain 정규화·배속/리샘플링은 하지 않습니다. PCM24를 정확한 f32 비율로 디코딩해 기존96kHz analyze_pitch_track에 전달합니다. 기존 내부 블록 평균/음정 탐색은 그대로입니다. 출력은 새 UUID JSON/EGIPT_PITCH_MOTION_OBSERVED, source/probe hash·원곡 창 시각·coverage·motion·변화cents/주기성·관측점·보류 경고/처리 시간이며 continuousPitchGroundTruthVerified/actualAppJudgements=false입니다. 파일명 라벨과 검출 motion의 일치율을 주법 정확도로 계산하지 않습니다. 원본은 실행 전후 SHA가 같아야 합니다.
+
 앱 IPC가 아닌 개발용 scripts/fetch_egipt_sample.py는 기본 실행에서 로컬 계획만 읽으며 --download-samples에만 네트워크를 사용합니다. 공식 레코드15205644/version1/CC BY4.0·EG-IPT.zip23757983313바이트/선언MD548a5135adfd090515ff0af7dc5c3c32f 및 정확한 주소를 확인합니다. fixtures/egipt-technique-sample-v1.json의 raw SHA2566da7035d1d8b121c0c9038201d0715ae25e4784dbd23426c1716512c12f51766에 HB-bridge/DI8조건을 분석 전에 고정합니다. 파일명1s/6s는 초가 아니라 기타 줄 번호입니다.
 
 전체 ZIP은 받지 않습니다. 정확한 HTTP206/Content-Range/주소·ETag 변경 검사를 재사용하고 ZIP 합계32MiB/요청8MiB·180초를 제한합니다. 고정 중앙 목록(offset23741203027/16780188바이트)만 요청을 분할하며 다른 큰 read는 거부합니다. 선택8개는 합계10224558바이트, 파일 선언 크기/CRC/headerOffset/압축 방식·실제 CRC·mono PCM24/96kHz/최대30초/실제 프레임을 확인해 새 UUID 경로에 수정 없이 보존합니다. 기존 출력은 덮어쓰지 않고 실패/취소 manifest와 완료한 파일을 남깁니다. 공식 metadata의 통계는 바뀔 수 있어 기존 raw SHA와 동일해야 한다고 요구하지 않고 새 지문을 기록합니다.

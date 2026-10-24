@@ -58,7 +58,7 @@ fn valid_case(case: &Case, index: usize) -> bool {
             .bytes()
             .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
 }
-fn read(root: &Path, path: &Path, limit: u64) -> Vec<u8> {
+pub(super) fn read(root: &Path, path: &Path, limit: u64) -> Vec<u8> {
     let metadata = fs::symlink_metadata(path).expect("공개 자료 속성");
     assert!(metadata.is_file() && !metadata.file_type().is_symlink() && metadata.len() <= limit);
     assert!(path

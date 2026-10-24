@@ -1,6 +1,8 @@
 pub mod clock;
 pub mod dsp;
 #[cfg(test)]
+mod egipt_benchmark;
+#[cfg(test)]
 mod guitarset_benchmark;
 mod input;
 pub mod monitor;
