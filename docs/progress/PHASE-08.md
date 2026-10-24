@@ -1290,3 +1290,17 @@ Phase5 이름 편집 후보의 최신 UI 내장/기존 데이터 보존·개발�
 ## 5. 다음 작업 계획
 
 사전 검사까지 포함한 새 검증 ZIP/독립 실행과 원격 전체 회귀를 확인하고 결과를 확정합니다. 현재 PID30248/PTY22831의 ‘GuitarLab · 단축키 충돌 수정’은 사용자 확인 중이므로 그대로 유지합니다. 실행 파일 SHA는46eae0bc…이며 실행 전 기존 DB9의 읽기 전용 snapshot을 keyboard-candidate.json에 연결했습니다. 사용자 입력/REC를 자동 시작하지 않고 수용 답변 후 해당 결과만 따로 기록합니다.
+
+### 실제 사전 검사·패키지 확정
+
+소스 `149ef37`의 실제 build-info 사전 검사를 포함한 `python -B -X utf8 scripts/package_validation.py src-tauri/target/runtime-validation/keyboard-candidate.json`이 **성공**했습니다. 새 ZIP은 validation-packages/9f460eef-daf2-45b8-ad98-b4afb433325f/GuitarLab-validation.zip,3613파일/40,161,473바이트/SHA `1154c8552250951d9ba2a9f3a1d04d9963d3d106673a9f42a400d2dc86ea6803`입니다. 새 roundtrip-a1b6ff29… 추출·전체 지문과 기본PowerShell5.1의 독립Python3.12.15 최소PATH2회가 **exit0 성공**했습니다. manager-preflight-package-roundtrip.json은 MANAGER_PREFLIGHT_ZIP_AND_POWERSHELL51_CHECKED이며 실행 중인 GUI를 교체하지 않았습니다.
+
+추가 읽기 전용 비교는 실행 전 snapshot과 현재DB9의 **사용자 테이블15개 행수/전체 내용 지문 동일**을 확인했습니다(sqlite 내부 테이블 제외). 기본 sandbox는 실행 중 DB 열기에 실패했고 확장 읽기에서는 성공했으며 DB를 수정/복원하지 않았습니다. keyboard-startup-data-comparison.json에 기록했습니다. 모델/녹음 분석을 실행한 결과가 아니며 실제 단축키 사용자의 수용 답변은 여전히 대기입니다.
+
+새 원격 회귀는 [Windows40051342400](https://github.com/BomJin2/GuitarLab/actions/runs/40051342400)/job120744487711에서 진행 중입니다. 소스의 UI·제품 코드 변경은 없으며 현재 앱/이전 ZIP의 수용 상태와 구분합니다.
+
+### 원격 회귀 확정 — 2026-10-24
+
+위149ef37의 Windows40051342400/job120744487711은 **사후 정리 포함 전 단계 success**입니다. 프론트444개/103파일·타입/lint/빌드/Prettier·cargo fmt/기본 및 확장Clippy, 기본Rust228개/42.20초와 all-features231개/66.93초(각26개 제외), onset native1개/0.17초·새 빌드 정보 native1개/0.03초, AI113개/2.54초·개발 도구112개/18.573초·OK, MSRV1.90 all-targets/all-features85초까지 로그로 확인했습니다. workflow 변경에 따른 새 정확한 캐시 키f3637e5b…는 miss 후 성공 저장됐으며 캐시를 이유로 검사를 생략하지 않았습니다.
+
+이 패키지 사전 차단/자동 검증/문서화는 완료입니다. 전체 Phase8·서명/최종 배포/새 Windows 수용은 미완료이고 실제 단축키 사용자의 답변도 대기입니다. 현재 앱은 유지하며 위 검증 도구 변경을 적용하기 위한 앱 재시작은 필요하지 않습니다. 다음 재개는 PID30248/PTY22831·keyboard-candidate.json과 성공한 manager-preflight-package-roundtrip.json을 재사용하고, 사용자가 확인하지 않은 내용을 수용 완료로 기록하지 않습니다.
