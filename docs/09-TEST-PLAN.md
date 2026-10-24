@@ -1,5 +1,9 @@
 # 09. 테스트 전략 / 검증 기준
 
+## 합성 녹음 자식 프로세스의 비정상 종료 복구 — 2026-10-24
+
+제품 앱/입력을 종료하지 않고 현재 Rust 테스트 실행 파일의 명시적 ignore helper 하나만 새 자식 프로세스로 실행합니다. 임시 fixture/UUID 경로·부모가 지정한 프로젝트/테이크만 허용하고 콘솔 창을 만들지 않습니다. 합성48000프레임을 flush한 뒤1234프레임을 사용자 공간 버퍼에 남긴 채 finish/Drop 없이 종료합니다. 부모는10초 한도에서 자신이 생성한 자식만 정리할 수 있습니다. 재열기→중단 테이크 표시→새 UUID 복구 후 prefix PCM/길이·정상 헤더·원본 part/원본 metadata·악보 revision 보존을 확인합니다. 버퍼의 마지막1234프레임 보존이나 전원 차단/디스크 캐시 내구성·실제 CPAL/장치 크래시를 검증한 것으로 주장하지 않습니다.
+
 ## 박자 단위의 미지원 주법 경계 — 2026-10-24
 
 실제 alphaTab1.6.1 AlphaTex 파서로 tap/slap/pop/deadSlapped·fade-in/out/swell·rasgueado를 읽어 note의 왼손 태핑 flag와 독립적인 Beat metadata를 확인합니다. 각 음의 정규화/목표 unsupported, 인접 일반 피킹 유지·기본 편집 거부, 반복 occurrence와 이전 문서의 ID/싱크/원본 비파괴 보완·JSON 왕복을 검사합니다. 기존 native UNSUPPORTED·SKIPPED 우선/인접 onset 미전달과 저장 기록 계약은 재사용하며 실제 주법 검출/연주 수용과 구분합니다.

@@ -87,6 +87,156 @@ pub(crate) fn write_part(f: &Fixture, take: &mut RecordedTake, frames: u64, fini
         wave::finish(writer).expect("WAV 확정");
     }
 }
+
+#[test]
+#[ignore = "부모 복구 검사에서 고정된 합성 임시 경로로만 실행하는 자식 프로세스"]
+fn unfinished_wave_crash_child() {
+    let payload = std::env::var("GUITARLAB_TEST_UNFINISHED_WAVE").expect("부모 검사 입력");
+    assert!(payload.len() <= 4096, "자식 검사 입력 한도");
+    let [root, project, take]: [String; 3] =
+        serde_json::from_str(&payload).expect("고정 검사 입력");
+    let root = std::path::PathBuf::from(root)
+        .canonicalize()
+        .expect("자체 임시 앱 경로");
+    let fixture = root.parent().expect("자체 fixture");
+    assert_eq!(
+        fixture.parent(),
+        Some(
+            std::env::temp_dir()
+                .canonicalize()
+                .expect("임시 상위")
+                .as_path()
+        )
+    );
+    let name = fixture
+        .file_name()
+        .and_then(|value| value.to_str())
+        .expect("임시 폴더명");
+    Uuid::parse_str(
+        name.strip_prefix("guitarlab-project-test-")
+            .expect("자체 fixture 이름"),
+    )
+    .expect("자체 fixture UUID");
+    assert_eq!(
+        root.file_name().and_then(|value| value.to_str()),
+        Some("앱 데이터")
+    );
+    let project = Uuid::parse_str(&project).expect("프로젝트 UUID");
+    let take = Uuid::parse_str(&take).expect("테이크 UUID");
+    let relative = format!("projects/{project}/recordings/{take}/dry.wav.part");
+    let path = super::database::checked_file(&root, std::path::Path::new(&relative))
+        .expect("자체 부분 파일 경로");
+    let mut writer = wave::create(&path, 48000).expect("새 합성 부분 WAV");
+    for _ in 0..48000 {
+        writer.push(0.25).expect("flush할 합성 프레임");
+    }
+    writer.flush().expect("복구 가능한 prefix flush");
+    for _ in 0..1234 {
+        writer.push(0.5).expect("flush하지 않은 합성 프레임");
+    }
+    // 사용자 공간 버퍼와 헤더를 확정하는 Drop/finish 없이 테스트 자식만 끝냅니다.
+    std::process::exit(73);
+}
+
+#[test]
+fn abrupt_process_exit_recovers_flushed_prefix_to_new_take_preserving_original() {
+    use std::{
+        process::{Command, Stdio},
+        thread,
+        time::{Duration, Instant},
+    };
+
+    let f = Fixture::new();
+    let take = prepared(&f);
+    let revision = f
+        .store
+        .revision(&take.project_id, &take.score_revision_id)
+        .expect("기존 악보");
+    let revision_bytes = serde_json::to_vec(&revision).expect("악보 snapshot");
+    let partial = f.store.prepare_recording(&take).expect("합성 테이크 준비");
+    let payload = serde_json::to_string(&[
+        f.store.root.to_string_lossy().into_owned(),
+        take.project_id.clone(),
+        take.id.clone(),
+    ])
+    .expect("고정 자식 검사 입력");
+    let mut command = Command::new(std::env::current_exe().expect("현재 테스트 실행 파일"));
+    command
+        .args([
+            "--ignored",
+            "--exact",
+            "storage::recordings_tests::unfinished_wave_crash_child",
+        ])
+        .env("GUITARLAB_TEST_UNFINISHED_WAVE", payload)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let mut child = command.spawn().expect("합성 검사 자식 실행");
+    let start = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("검사 자식 상태") {
+            break status;
+        }
+        if start.elapsed() > Duration::from_secs(10) {
+            child.kill().expect("자체 검사 자식 시간 초과 정리");
+            child.wait().expect("자체 검사 자식 회수");
+            panic!("합성 녹음 자식 검사 시간 초과");
+        }
+        thread::sleep(Duration::from_millis(20));
+    };
+    assert_eq!(status.code(), Some(73));
+    let original = fs::read(&partial).expect("비정상 종료 뒤 원본 part");
+    assert_eq!(original.len(), wave::HEADER_BYTES as usize + 48000 * 4);
+    assert_eq!(&original[54..58], &[0; 4]);
+    assert!(wave::WaveReader::open(&partial, false).is_err());
+    let reopened = ProjectStore::new(f.store.root.clone());
+    reopened.initialize().expect("별도 저장소 재열기");
+    reopened.interrupt_recordings().expect("중단 테이크 분리");
+    let interrupted = reopened
+        .take(&take.project_id, &take.id)
+        .expect("중단 원본 metadata");
+    assert!(interrupted.state == RecordingState::RecoverableError);
+    let recovered = reopened
+        .recover_recording(
+            &take.project_id,
+            &take.id,
+            &AtomicBool::new(false),
+            |_, _| Ok(()),
+        )
+        .expect("새 테이크로 비파괴 복구");
+    assert_ne!(recovered.id, take.id);
+    assert_eq!(recovered.frames, 48000);
+    assert_eq!(recovered.recovered_from, Some(take.id.clone()));
+    assert!(recovered.state == RecordingState::Ready);
+    let restored = reopened
+        .recording_bytes(&take.project_id, &recovered.id, &AtomicBool::new(false))
+        .expect("정상 복구 WAV");
+    assert_eq!(&restored[58..], &original[58..]);
+    assert_eq!(fs::read(&partial).expect("원본 part 보존"), original);
+    assert_eq!(
+        serde_json::to_vec(
+            &reopened
+                .take(&take.project_id, &take.id)
+                .expect("원본 metadata 보존")
+        )
+        .expect("원본 metadata 직렬화"),
+        serde_json::to_vec(&interrupted).expect("중단 metadata 직렬화")
+    );
+    assert_eq!(
+        serde_json::to_vec(
+            &reopened
+                .revision(&take.project_id, &take.score_revision_id)
+                .expect("악보 보존")
+        )
+        .expect("악보 직렬화"),
+        revision_bytes
+    );
+}
 #[test]
 fn four_second_take_reopens_with_edits_without_changing_original_or_revision() {
     let f = Fixture::new();

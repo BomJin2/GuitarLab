@@ -1,5 +1,36 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 합성 녹음 프로세스 종료 후 실제 파일 복구 (2026-10-24)
+
+### 1. 작업 개요
+
+작업 완료일2026-10-24. 기존 부분 파일/실패 주입 회귀를 보완해 실제 자식 프로세스가 WAV writer의 Drop/finish 없이 끝난 뒤 저장소 재열기·새 테이크 복구까지 검사했습니다. 이 회귀 후속은 완료이며 전원 차단/실제 앱·장치 크래시 수용이나 전체 Phase8 완료를 의미하지 않습니다. 현재 사용자 앱 PID30808/PTY82434·입력/개인 녹음은 그대로 유지했습니다.
+
+### 2. 구현 및 변경 사항
+
+- src-tauri/src/storage/recordings_tests.rs: 명시적 ignore child helper와 기본 회귀에서 실행하는 부모 검사1개를 추가했습니다. std Command/current_exe만 사용하고 Windows 콘솔을 만들지 않습니다. 외부 모델/라이브러리·shell 명령은 없습니다.
+- 자식 입력은4096바이트 이하의 고정 배열/임시 fixture 이름·UUID·temp 상위·앱 데이터 폴더명·프로젝트/테이크 UUID·기존 checked_file 경계를 검증합니다. 실제 제품 AppData 경로를 받지 않습니다.
+- 합성48000프레임을 flush하고1234프레임을 writer 버퍼에 남겨 process::exit(73)으로 종료합니다. 부모는10초 한도에서 자신이 시작한 자식만 회수하며 사용자 GuitarLab을 종료하지 않습니다.
+- 부모는 미확정 헤더/실제 남은 prefix→새 ProjectStore 초기화/중단 표시→새 UUID READY 복구, PCM/길이·원본 part/원본 metadata/악보 revision 보존을 확인합니다. 제품 저장/복구 코드는 수정하지 않았습니다.
+- docs/09와 진행 문서에 검사 범위·실패/미실행 및 재개 지점을 기록합니다.
+
+### 3. 테스트 결과
+
+- 최초 컴파일은 테스트의 assert_eq가 기존 RecordingState/RecordedTake에 없는 Debug/PartialEq를 요구해 실패했습니다. 제품 타입을 테스트 때문에 확장하지 않고 기존 코드처럼 상태 bool 비교/metadata 직렬화 비교로 수정했습니다.
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml abrupt_process_exit -- --nocapture`: **부모1개 성공**,0.35초/컴파일11.64초. 부모가 별도 helper를 실제 실행했고 exit73과48000프레임만 남은 파일을 확인했습니다. helper의 ignore 표시는 미실행이 아니라 부모 전용 진입점입니다.
+- `cargo fmt --check`: **성공**. all-targets/all-features `cargo clippy --locked --offline ... -- -D warnings`: **성공**,9.45초.
+- `cargo test --locked --offline --all-features --manifest-path src-tauri/Cargo.toml`: **232개 성공/27개 기본 제외**,11.37초(컴파일17.15초).27개 중 이 helper1개는 위 부모가 명시적으로 실행했고 나머지26개는 기존 모델/자료/장치 opt-in 검사입니다.
+- `cargo +1.90.0 check --locked --offline --all-targets --all-features ...`: **성공**,9.27초. 기존 linker/incremental 복사 경고 외 오류 없습니다. 전체 검사는 일반 Windows 환경의 자체 임시 fixture만 사용했습니다.
+- 프론트 재검사/제품 앱 재빌드·재실행: **미실행** — 이번 변경은 cfg(test) 안의 Rust 회귀와 문서뿐입니다. 직전458개·주법 보호 앱/패키지 수용을 재사용하며 현재 앱을 새로 열지 않았습니다. 새 원격 전체 회귀는 업로드 전입니다.
+
+### 4. 미구현 및 알려진 문제
+
+마지막 사용자 공간 버퍼1234프레임은 보존되지 않는 것이 이번 검사에서 확인된 경계입니다. flush한 prefix의 프로세스 종료 뒤 보존만 확인하며 전원 상실/OS 캐시·파일 시스템 장애의 내구성이나 실제 CPAL callback/서비스 전체 크래시까지 보장하지 않습니다. 사용자의 실제 녹음이나 앱을 강제 종료하는 검사는 실행하지 않았습니다.
+
+### 5. 다음 작업 계획
+
+기존 실행 중인 Windows40053976117의 결론을 먼저 확인한 뒤 완료한 후속들을 push해 새 전체 회귀에 포함합니다. 이전 CI를 새 push로 취소하지 않도록 순서를 지킵니다. 이후 Phase7의 독립 주법 참조는 공식 출처/이용 조건·실제 주석 필드부터 확인하고, 품질 근거 없이 모델/고급 점수를 추가하지 않습니다. 별도Windows·서명/최종 배포 제약은 기존 남은 작업을 유지합니다.
+
 ## 후속 — Windows 캐시 복원·전체 회귀 수용 (2026-10-24)
 
 ### 1. 작업 개요
