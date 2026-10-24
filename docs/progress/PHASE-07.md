@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일2026-10-25. 기존 미지원 표기의 안전 처리 감사에서 골페 박자가 일반 피킹으로 통과하는3개 회귀를 재현하고 공통 조건 한 곳을 보완했습니다. 실제 골페 인식/점수·전체 Phase7 완료는 아닙니다. 사용자 기타 입력·녹음·프로젝트와 제품 DSP를 변경하지 않았습니다.
+완료일2026-10-25. 기존 미지원 표기의 안전 처리 감사에서 골페 박자가 일반 피킹으로 통과하는3개 회귀를 재현하고 공통 조건 한 곳을 보완했습니다. 표기 보호의 구현/자동 검사·독립 패키지/문서화 슬라이스 완료이며 실제 골페 인식/점수·전체 Phase7 완료는 아닙니다. 사용자 기타 입력·녹음·프로젝트와 제품 DSP를 변경하지 않았습니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -18,7 +18,8 @@
 - 공통 조건 수정 후 `pnpm typecheck`/`pnpm lint`/`pnpm test`/`pnpm format:check`: **성공**,전체 **474개/103파일**,41.55초. 실제 파서/GP7 왕복·내부 JSON과 편집 거부·반복/구형 복원 회귀가 포함됩니다. 결과 `golpe-after-20261025.log`를 보존합니다.
 - `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features unsupported -- --nocapture`: **6개 성공**,0.64초. 미지원 onset의 인접 음 누출 방지/동시음·감점 제외/중단 우선·시도 재열기/원본 metadata 보존5개와 같은 검색어의 mixer 경계1개입니다. Rust 코드는 이 슬라이스에서 변경하지 않았으며 전체 native 반복 검사는 **미실행**입니다. 직전210ee8b 보완의 로컬237개/Clippy/MSRV 성공과 ef9d343의 전체 원격 성공은 Phase8을 따릅니다.
 - `pnpm build`: **성공**,Vite1분30초/기존 큰 chunk 경고 유지. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **내장3개 성공**,0.01초/컴파일12.94초. 내장 문맥 검사에서 기본 icon resource 조회 경고2회가 출력됐으며 실제 제품 창 아이콘 확인은 미실행입니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,12.86초/40,792,064바이트·SHA `af244e7b55ec49115567b6bd4195f3dfe7ed286c47046af7cd8780c89d0274b8`입니다. MSVC 링크 산출물 안내 경고는 유지합니다.
-- 새 독립 ZIP/PS5.1은 **검사 전**,실제 기타/수동 골페 연주·앱 재실행/사용자 자료 변경은 **미실행** — 표기 보호의 자동 검사이며 주법 검출 실험이 아닙니다. 현재 제품 DSP/원본·데이터를 바꾸지 않았습니다.
+- `scripts/package_validation.py`/기존 `verify_archive`·동일 바이트 새 폴더 추출과 실제 Windows PowerShell5.1 `-File Test-ValidationPackage.ps1`: **전체3613파일 지문/CRC·독립Python3.12.15 두 번 exit0 성공**. source66be01d 후보 `golpe-support-candidate-cd6c1905-d8ae-4705-b4a9-aa2c5782a9e6.json`은 앱 미실행 상태이며 generic portable-candidate/이전 앱 영수증을 바꾸지 않았습니다. 새 ZIP `validation-packages/24cff694-6a95-4819-9714-0f88b18a1b3e/GuitarLab-validation.zip`은40,188,876바이트/SHA `6605d44100a1a979344f3a802647a3068dbae7b87121a6c776edc6affc50231d`입니다. `golpe-package-receipt-d7eb163b-2932-4f0a-8972-497775e622c9.json`/추출본 `golpe-roundtrip-65d69de5-bf0d-48b5-bc6f-dc2f921420f4/GuitarLab`에 검사를 보존했습니다. 보관 용량의 최종 반환 경계 보완도 같은 실행 파일에 포함됩니다.
+- 실제 기타/수동 골페 연주·앱 재실행/사용자 자료 변경은 **미실행** — 표기 보호의 자동 검사이며 주법 검출 실험이 아닙니다. 현재 제품 DSP/원본·데이터를 바꾸지 않았습니다.
 
 ### 4. 미구현 및 알려진 문제
 
@@ -26,7 +27,7 @@
 
 ### 5. 다음 작업 계획
 
-내장 UI/Windows 빌드·독립 ZIP의 자동 검사를 마친 뒤 문서/Git과 원격 회귀를 확정합니다. 수동 기타 확인을 반복 요청하지 않고, 별도 Windows10/11·특화 가중치/실제 고급 품질처럼 현재 외부 조건이 없는 항목은 완료로 바꾸지 않습니다. 현재 슬라이스 수용이 끝난 뒤 로드맵의 남은 독립 검증을 검토합니다.
+로컬66be01d와 패키지 기록을 Git에 반영하고 새 원격 회귀를 확인합니다. 수동 기타 확인을 반복 요청하지 않고 별도 Windows10/11·특화 가중치/실제 고급 품질처럼 현재 외부 조건이 없는 항목은 완료로 바꾸지 않습니다. 현재 슬라이스 수용이 끝난 뒤 로드맵의 남은 독립 검증을 검토하며 실제 고급 점수 수용은 독립 참조/허위 감점률 근거 전까지 보류합니다.
 
 ## 후속 — pYIN 오프라인 비교 완료·제품 미채택 (2026-10-25)
 
