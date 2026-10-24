@@ -20,6 +20,8 @@ function controller(): ProjectController {
     trashedProjects: [],
     trashLoaded: false,
     trashListBusy: false,
+    trashUsage: null,
+    inspectTrashUsage: vi.fn(),
     refreshTrash: vi.fn(async () => undefined),
     trashProject: vi.fn(async () => undefined),
     restoreProject: vi.fn(async () => undefined),

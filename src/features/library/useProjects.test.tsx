@@ -37,7 +37,12 @@ vi.mock('./projects', async (original) => ({
 }));
 vi.mock('./projectTrash', async (original) => ({
   ...(await original<typeof import('./projectTrash')>()),
-  projectTrashApi: { list: vi.fn(), trash: vi.fn(), restore: vi.fn() },
+  projectTrashApi: {
+    list: vi.fn(),
+    trash: vi.fn(),
+    restore: vi.fn(),
+    usage: vi.fn(),
+  },
 }));
 beforeEach(() => {
   localStorage.removeItem('guitarlab.score-autosave.v1');
@@ -54,6 +59,78 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+it('용량 확인 취소는 실제 종료까지 복원을 막고 미저장 편집을 유지한다', async () => {
+  const entry = {
+    project: projectFixture().project,
+    trashId: '00000000-0000-4000-8000-0000000000f2',
+    trashedAtMs: 42,
+  };
+  const pending = deferred<void>();
+  let signal: AbortSignal | undefined;
+  vi.mocked(projectTrashApi.usage).mockImplementation(
+    async (_entry, current) => {
+      signal = current;
+      await pending.promise;
+      throw new DOMException('취소', 'AbortError');
+    },
+  );
+  const { result, engine } = harness();
+  const source = scoreEditingFixture();
+  act(() => result.current.setSession(source));
+  let checking: Promise<void> | undefined;
+  act(() => {
+    checking = result.current.project.inspectTrashUsage(entry);
+  });
+  act(() => result.current.project.cancel());
+  expect(signal?.aborted).toBe(true);
+  expect(result.current.project.busy).toBe(true);
+  await act(async () => result.current.project.restoreProject(entry));
+  expect(projectTrashApi.restore).not.toHaveBeenCalled();
+  await act(async () => {
+    pending.resolve();
+    await checking;
+  });
+  expect(result.current.project.busy).toBe(false);
+  expect(result.current.project.trashUsage).toBeNull();
+  expect(result.current.session).toBe(source);
+  expect(result.current.project.notice).toMatch(/취소/);
+  engine.dispose();
+});
+it('화면 해제는 용량 확인에 취소를 전달하고 늦은 성공을 게시하지 않는다', async () => {
+  const entry = {
+    project: projectFixture().project,
+    trashId: '00000000-0000-4000-8000-0000000000f2',
+    trashedAtMs: 42,
+  };
+  const usage = {
+    projectId: entry.project.id,
+    trashId: entry.trashId,
+    files: 0,
+    logicalBytes: 0,
+    externalReferences: 0,
+  };
+  const pending = deferred<typeof usage>();
+  let signal: AbortSignal | undefined;
+  vi.mocked(projectTrashApi.usage).mockImplementation((_entry, current) => {
+    signal = current;
+    return pending.promise;
+  });
+  const { result, engine, unmount } = harness();
+  let checking: Promise<void> | undefined;
+  act(() => {
+    checking = result.current.project.inspectTrashUsage(entry);
+  });
+  const before = result.current.project;
+  unmount();
+  expect(signal?.aborted).toBe(true);
+  await act(async () => {
+    pending.resolve(usage);
+    await checking;
+  });
+  expect(result.current.project).toBe(before);
+  expect(result.current.project.trashUsage).toBeNull();
+  engine.dispose();
+});
 function harness(beforeReplace: () => boolean | Promise<boolean> = () => true) {
   const engine = new PlayerEngine();
   const wrapper = ({ children }: { children: ReactNode }) => (

@@ -27,7 +27,12 @@ vi.mock('./projects', async (original) => ({
 }));
 vi.mock('./projectTrash', async (original) => ({
   ...(await original<typeof import('./projectTrash')>()),
-  projectTrashApi: { list: vi.fn(), trash: vi.fn(), restore: vi.fn() },
+  projectTrashApi: {
+    list: vi.fn(),
+    trash: vi.fn(),
+    restore: vi.fn(),
+    usage: vi.fn(),
+  },
 }));
 let engine: PlayerEngine;
 beforeEach(() => {
@@ -40,6 +45,52 @@ function Workspace() {
   const project = useProjects(session, setSession, () => true);
   return <LibraryPage project={project} />;
 }
+it('보관 용량은 명시적 요청 후 표시하고 확인 중 복원을 막으며 원본을 열지 않는다', async () => {
+  const entry = {
+    project: projectFixture().project,
+    trashId: '00000000-0000-4000-8000-0000000000f2',
+    trashedAtMs: 42,
+  };
+  vi.mocked(projectApi.list).mockResolvedValue([]);
+  vi.mocked(projectTrashApi.list).mockResolvedValue([entry]);
+  let finish: (() => void) | undefined;
+  vi.mocked(projectTrashApi.usage).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = () =>
+          resolve({
+            projectId: entry.project.id,
+            trashId: entry.trashId,
+            files: 2,
+            logicalBytes: 1024,
+            externalReferences: 1,
+          });
+      }),
+  );
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: '휴지통 목록 다시 읽기' }),
+  );
+  const inspect = await screen.findByRole('button', {
+    name: `용량 확인 · ${entry.project.title}`,
+  });
+  expect(projectTrashApi.usage).not.toHaveBeenCalled();
+  fireEvent.click(inspect);
+  expect(
+    screen
+      .getByRole('button', { name: `복원 · ${entry.project.title}` })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  await act(async () => finish?.());
+  expect(await screen.findByText(/논리 크기 1,024바이트/)).toBeTruthy();
+  expect(screen.getByText(/실제 회수 가능 공간이 아닙니다/)).toBeTruthy();
+  expect(projectApi.open).not.toHaveBeenCalled();
+  expect(projectTrashApi.restore).not.toHaveBeenCalled();
+});
 it('다른 항목을 보관·복원해도 현재 프로젝트는 자동 교체하지 않는다', async () => {
   const details = projectFixture();
   const current = { ...details.project, title: '현재 연습' };

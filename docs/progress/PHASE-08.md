@@ -1,5 +1,36 @@
 # Phase8 — 품질·릴리스
 
+## 보관 프로젝트 용량 확인 — 2026-10-25
+
+### 1. 작업 개요
+
+완료일2026-10-25. 사용자 데이터 정리의 읽기 전용 수직 슬라이스로 휴지통의 명시적 용량 확인을 구현하고 자동 검증했습니다. **영구 삭제/실제 회수 공간 계산·전체 Phase8 완료는 아닙니다.** 사용자 프로젝트/입력·녹음·모델과 실행 중인 앱을 조작하지 않았습니다.
+
+### 2. 구현 및 변경 사항
+
+- `storage/project_trash_usage.rs`: 현재 projectId/trashId/revision에 해당하는 관리 폴더의 metadata만 제한 집계합니다. 관리 파일 수·논리 바이트·외부 참조 개수를 분리하고 참조 원본을 열지 않습니다. 미분류 파일도 포함하며 자동 삭제 대상으로 간주하지 않습니다. 없는 관리 폴더는0으로 표시합니다.
+- 기존 저장 작업/녹음 idle 보호와 writer/DB transaction으로 보관 복원을 직렬화하고 취소를 전달합니다. 심볼릭 링크/Windows reparse·특수 항목·10000항목/16단계/30초 초과·읽기 실패는 부분 결과를 게시하지 않습니다. 파일 내용 읽기·새 의존성/DB migration은 없습니다.
+- `commands/project_trash_api.rs`·app 등록/원격 권한 회귀: 기존 v1 ID 요청과 StorageJob을 재사용하는 `inspect_trashed_project_usage`를 추가했습니다. 임의 경로를 받지 않습니다.
+- `projectTrash.ts`의 엄격한 응답 검증과 `useProjects.ts`의 취소/상태 관리를 연결하고 `ProjectTrashPanel.tsx`는 ‘용량 확인’ 버튼/결과만 표시합니다. 실제 회수 가능 공간이 아니라는 안내와 외부 참조 제외를 명시했습니다. 관련 오류 문구·모의 controller 두 곳/테스트를 함께 갱신했습니다. 계약은 구현 전에 docs/12에 기록했고 docs/07·09·로드맵/진행표도 갱신했습니다.
+
+### 3. 테스트 결과
+
+- `pnpm typecheck`/`pnpm lint`: **성공**. 처음 타입 검사는 ResultsPage/RecordingPanel의 모의 controller에 새 필드2개가 빠져 실패했고 `trashUsage:null`/모의 함수 추가 후 통과했습니다.
+- `pnpm exec vitest run src/features/library/projectTrash.test.ts src/features/library/LibraryPage.test.tsx src/features/library/useProjects.test.tsx`: 첫 관련 **32개 성공**. `pnpm test` 전체 **469개/103파일 성공**,44.90초. 추가 취소/화면 해제 후 `useProjects.test.tsx` **23개 성공**,3.53초 및 타입 재검사 성공입니다. 전체471개를 로컬에서 재실행했다고 기록하지 않으며 새 원격 대상입니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml project_trash_usage -- --nocapture`: **4개 성공**,8.76초. 외부 참조·미분류/빈 프로젝트·시간/17단계·실제10001항목·revision/오래된 trash/취소·Windows junction/원본 보존을 자체 임시 자료로 검사했습니다. 최초 컴파일은 rusqlite가 u64 직접 읽기를 지원하지 않아 실패했고 범위 검증한 u32→u64 변환으로 수정했습니다.
+- `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**,22.13초. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **237개 성공/28개 기본 제외**,17.77초. 로그 `runtime-validation/trash-usage-rust-20261025.log`를 보존합니다.
+- `cargo +1.90.0 check --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features`/`cargo fmt --check`: **성공**,18.10초. `pnpm build`: **성공**,Vite2분1초/기존 큰 chunk 경고 유지. `pnpm format:check`: **성공**이며 기존 ignore 문서/Python/Rust를 Prettier가 검사한 것은 아닙니다.
+- `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 실행 파일 빌드 성공**,15.14초/40,792,064바이트. MSVC 링크 산출물 안내 경고는 유지됩니다. 기존 앱 재실행/실제 사용자 자료 용량 확인/새 ZIP·설치 수용: **미실행** — 임시 자료/자동 회귀와 컴파일만 수행했고 실행 중 앱/사용자 자료는 건드리지 않았습니다.
+- 직전 `97d7dc7`의 [Windows 회귀40117525600](https://github.com/BomJin2/GuitarLab/actions/runs/40117525600)/job120941829930: **전체 success**,466프론트·기본230/확장233Rust·AI113/도구143·MSRV/정리까지 성공했습니다. 이번 용량 확인 변경은 별도 후속 회귀 전입니다.
+
+### 4. 미구현 및 알려진 문제
+
+논리 바이트에는 압축/클러스터·hard link 공유 공간/DB 공유 파일·외부 동시 수정이 반영되지 않습니다. 관측 당시의 관리 폴더 크기이며 지속 감시/회수 가능 공간 보장이 아닙니다. 10000항목/16단계·권한/연결 경계에서 실패할 수 있고 이를0바이트로 숨기지 않습니다. 영구 삭제/불완전 삭제 복구·실제 AppData 교체·서명/다른 Windows10/11 수용은 미구현/미완료입니다.
+
+### 5. 다음 작업 계획
+
+새 기능/문서를 Git에 반영하고 원격 전체471개/확장 native 회귀를 확인합니다. 실제 데이터 정리의 후속은 현재 논리 크기 보고를 삭제 권한/대상 목록으로 재사용하지 않고, 외부 참조/알 수 없는 자료 보존과 중단 복구·명시적 확인 계약을 먼저 정의합니다. Phase7 pYIN/배음 교정 기각과 고급 점수 비활성·독립 정답 필요성은 유지합니다.
+
 ## 초기화 대기 수정의 양쪽 원격 수용 확정 — 2026-10-25
 
 8e6e7fa의 [기능40114852674](https://github.com/BomJin2/GuitarLab/actions/runs/40114852674)/job120933920738와 [설치40114852830](https://github.com/BomJin2/GuitarLab/actions/runs/40114852830)/job120933920945가 사후 정리까지 **모두 success**입니다. 기능은466프론트/103파일·타입/lint/Vite/포맷·기본Rust230/39.14초·확장233/38.50초(각28제외)·Clippy·예제1+1·AI113/2.59초·도구138/54.118초·MSRV1.90/12.92초를 통과했습니다.

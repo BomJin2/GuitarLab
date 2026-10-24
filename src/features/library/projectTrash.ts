@@ -13,6 +13,33 @@ export type TrashedProject = {
   trashId: string;
   trashedAtMs: number;
 };
+export type TrashUsage = {
+  projectId: string;
+  trashId: string;
+  files: number;
+  logicalBytes: number;
+  externalReferences: number;
+};
+export function decodeTrashUsage(value: unknown): TrashUsage {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== 5 ||
+    !isUuid(value.projectId) ||
+    !isUuid(value.trashId) ||
+    !isSafeUnsigned(value.files, 10000) ||
+    !isSafeUnsigned(value.logicalBytes) ||
+    !isSafeUnsigned(value.externalReferences, 100000) ||
+    (value.files === 0 && value.logicalBytes !== 0)
+  )
+    return invalid();
+  return {
+    projectId: value.projectId,
+    trashId: value.trashId,
+    files: value.files,
+    logicalBytes: value.logicalBytes,
+    externalReferences: value.externalReferences,
+  };
+}
 function invalid(): never {
   throw new Error('PROJECT_CONTRACT_INVALID');
 }
@@ -74,6 +101,27 @@ function envelope(value: unknown, state: string): Record<string, unknown> {
   return value;
 }
 export const projectTrashApi = {
+  async usage(
+    entry: TrashedProject,
+    signal: AbortSignal,
+    progress: (job: JobSnapshot) => void,
+  ): Promise<TrashUsage> {
+    if (!isUuid(entry.project.id) || !isUuid(entry.trashId)) return invalid();
+    const value = envelope(
+      await runStorageJob(
+        'inspect_trashed_project_usage',
+        { projectId: entry.project.id, trashId: entry.trashId },
+        signal,
+        progress,
+        { waitForCancellation: true },
+      ),
+      'PROJECT_TRASH_USAGE',
+    );
+    const usage = decodeTrashUsage(value.usage);
+    if (usage.projectId !== entry.project.id || usage.trashId !== entry.trashId)
+      return invalid();
+    return usage;
+  },
   async list() {
     return decodeTrashList(
       await invoke<unknown>('list_trashed_projects', {

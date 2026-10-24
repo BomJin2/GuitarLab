@@ -4,6 +4,7 @@ import { projectFixture } from '../../test/projectFixture';
 import { projectError } from './projects';
 import {
   decodeTrashList,
+  decodeTrashUsage,
   projectTrashApi,
   type TrashedProject,
 } from './projectTrash';
@@ -29,6 +30,78 @@ function job(state: string, result: unknown = null) {
 }
 beforeEach(() => vi.resetAllMocks());
 afterEach(() => vi.useRealTimers());
+it('용량은 정수/상한/정확한 필드와 현재 휴지통 항목을 확인한다', async () => {
+  const current = entry();
+  const usage = {
+    projectId: current.project.id,
+    trashId: current.trashId,
+    files: 2,
+    logicalBytes: 256 * 1024 * 1024 + 1,
+    externalReferences: 1,
+  };
+  expect(decodeTrashUsage(usage)).toEqual(usage);
+  for (const bad of [
+    null,
+    { ...usage, files: true },
+    { ...usage, files: 10001 },
+    { ...usage, logicalBytes: Number.MAX_SAFE_INTEGER + 1 },
+    { ...usage, logicalBytes: -1 },
+    { ...usage, externalReferences: 100001 },
+    { ...usage, projectId: '../outside' },
+    { ...usage, path: 'private' },
+    { ...usage, files: 0 },
+  ]) {
+    expect(() => decodeTrashUsage(bad)).toThrow('PROJECT_CONTRACT_INVALID');
+  }
+  const signal = new AbortController().signal;
+  vi.mocked(invoke).mockResolvedValueOnce(
+    job('COMPLETED', { schemaVersion: 1, state: 'PROJECT_TRASH_USAGE', usage }),
+  );
+  await expect(
+    projectTrashApi.usage(current, signal, () => undefined),
+  ).resolves.toEqual(usage);
+  expect(invoke).toHaveBeenLastCalledWith('inspect_trashed_project_usage', {
+    request: {
+      schemaVersion: 1,
+      projectId: current.project.id,
+      trashId: current.trashId,
+    },
+  });
+  vi.mocked(invoke).mockResolvedValueOnce(
+    job('COMPLETED', {
+      schemaVersion: 1,
+      state: 'PROJECT_TRASH_USAGE',
+      usage: { ...usage, trashId: jobId },
+    }),
+  );
+  await expect(
+    projectTrashApi.usage(current, signal, () => undefined),
+  ).rejects.toThrow('PROJECT_CONTRACT_INVALID');
+});
+it('용량 확인의 취소·실패와 오래된 결과를 성공으로 바꾸지 않는다', async () => {
+  vi.mocked(invoke).mockResolvedValueOnce(job('CANCELED'));
+  await expect(
+    projectTrashApi.usage(
+      entry(),
+      new AbortController().signal,
+      () => undefined,
+    ),
+  ).rejects.toMatchObject({ name: 'AbortError' });
+  vi.mocked(invoke).mockResolvedValueOnce({
+    ...job('ERROR'),
+    errorCode: 'PROJECT_USAGE_UNAVAILABLE',
+  });
+  await expect(
+    projectTrashApi.usage(
+      entry(),
+      new AbortController().signal,
+      () => undefined,
+    ),
+  ).rejects.toThrow('PROJECT_USAGE_UNAVAILABLE');
+  expect(projectError(new Error('PROJECT_USAGE_UNAVAILABLE'))).toMatch(
+    /원본은 변경하지 않았습니다/,
+  );
+});
 it('목록은 엄격한 상태·필드·중복·현재 순서를 검증한다', () => {
   const first = entry();
   const valid = { schemaVersion: 1, projects: [first] };

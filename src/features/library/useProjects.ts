@@ -12,7 +12,11 @@ import { importScoreSession } from '../score/localMediaImport';
 import { usePlayer } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
 import { getActiveTrackIndex } from '../score/trackSelection';
-import { projectTrashApi, type TrashedProject } from './projectTrash';
+import {
+  projectTrashApi,
+  type TrashedProject,
+  type TrashUsage,
+} from './projectTrash';
 import {
   projectApi,
   projectError,
@@ -39,6 +43,7 @@ export function useProjects(
   const [trashedProjects, setTrashedProjects] = useState<TrashedProject[]>([]);
   const [trashLoaded, setTrashLoaded] = useState(false);
   const [trashListBusy, setTrashListBusy] = useState(false);
+  const [trashUsage, setTrashUsage] = useState<TrashUsage | null>(null);
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -127,7 +132,7 @@ export function useProjects(
     if (mutation.current.controller) {
       mutation.current.controller.abort();
       setNotice(
-        '보관·복원 취소를 요청했습니다. 실제 작업이 끝날 때까지 기다립니다. 완료된 작업은 유지됩니다.',
+        '휴지통 작업 취소를 요청했습니다. 실제 작업이 끝날 때까지 기다립니다. 완료된 작업은 유지됩니다.',
       );
       return;
     }
@@ -543,7 +548,7 @@ export function useProjects(
     } catch (cause) {
       if (mounted.current && current === operation.current) {
         if (cause instanceof DOMException && cause.name === 'AbortError')
-          setNotice('보관·복원 작업을 취소했습니다. 이전 상태를 유지합니다.');
+          setNotice('휴지통 작업을 취소했습니다. 이전 상태를 유지합니다.');
         else setError(projectError(cause));
       }
     } finally {
@@ -585,6 +590,18 @@ export function useProjects(
         previous.filter((p) => p.trashId !== entry.trashId),
       );
       setNotice(`‘${restored.title}’을 복원했습니다. 목록에서 열 수 있습니다.`);
+    });
+  }
+  async function inspectTrashUsage(entry: TrashedProject) {
+    setTrashUsage(null);
+    await mutateTrash(async (signal, progress) => {
+      const usage = await projectTrashApi.usage(entry, signal, progress);
+      if (mounted.current) {
+        setTrashUsage(usage);
+        setNotice(
+          '보관 프로젝트 용량을 확인했습니다. 파일은 변경하지 않았습니다.',
+        );
+      }
     });
   }
   const scoreSaved = Boolean(
@@ -631,6 +648,7 @@ export function useProjects(
     trashedProjects,
     trashLoaded,
     trashListBusy,
+    trashUsage,
     job,
     error,
     notice,
@@ -647,6 +665,7 @@ export function useProjects(
     refreshTrash,
     trashProject,
     restoreProject,
+    inspectTrashUsage,
   };
 }
 export type ProjectController = ReturnType<typeof useProjects>;

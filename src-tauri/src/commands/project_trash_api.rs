@@ -96,6 +96,23 @@ pub async fn restore_trashed_project(
         )
     })
 }
+#[tauri::command]
+pub async fn inspect_trashed_project_usage(
+    request: RestoreRequest,
+    store: tauri::State<'_, Arc<ProjectStore>>,
+    jobs: tauri::State<'_, Arc<StorageJobs>>,
+    recording: tauri::State<'_, Arc<RecordingService>>,
+) -> Result<JobSnapshot, AppError> {
+    version(request.schema_version)?;
+    validate_uuid(&request.project_id)?;
+    validate_uuid(&request.trash_id)?;
+    let store = store.inner().clone();
+    mutate(&jobs, &recording, move |cancel| {
+        Ok(
+            json!({"schemaVersion":1,"state":"PROJECT_TRASH_USAGE","usage":store.trashed_project_usage(&request.project_id, &request.trash_id, cancel)?}),
+        )
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;

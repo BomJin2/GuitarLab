@@ -61,6 +61,8 @@ it('정렬 REC의 비활성 사유를 표시하고 재생·동기화 후 실제 
     trashedProjects: [],
     trashLoaded: false,
     trashListBusy: false,
+    trashUsage: null,
+    inspectTrashUsage: vi.fn(),
     refreshTrash: vi.fn(async () => undefined),
     trashProject: vi.fn(async () => undefined),
     restoreProject: vi.fn(async () => undefined),

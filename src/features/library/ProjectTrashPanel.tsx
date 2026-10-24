@@ -38,6 +38,23 @@ export function ProjectTrashPanel({ project }: { project: ProjectController }) {
           >
             복원 · {entry.project.title}
           </button>
+          <button
+            disabled={project.busy || project.trashListBusy}
+            onClick={() => void project.inspectTrashUsage(entry)}
+          >
+            용량 확인 · {entry.project.title}
+          </button>
+          {project.trashUsage?.trashId === entry.trashId && (
+            <p role="status">
+              관리 폴더 {project.trashUsage.files.toLocaleString('ko-KR')}개
+              파일 · 논리 크기{' '}
+              {project.trashUsage.logicalBytes.toLocaleString('ko-KR')}바이트 ·
+              외부 참조{' '}
+              {project.trashUsage.externalReferences.toLocaleString('ko-KR')}개
+              (크기 조회 제외). 실제 회수 가능 공간이 아닙니다. 영구 삭제는 아직
+              지원하지 않습니다.
+            </p>
+          )}
         </article>
       ))}
     </section>

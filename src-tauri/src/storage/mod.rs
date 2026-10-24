@@ -14,6 +14,7 @@ pub mod project_model;
 pub mod project_trash;
 #[cfg(test)]
 mod project_trash_tests;
+pub mod project_trash_usage;
 pub mod projects;
 #[cfg(test)]
 pub(crate) mod projects_tests;

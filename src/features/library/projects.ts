@@ -466,6 +466,8 @@ export function projectError(error: unknown) {
       return '휴지통에 보관된 프로젝트입니다. 라이브러리에서 복원한 뒤 여세요.';
     case 'PROJECT_TRASH_CHANGED':
       return '휴지통 상태가 바뀌었습니다. 휴지통 목록을 다시 읽어주세요.';
+    case 'PROJECT_USAGE_UNAVAILABLE':
+      return '용량을 안전하게 확인하지 못했습니다. 링크·파일 수·폴더 깊이와 접근 권한을 확인하세요. 원본은 변경하지 않았습니다.';
     case 'PROJECT_IN_USE':
       return '프로젝트의 연습·녹음을 마친 뒤 보관하세요.';
     case 'PROJECT_TRASH_LIMIT':

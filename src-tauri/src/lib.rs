@@ -90,6 +90,7 @@ mod bundle_tests {
                 "list_trashed_projects",
                 "trash_project",
                 "restore_trashed_project",
+                "inspect_trashed_project_usage",
                 "backup_local_data",
                 "verify_local_backup",
                 "preview_local_backup",

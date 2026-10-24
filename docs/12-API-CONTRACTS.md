@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 보관 프로젝트 용량 확인 v1 — 2026-10-25
+
+`inspect_trashed_project_usage`는 기존 StorageJob/취소 계약으로 `{schemaVersion:1,projectId,trashId}`만 받습니다. 현재 휴지통 UUID/revision을 검사하고 녹음/다른 파일 작업 중에는 시작하지 않습니다. 반환은 `{schemaVersion:1,state:"PROJECT_TRASH_USAGE",usage:{projectId,trashId,files,logicalBytes,externalReferences}}`입니다. 정수는 안전 범위, files≤10000·externalReferences≤100000입니다. 관리 폴더가 아직 없는 새 프로젝트는0파일/0바이트이며 외부 참조 파일은 열거나 크기를 조회하지 않습니다.
+
+앱 데이터의 정확한 projects/UUID 아래 metadata만 읽습니다. 루트/조상/항목의 심볼릭 링크·Windows reparse point,특수 파일·16단계 초과·10000항목 초과·30초 초과·읽기 오류는 부분 합계를 성공으로 반환하지 않습니다. 취소/실패/보관 UUID 변경 시 기존 DB/파일을 보존합니다. 논리 파일 크기는 공유 링크/압축/클러스터/동시 외부 수정 등을 반영한 실제 회수 가능 공간이 아닙니다. 자동 정리·삭제 토큰/영구 삭제 API·DB 마이그레이션은 추가하지 않습니다. UI는 각 보관 항목의 명시적 ‘용량 확인’ 요청과 상태/취소·결과만 표시합니다.
+
 ## 기존 공개 단음의 pYIN 오프라인 비교 계획 — 2026-10-25
 
 이미 설치한 개발용 librosa0.11.0/NumPy1.26.4·SciPy1.15.3·Numba0.68.0만 사용하며 새 설치/모델·네트워크 추론은 하지 않습니다. 기존 관측된 GuitarSet 두 묶음의91+91창/각3458점을 원래 참조/누락 그대로 비교합니다. 이미 본 자료의 사후 비교이며 독립 수용 자료가 아닙니다. 입력은 원래1초/44.1kHz PCM의 같은DC 제거·3표본 평균/f32,14.7kHz/1024점/hop367·center=false이며 padding/시각 이동을 하지 않습니다. fmin70/fmax1500·나머지는 해당 버전 공식 기본값을 고정합니다. 원래클리핑/저음량·MIDI39.5~88.5 경계는 공통 적용하되 pYIN voiced_flag/voiced_prob를 기존 주기성 confidence로 바꾸거나0.90과 동등하다고 주장하지 않습니다.
