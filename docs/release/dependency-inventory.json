@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "state": "INVENTORY_CREATED",
   "target": "x86_64-pc-windows-msvc",
-  "npmMetadataSha256": "c984a98d1e7170e38ca364467d57ae09a353daeba6866f8ccc67d71b1f840914",
-  "rustMetadataSha256": "f3e2a655c0b604a3fe513793924d827cb05c559cebdbcdae77c8ae5609d632e7",
+  "npmMetadataSha256": "0e6f25dc30733933ec2f121d233f6111cc011237979523b8ac2833cdbd05f925",
+  "rustMetadataSha256": "4d2de4f7aa8c2487eb44bd7ad5746eb12f64ac6b2c43be46054dc2d420e1a00e",
   "scope": "npm 배포 의존성/peer와 Rust Windows normal·build 의존성, dev-only 제외",
   "legalReviewCompleted": false,
   "components": [
@@ -5438,5 +5438,12 @@
     }
   ],
   "upstreamSourcesSha256": "4480a8a25ce0e9bf9ba2b1a79250030e82027dabcf5f876e3fa5e5d270266499",
-  "runtimeBundleManifestSha256": "da95bce05ea87eead898bc73c03938bf0e452bce5dd4f2e434d1b0147a6ed1eb"
+  "runtimeBundleManifestSha256": "191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d",
+  "dependencyInputNormalization": "utf8-crlf-to-lf-v1",
+  "dependencyInputs": {
+    "package.json": "a9404d3815026366521dd07e59c2d8c8a1df666b7453a968499cacb674e02a8f",
+    "pnpm-lock.yaml": "5e390ce49983acd7e1bfb4ba0776ee4d3c43bf4ba81972dd7243cc8f5d2c5db2",
+    "src-tauri/Cargo.toml": "e064dabab05e2fc6b43549681236a949746e5eb2ff9e79eb225bde9e7706ab23",
+    "src-tauri/Cargo.lock": "66b8a321e57f92b0b49583906ad23298580096ff3bc693ed0120ebf901723c1a"
+  }
 }

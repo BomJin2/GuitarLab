@@ -1,5 +1,7 @@
 ﻿# 검증 패키지 안에서만 실행합니다. 모델 설치·사용자 데이터 변경·앱 실행은 하지 않습니다.
 $ErrorActionPreference = 'Stop'
+# 5.1의 부분 자동 로딩 상태에서도 파일 해시 함수를 포함한 기본 모듈 전체를 사용합니다.
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force -ErrorAction Stop
 $packageRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $prefix = $packageRoot.TrimEnd('\') + '\'
 $manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'VALIDATION.json') -Raw -Encoding UTF8 | ConvertFrom-Json

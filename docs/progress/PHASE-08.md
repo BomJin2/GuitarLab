@@ -1,5 +1,37 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 배포 고지의 의존성 변경 거부·PS5.1 검사 복구 (2026-10-24)
+
+### 1. 작업 개요
+
+작업일2026-10-24. 현재 의존성/런타임과 오래된 고지 목록이 함께 배포되는 것을 막는 슬라이스입니다. 로컬 구현/검사 완료이며 새 원격 결과와 최종 ZIP은 후속 확정에 기록합니다. 앱/UI·오디오/모델·실제 사용자 데이터는 바꾸지 않았고 전체Phase8/최종 출시 수용은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- collect_release_inventory.py: 기존4개 manifest/lock의 제한된 UTF-8·CRLF→LF 지문을 고지 수집 결과에 묶습니다. package_validation.py의 공통 검사는 이4개와 실제 runtime lock이 다르거나 누락되면 신규ZIP을 거부합니다. prepare_validation_installer.py와 이를 호출하는 CI 준비도 같은 검사 후에만 새 설정/포인터를 만들고 dependencyInventorySha256을 기록합니다. 이전ZIP/설치기는 불변입니다.
+- 현재 npm6개/Rust273개의 정확한 버전/선언조건과 원문·자산/소스archive5개를 새 오프라인 그래프로 대조했습니다. 기존282개 구성은 동일하고 runtime 고지14개도 현 lock과 같습니다. inventory에 남아 있던 이전 lock SHA da95bce0…를 실제 **191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d**로 갱신했습니다. 원문/런타임은 바꾸지 않았고 legalReviewCompleted=false입니다.
+- Test-ValidationPackage.ps1: PS5.1의 부분 모듈 자동 로딩에서 Get-FileHash 함수가 없던 실패를 재현해 현재 PSHOME의 공식Utility 전체를 먼저 import합니다. 임시 모듈 환경 보정으로도 실패했으며 시스템/개인 설정을 바꾸는 우회는 채택하지 않았습니다. 실패/성공 추출 폴더/영수증은 모두 보존합니다.3개 테스트 파일·docs/12/09·release/README·진행 문서를 갱신했습니다.
+
+### 3. 테스트 결과
+
+- 새 `pnpm list --prod --depth Infinity --json`·`cargo metadata --locked --offline --all-features --filter-platform x86_64-pc-windows-msvc --format-version 1`: **성공**,npm6/Rust273·고지/자산/SHA·소스5개·Python고지14개 일치. runtime-validation/release-dependency-audit-58fa8120-b4e2-4cda-ba44-ca199573213a에 이전 목록과 대조/지문을 보존했습니다. 최종 inventory SHA **44dc6463f5c2c665a241d4c1b163f75458665f6e6c98c060124377f6e86b738d**입니다. 원문CRLF 형식은 유지했습니다.
+- 수집5개/0.220초·ZIP13개/0.697초 성공 후 실제 저장소 일치 검사를 추가해 ZIP14개/0.661초·NSIS6개/1.438초 성공. NSIS는 고지 누락/의존성 변경 거부·출력/이전 포인터 보존·debug/release4회 독립 이름/경로와 고지SHA를 확인합니다. 번들Python3.12.15에서도 수집5개/0.165초·ZIP14개/0.669초·NSIS6개/1.192초 **성공**입니다.
+- 최종 `python -B -X utf8 -m unittest discover -s scripts -p 'test_*.py'`: **137개 수행136성공/링크권한1제외**,9.649초. 일반Windows에서 DEMO만 사용했습니다. `git -c core.whitespace=cr-at-eol diff --check` 성공이며 원문 보존용 CRLF를 임의 변환하지 않습니다.
+- 최초 ZIP ab2d0042…는 생성 성공 뒤 오래된 runtime 고지 지문을 발견해 보존하고 개선했습니다.633efebb…는 새 지문/CRC 검증 후 PS5.1 Get-FileHash 로딩에 실패했습니다. 자식 PSModulePath 보정 재시도도 실패했고 cb170e9a…를 보존했습니다. 기본 모듈 명시 후 새89fa75c6… ZIP **3613파일/40,166,130바이트**·SHA **5e767fb1a2497672d40660011ec5d770563a5ed04bb45af16cb0f09c44d48e41**의 전체검증/새추출/실제PS5.1 **exit0**·독립Python2회가 성공했습니다. 특별한 환경 보정은 사용하지 않았습니다. release-inputs-package-roundtrip-3aabff9f…/추출 dfe8768d…에 증거를 보존했습니다. 이후 release/README를 포함한 최종ZIP은 다음 확정에 기록합니다.
+- 앱/프론트 재빌드·실장치/새 OS·새 설치기 설치/제거: **미실행** — 제품 코드는 불변이고 배포 준비/검증 경계만 수정했습니다. 별도Windows·최종 이용 조건/서명 수용을 주장하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+지문은 현재 고지/입력의 대응을 지키며 법률 검토를 대신하지 않습니다. metadata는 현재 그래프에서 새로 export해 대조해야 합니다. selectors 고유 고지 부재·모델/가중치/하위 vendor 최종 검토,별도Windows10/11·백신/서명과 실제 장치 지연 수용은 남습니다. 관측된 음정 후보는 계속 기각/미적용 상태입니다.
+
+### 5. 다음 작업 계획
+
+현재 고지/입력 검사를 새 원격/독립 설치 준비에서 재현하고 최종ZIP 영수증을 보존합니다. 오류가 있으면 실제 경로에서 원인을 해결하며 모델/사용자 파일·앱 재시작을 요구하지 않습니다. 전체Phase 완료 조건과 외부 환경/고급 품질 제약은 유지합니다.
+
+## 원격 확정 — 후보 감사133개 포함 회귀 (2026-10-24)
+
+cefb677의 [Windows40093777161](https://github.com/BomJin2/GuitarLab/actions/runs/40093777161)/job120871682101는 **전체 success**입니다.466프론트/103파일·타입/lint/Vite/포맷·기본Rust230개/44.81초·확장233개/44.35초(각28개 제외)·Clippy·예제1+1·AI113개/11.73초·도구133개/22.720초·MSRV1.90/12.52초와 정리/캐시를 통과했습니다.137개 배포 고지 후속은 별도 변경이며 새Windows/모델/장치 수용은 아닙니다.
+
 ## 원격 확정 — 배음 관측 도구128개 포함 회귀 (2026-10-24)
 
 d16a2cb의 [Windows40078292641](https://github.com/BomJin2/GuitarLab/actions/runs/40078292641)/job120826303023는 **전체 success**입니다.466프론트/103파일·타입/lint/Vite/포맷·기본Rust230개/36.97초·확장233개/36.04초(각28개 제외)·Clippy·예제1+1·AI113개/1.78초·도구128개/12.211초·MSRV1.90/8.14초와 캐시/사후 정리를 통과했습니다. 새로운133개 감사 도구/새 표본 결과는 이 SHA 뒤의 후속입니다. 제품 앱/데이터는 유지하며 실장치·모델 opt-in/별도Windows 수용과 전체Phase8 완료는 주장하지 않습니다.

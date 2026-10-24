@@ -1,5 +1,15 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 배포 고지와 의존성 입력 일치 — 2026-10-24
+
+Python runtime 고지는 기존 runtimeBundleManifestSha256도 실제 배포 lock 원문SHA와 같아야 합니다. 현재 고지14개의 이름/크기/SHA를 대조한 뒤 오래된 저장 지문을 갱신하며 원문·런타임은 변경하지 않습니다. 이전 lock/누락/잘못된 지문도 신규 ZIP 생성 전에 거부합니다.
+
+Test-ValidationPackage.ps1은 현재 PowerShell의 PSHOME에 있는 기본 Microsoft.PowerShell.Utility 모듈 전체를 먼저 읽습니다.5.1 부분 자동 로딩에서 Get-FileHash 함수가 없던 실패를 그대로 보존하고 새 패키지를 별도 경로에서 검사합니다. 개인 모듈/인터넷·시스템 모듈 설치나 영구 설정 변경은 하지 않습니다.
+
+내부 debug/release NSIS 설정 준비와 이를 재사용하는 CI 준비기도 같은 검사를 통과해야 새 설정/포인터를 만듭니다. 실패하면 이전 설정/현재 후보는 보존하며 준비 영수증의 dependencyInventorySha256에 실제 사용한 고지 목록을 묶습니다. 기존 설치기/ZIP을 소급 변경하거나 앱을 실행하지 않습니다.
+
+새로 수집하는 개발 고지 inventory에 dependencyInputNormalization='utf8-crlf-to-lf-v1'와 dependencyInputs를 기록합니다. package.json·pnpm-lock.yaml·src-tauri/Cargo.toml·src-tauri/Cargo.lock의 제한된 UTF-8 텍스트를 CRLF→LF만 정규화해 각각 SHA-256으로 묶습니다. 신규 검증 ZIP은 이4개가 현재 파일과 일치하지 않거나 기록이 없으면 출력 생성 전에 거부합니다. 기존 ZIP/설치기 검증·고지 원문·이용 조건/검토 미완료 상태는 유지합니다. 현재 파일 변경 후 고지는 현재 그래프와 대조해 다시 수집/검토해야 하며 이 검사를 법률 검토 완료로 해석하지 않습니다. 제품IPC/DB/모델 계약 변경은 없습니다.
+
 ## 고정 후보 결과의 읽기 전용 감사 — 2026-10-24
 
 개발 도구 audit_octave_candidate.py는 별도 후보 폴더의 SHA가 지정된 완료 보고서만 읽습니다. schemaVersion=1·productCodeChanged/actualAppJudgements/independentTechniqueGroundTruthAccepted=false, 고정38점의 원래 참조와 baseline/candidate 쌍을 검증하고 모든 미검출·무음·불확실/다성 지점을 분모에 유지합니다. Boolean/NaN·어긋난 인덱스·중복 창·불일치 합계/상태를 거부합니다. 이미 등록한50cents·이전 정답 퇴행/무음 새 후보/새 자료 개선 조건만 다시 계산하며 새 임계값이나 정답은 만들지 않습니다. 원본/제품·모델은 수정하지 않고 새UUID 감사 결과에 성공/실패/취소와 원본SHA를 남깁니다. 실행 파일/네트워크·개인 오디오는 사용하지 않습니다.

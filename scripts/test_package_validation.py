@@ -10,11 +10,67 @@ import unittest
 from unittest.mock import patch
 import zipfile
 import package_validation
+from collect_release_inventory import dependency_inputs, DEPENDENCY_FILES, DEPENDENCY_NORMALIZATION
 from package_validation import checked_payload, verify_archive, verify_manager_build
 from backup_local_data import BackupError
 
 
 class PackageTests(unittest.TestCase):
+    def test_repository_inventory_matches_dependency_inputs_and_runtime_lock(self):
+        root = package_validation.PROJECT
+        inventory = json.loads((root / "docs/release/dependency-inventory.json").read_bytes(),
+                               object_pairs_hook=package_validation.unique_object)
+        lock_sha = hashlib.sha256((root / "ai/models/runtime-bundle-lock.json").read_bytes()).hexdigest()
+        package_validation.verify_inventory_dependencies(inventory, lock_sha, root)
+
+    def test_inventory_rejects_absent_extra_or_changed_dependency_inputs(self):
+        with tempfile.TemporaryDirectory(prefix="guitarlab-package-dependency-") as folder:
+            root = Path(folder).resolve()
+            for name in DEPENDENCY_FILES:
+                path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"DEMO original\n")
+            inventory = {"dependencyInputNormalization": DEPENDENCY_NORMALIZATION,
+                         "dependencyInputs": dependency_inputs(root), "runtimeBundleManifestSha256": "b" * 64}
+            with patch.object(package_validation, "PROJECT", root):
+                package_validation.verify_inventory_dependencies(inventory, "b" * 64, root)
+                for document in ({}, {**inventory, "dependencyInputNormalization": "other"},
+                                 {**inventory, "dependencyInputs": {**inventory["dependencyInputs"], "private": "0" * 64}},
+                                 {**inventory, "dependencyInputs": True},
+                                 {**inventory, "runtimeBundleManifestSha256": "c" * 64}):
+                    with self.assertRaisesRegex(ValueError, "고지를 다시"):
+                        package_validation.verify_inventory_dependencies(document, "b" * 64, root)
+                for name in DEPENDENCY_FILES:
+                    path = root / name; original = path.read_bytes(); path.write_bytes(b"DEMO changed\n")
+                    with self.assertRaisesRegex(ValueError, "고지를 다시"):
+                        package_validation.verify_inventory_dependencies(inventory, "b" * 64, root)
+                    path.write_bytes(original)
+
+    def test_stale_inventory_stops_before_any_package_output(self):
+        with tempfile.TemporaryDirectory(prefix="guitarlab-package-stale-") as folder:
+            root = Path(folder).resolve()
+            source = root / "src-tauri/target/runtime-validation/portable/current"
+            source.mkdir(parents=True)
+            for name in DEPENDENCY_FILES:
+                path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"DEMO input\n")
+            (source / "GuitarLab.exe").write_bytes(b"DEMO not executable")
+            candidate = source.parent.parent / "candidate.json"
+            candidate.write_text(json.dumps({"destination": str(source), "executableBytes": 19,
+                "executableSha256": hashlib.sha256(b"DEMO not executable").hexdigest()}), encoding="utf8")
+            manager = root / "src-tauri/target/debug/examples/manage_ai_model.exe"
+            manager.parent.mkdir(parents=True); manager.write_bytes(b"DEMO manager not executable")
+            lock = root / "ai/models/runtime-bundle-lock.json"
+            lock.parent.mkdir(parents=True); lock.write_bytes(b'{"files":[]}')
+            legal = root / "docs/release"; legal.mkdir(parents=True)
+            (legal / "dependency-inventory.json").write_text(json.dumps({
+                "dependencyInputNormalization": DEPENDENCY_NORMALIZATION,
+                "dependencyInputs": {name: "0" * 64 for name in DEPENDENCY_FILES}}), encoding="utf8")
+            before = {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            with patch.object(package_validation, "PROJECT", root), patch.object(package_validation, "verify_manager_build"), self.assertRaisesRegex(ValueError, "고지를 다시"):
+                package_validation.package(candidate)
+            self.assertFalse((source.parent.parent / "validation-packages").exists())
+            self.assertEqual(before, {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()})
+
     def test_manager_build_info_uses_only_fixed_bounded_metadata_command(self):
         manager = Path("manager.exe").resolve()
         digest = "a" * 64

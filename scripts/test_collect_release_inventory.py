@@ -8,10 +8,32 @@ import json
 import tempfile
 import unittest
 from unittest.mock import patch
-from collect_release_inventory import production_nodes, rust_nodes, notice_files, collect
+from collect_release_inventory import production_nodes, rust_nodes, notice_files, collect, dependency_inputs, DEPENDENCY_FILES, DEPENDENCY_NORMALIZATION
 
 
 class InventoryTests(unittest.TestCase):
+    def test_dependency_inputs_keep_crlf_equivalent_and_detect_each_semantic_change(self):
+        with tempfile.TemporaryDirectory(prefix="guitarlab-dependency-inputs-") as folder:
+            root = Path(folder).resolve()
+            for name in DEPENDENCY_FILES:
+                path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"DEMO dependency\nversion=1\n")
+            expected = dependency_inputs(root)
+            for name in DEPENDENCY_FILES:
+                path = root / name
+                path.write_bytes(b"DEMO dependency\r\nversion=1\r\n")
+            self.assertEqual(dependency_inputs(root), expected)
+            for name in DEPENDENCY_FILES:
+                path = root / name; original = path.read_bytes()
+                path.write_bytes(b"DEMO dependency\nversion=2\n")
+                changed = dependency_inputs(root)
+                self.assertEqual([key for key in expected if changed[key] != expected[key]], [name])
+                path.write_bytes(original)
+            path.write_bytes(b"\xff")
+            with self.assertRaises(UnicodeError): dependency_inputs(root)
+            path.write_bytes(b"")
+            with self.assertRaises(ValueError): dependency_inputs(root)
+
     def test_npm_excludes_unsaved_dev_tree_and_deduplicates_peer(self):
         root = Path.cwd()
         leaf = {"version": "1", "path": "unused"}
@@ -41,6 +63,8 @@ class InventoryTests(unittest.TestCase):
             (root / "package.json").write_text('{"dependencies":{}}', encoding="utf-8")
             validation = root / "src-tauri/target/runtime-validation"
             validation.mkdir(parents=True)
+            for name in DEPENDENCY_FILES[1:]:
+                (root / name).write_bytes(b"DEMO dependency input\n")
             crate = root / "crate"
             crate.mkdir()
             sha = "1" * 40
@@ -60,6 +84,10 @@ class InventoryTests(unittest.TestCase):
             with patch("collect_release_inventory.PROJECT", root), redirect_stdout(io.StringIO()):
                 write()
                 collect(npm, rust, upstream)
+                collected = next(validation.glob("release-notices-*/inventory.json"))
+                inventory = json.loads(collected.read_text(encoding="utf8"))
+                self.assertEqual(inventory["dependencyInputs"], dependency_inputs(root))
+                self.assertEqual(inventory["dependencyInputNormalization"], DEPENDENCY_NORMALIZATION)
                 entry["commit"] = "2" * 40
                 write()
                 with self.assertRaises(ValueError):

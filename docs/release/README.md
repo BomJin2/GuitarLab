@@ -1,5 +1,11 @@
 # 배포 고지 준비 자료
 
+## 의존성 변경 감지 — 2026-10-24
+
+현재 npm6개/Rust273개·자산/런타임3개,총282항목을 새 로컬 그래프와 대조했고 정확한 버전/선언 조건·기존 원문/자산과 소스archive5개는 동일했습니다. Python3.12.15 고지14개도 현 runtime lock과 일치합니다. 오래된 runtimeBundleManifestSha256만 현재191c1e80…으로 갱신했으며 원문/실행 런타임·legalReviewCompleted:false는 유지합니다.
+
+새 수집 결과는 package.json·pnpm-lock.yaml·src-tauri/Cargo.toml·src-tauri/Cargo.lock의 UTF-8/CRLF→LF 지문을 보존합니다. ZIP·내부NSIS/CI 준비는 이 지문과 실제 runtime lock이 현재와 같아야 새 산출물을 만듭니다. 고지 누락/예전 지문이면 현재 그래프를 새로 export한 뒤 원문/버전을 대조해 다시 수집하세요. 기존 ZIP/설치기를 소급 수정하지 않습니다. 이 자동 일치 검사는 최종 배포 허가/전체 하위 저작물의 법률 검토를 대신하지 않습니다.
+
 2026-10-20 기준 설치된 버전의 고지 원문을 수집한 **검토용 산출물**입니다. 최종 배포 허가·라이선스 의무 충족이나 전체 Phase8 완료를 의미하지 않습니다. 원문은 번역/수정하지 않고 바이트 그대로 보존합니다.
 
 - [구성요소별 고지](THIRD_PARTY_NOTICES.md): npm 배포 의존성5개, Windows Rust normal/build 의존성273개, 폰트/음색2개와 번들 Python 고지1개, 총281개 항목입니다. 프론트 dev-only/설치하지 않은 모델 환경은 이 목록의 범위가 아닙니다.

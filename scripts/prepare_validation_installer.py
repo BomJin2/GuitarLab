@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from package_validation import checked_payload
+from package_validation import checked_payload, unique_object, verify_inventory_dependencies
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +40,9 @@ def prepare(profile="debug", runtime_resources=None):
     if not resources.is_relative_to((PROJECT / "src-tauri/target/ai-runtime-resources").resolve(strict=True)):
         raise ValueError("고정 런타임 리소스 경로가 아닙니다.")
     lock_raw = (PROJECT / "ai/models/runtime-bundle-lock.json").read_bytes()
+    inventory_raw = (PROJECT / "docs/release/dependency-inventory.json").read_bytes()
+    inventory = json.loads(inventory_raw, object_pairs_hook=unique_object)
+    verify_inventory_dependencies(inventory, hashlib.sha256(lock_raw).hexdigest(), PROJECT)
     lock = json.loads(lock_raw)
     expected = {entry["path"] for entry in lock["files"]}
     if len(expected) != len(lock["files"]) or expected != {p.relative_to(resources).as_posix() for p in resources.rglob("*") if p.is_file()}:
@@ -69,6 +72,7 @@ def prepare(profile="debug", runtime_resources=None):
     receipt = {"schemaVersion": 1, "state": "VALIDATION_INSTALLER_PREPARED", "configPath": str(path), "buildProfile": profile,
                "identifier": config["identifier"], "productName": config["productName"], "mainBinaryName": config["mainBinaryName"],
                "runtimeFiles": len(expected), "runtimeBundleLockSha256": hashlib.sha256(lock_raw).hexdigest(),
+               "dependencyInventorySha256": hashlib.sha256(inventory_raw).hexdigest(),
                "templateSha256": hashlib.sha256(template_raw).hexdigest(), "frontendIndexSha256": index["sha256"],
                "modelWeightsIncluded": False, "cleanWindowsValidated": False, "legalReviewCompleted": False}
     (destination / "plan.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8")

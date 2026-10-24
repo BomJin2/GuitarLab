@@ -6,7 +6,25 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+from backup_local_data import checked_path
+
 PROJECT = Path(__file__).resolve().parents[1]
+DEPENDENCY_FILES = ("package.json", "pnpm-lock.yaml", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock")
+DEPENDENCY_NORMALIZATION = "utf8-crlf-to-lf-v1"
+
+
+def dependency_inputs(root):
+    root = root.resolve(strict=True)
+    result = {}
+    for name in DEPENDENCY_FILES:
+        path = root / name
+        checked_path(root, path)
+        if not path.is_file() or not 0 < path.stat().st_size <= 8 * 1024 * 1024:
+            raise ValueError("의존성 입력 파일/크기 오류")
+        raw = path.read_bytes()
+        normalized = raw.decode("utf-8").replace("\r\n", "\n").encode("utf-8")
+        result[name] = hashlib.sha256(normalized).hexdigest()
+    return result
 
 
 def production_nodes(document, root):
@@ -82,11 +100,13 @@ def collect(npm_path, rust_path, upstream_path=None, runtime_resources=None, inc
     declared = json.loads((PROJECT / "package.json").read_bytes())["dependencies"]
     if set(npm[0]["dependencies"]) != set(declared) or any(npm[0]["dependencies"][key]["version"] != value for key, value in declared.items()):
         raise ValueError("직접 배포 의존성이 package.json과 다릅니다.")
+    inputs = dependency_inputs(PROJECT)
     destination = PROJECT / "src-tauri/target/runtime-validation" / ("release-notices-" + str(uuid4()))
     destination.mkdir(exist_ok=False)
     (destination / "notices").mkdir()
     inventory = {"schemaVersion": 1, "state": "INVENTORY_CREATED", "target": "x86_64-pc-windows-msvc",
                  "npmMetadataSha256": npm_sha, "rustMetadataSha256": rust_sha,
+                 "dependencyInputNormalization": DEPENDENCY_NORMALIZATION, "dependencyInputs": inputs,
                  "scope": "npm 배포 의존성/peer와 Rust Windows normal·build 의존성, dev-only 제외",
                  "legalReviewCompleted": False, "components": [], "reviewRequired": []}
     upstream = {}

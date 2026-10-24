@@ -11,6 +11,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from collect_release_inventory import dependency_inputs, DEPENDENCY_FILES, DEPENDENCY_NORMALIZATION
 
 import prepare_validation_installer
 from prepare_validation_installer import validate_template
@@ -61,8 +62,20 @@ class InstallerTests(unittest.TestCase):
             lock.parent.mkdir(parents=True)
             lock.write_text(json.dumps({"files": [{"path": "python.txt", "bytes": 7,
                 "sha256": hashlib.sha256(b"fixture").hexdigest()}]}), encoding="utf-8")
+            for name in DEPENDENCY_FILES:
+                (root / name).write_bytes(b"DEMO dependency input\n")
+            inventory_path = root / "docs/release/dependency-inventory.json"
+            inventory_raw = json.dumps({"dependencyInputNormalization": DEPENDENCY_NORMALIZATION,
+                "dependencyInputs": dependency_inputs(root),
+                "runtimeBundleManifestSha256": hashlib.sha256(lock.read_bytes()).hexdigest()}).encode()
+            inventory_path.write_bytes(b"{}")
             plans = []
             with patch.object(prepare_validation_installer, "PROJECT", root), redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, "고지를 다시"):
+                    prepare_validation_installer.prepare()
+                self.assertFalse((validation / "installer-builds").exists())
+                self.assertFalse((validation / "validation-installer-plan.json").exists())
+                inventory_path.write_bytes(inventory_raw)
                 for profile in ("debug", "release"):
                     prepare_validation_installer.prepare(profile)
                     plans.append(json.loads((validation / "validation-installer-plan.json").read_bytes()))
@@ -75,6 +88,13 @@ class InstallerTests(unittest.TestCase):
                 prepare_validation_installer.prepare("release", runtime_resources=root / "src-tauri/target/ai-runtime-resources/fixture")
                 plans.append(json.loads((validation / "validation-installer-plan.json").read_bytes()))
                 self.assertFalse(current.exists())
+                saved_plan = (validation / "validation-installer-plan.json").read_bytes()
+                before_paths = set(validation.rglob("*"))
+                (root / "src-tauri/Cargo.lock").write_bytes(b"DEMO changed dependency\n")
+                with self.assertRaisesRegex(ValueError, "고지를 다시"):
+                    prepare_validation_installer.prepare("release", runtime_resources=root / "src-tauri/target/ai-runtime-resources/fixture")
+                self.assertEqual(set(validation.rglob("*")), before_paths)
+                self.assertEqual((validation / "validation-installer-plan.json").read_bytes(), saved_plan)
             self.assertNotEqual(plans[0]["identifier"], plans[1]["identifier"])
             self.assertNotEqual(plans[0]["configPath"], plans[1]["configPath"])
             self.assertEqual(len({plan["identifier"] for plan in plans}), 4)
@@ -86,6 +106,7 @@ class InstallerTests(unittest.TestCase):
                 self.assertEqual(plan["mainBinaryName"], "guitarlab-validation-" + run_id)
                 self.assertEqual(json.loads(Path(plan["configPath"]).read_bytes())["identifier"], plan["identifier"])
                 self.assertFalse(plan["cleanWindowsValidated"])
+                self.assertEqual(plan["dependencyInventorySha256"], hashlib.sha256(inventory_raw).hexdigest())
             for name, raw in files.items():
                 self.assertEqual((root / name).read_bytes(), raw)
 

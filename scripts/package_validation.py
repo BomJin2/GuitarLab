@@ -12,8 +12,17 @@ from uuid import uuid4
 import zipfile
 
 from backup_local_data import checked_path, safe_member
+from collect_release_inventory import dependency_inputs, DEPENDENCY_NORMALIZATION
 
 PROJECT = Path(__file__).resolve().parents[1]
+
+
+def verify_inventory_dependencies(inventory, runtime_lock_sha256, root):
+    if (inventory.get("dependencyInputNormalization") != DEPENDENCY_NORMALIZATION
+            or inventory.get("dependencyInputs") != dependency_inputs(root)
+            or not isinstance(runtime_lock_sha256, str) or re.fullmatch(r"[a-f0-9]{64}", runtime_lock_sha256) is None
+            or inventory.get("runtimeBundleManifestSha256") != runtime_lock_sha256):
+        raise ValueError("현재 의존성과 배포 고지 목록이 다릅니다. 고지를 다시 수집/검토하세요.")
 
 
 def unique_object(pairs):
@@ -211,7 +220,8 @@ def package(candidate_path):
     for entry in lock["files"]:
         add(source / "ai-runtime", entry["path"], "ai-runtime/" + entry["path"], entry["bytes"], entry["sha256"])
     legal = PROJECT / "docs/release"
-    inventory = json.loads((legal / "dependency-inventory.json").read_bytes())
+    inventory = json.loads((legal / "dependency-inventory.json").read_bytes(), object_pairs_hook=unique_object)
+    verify_inventory_dependencies(inventory, hashlib.sha256(lock_raw).hexdigest(), PROJECT)
     sources = source_archives(legal, inventory["components"])
     unique = {notice["file"]: notice for component in inventory["components"] for notice in component["notices"]}
     tools = json.loads((legal / "INSTALLER-TOOLS.json").read_bytes())
