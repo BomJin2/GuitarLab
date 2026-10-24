@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 공개 참조의 저자 평가 범위 감사 v1 — 2026-10-24
+
+개발 전용 audit_agpt_reference_scope.py는 고정 CSV4개·수신 manifest/UUID·표본 계획과 저자 TaskA 노트북 원문 SHA를 확인한 뒤8파일의281개 타격 참조를 모두 보존한 별도 결과만 생성합니다. 외부 노트북/코드·모델 실행과 네트워크·앱 데이터 접근은 없습니다. filename에 pitched 포함/impro 제외 조건을 먼저 적용하고, 정수 문자열의108 상한을 검사합니다. 결측/비정수 문자열은 변환 추측 없이 RAW_PITCH_UNRESOLVED로 남기므로 다른 pandas 버전의 결측/형변환 정책을 재현했다고 주장하지 않습니다.
+
+결과 schemaVersion1/state AUTHOR_REFERENCE_SCOPE_AUDITED는 각 파일/타격의 원문 sample/rawPitchMidi·범위 상태와 모든 상태의 분모, source commit/노트북·CSV·계획 지문을 보존합니다. pitchEvaluationEnabled/groundTruthQualityAccepted/independentHeldOutEvaluation/actualAppJudgements는 모두 false입니다. 이 도구는 저자의 참조 사용 범위 감사이며 검출기 비교·실제 음정 정확도/품질 수용을 하지 않습니다. 출력은 원문 UUID 폴더의 새 author-pitch-scope-UUID.json에만 기록하고 기존 원문/타격 평가/결과는 덮어쓰지 않습니다. 입력 실패/취소 때 결과를 성공으로 표시하지 않습니다. 제품 IPC/DB 형식은 변경하지 않습니다.
+
 ## 편집 선택의 로컬 탐색 동작 — 2026-10-24
 
 useScoreEditing.selectNote는 편집 허용/현재 트랙의 유효 ID·잠금을 먼저 확인합니다. 선택할 기존 음표와 준비된 로컬 음원이 있으면 현재 syncAnchors/startTick을 scoreTickToAudioTime으로 변환해 pause 후 seek를 한 번 요청합니다. 원곡 ms는 재생 배속과 독립이며 엔진의 기존 pause/seek epoch 정책을 그대로 사용합니다. 자동 play/REC·IPC/저장 형식 변경은 없습니다. loading/empty/error 미디어는 건드리지 않고 선택만 변경합니다. null 선택은 pause/seek하지 않습니다. 잘못된 싱크·음원 밖/미디어 탐색 실패는 고정 안내를 표시하고 선택을 유지합니다. 키보드 preventDefault 소유권과 전역5초 탐색 중복 방지는 계속 적용합니다.
