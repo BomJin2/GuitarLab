@@ -1,5 +1,23 @@
 # Phase8 — 품질·릴리스
 
+## 초기화 대기 수정의 양쪽 원격 수용 확정 — 2026-10-25
+
+8e6e7fa의 [기능40114852674](https://github.com/BomJin2/GuitarLab/actions/runs/40114852674)/job120933920738와 [설치40114852830](https://github.com/BomJin2/GuitarLab/actions/runs/40114852830)/job120933920945가 사후 정리까지 **모두 success**입니다. 기능은466프론트/103파일·타입/lint/Vite/포맷·기본Rust230/39.14초·확장233/38.50초(각28제외)·Clippy·예제1+1·AI113/2.59초·도구138/54.118초·MSRV1.90/12.92초를 통과했습니다.
+
+새 Windows Server 설치는 runtime3393개/고지·최적화NSIS·실제설치·새v9/빈 데이터·정상종료0·독립Python2회·등록 제거/DB와 알 수 없는 파일 보존을 확인했습니다. 시작 기록 관측 **3236ms**로 기존 고정3초보다 길었습니다. 설치기 SHA **61fdd9665b011357905a6720d6ff0af29e2bdeda991d1f14556fd08ee328431b**,격리 identifier run1761fb8bebfd4032880784a9663625ef·검사b729c119…이며 원격 관리자토큰=true/현재PC=false의 차이를 유지합니다. 제품 코드를 바꾸거나 시작 기록/성공을 위조하지 않고 검사 준비 조건을 바로잡은 슬라이스 완료입니다.
+
+아래 미확정/이전 실패는 과정 이력으로 보존합니다. 전체Phase8·별도Windows10/11/실제 장치·최종서명/법률 검토 수용은 미완료입니다. 다음은 이미 기각한 배음 교정을 재튜닝하는 대신 기존 공개 자료에서 다른 단음 기준선의 적용 가능성을 확인하는 Phase7 연구이며, 새 모델/의존성 설치·고급 점수 활성화 없이 별도로 검토합니다.
+
+## 실제 현재PC 설치 확인·원격 재검증 추적 — 2026-10-25
+
+남은 고지 근거도 읽기 전용으로 확인했습니다. selectors0.38.0의 설치VCS는 servo/stylo의572ecba2d1600e7c3d490586692a209faf703baa/selectors이며 [같은 commit의 선언](https://raw.githubusercontent.com/servo/stylo/572ecba2d1600e7c3d490586692a209faf703baa/selectors/Cargo.toml)은 MPL-2.0입니다. 이미 동봉한 원본crate SHA8adfa1c2…/설치lib.rs의 전체 바이트가 같고 MPL 헤더 SHA7523df24…를 보존했습니다.4958바이트의 공식 고정 루트 목록/원본crate에는 별도 LICENSE/NOTICE가 없었습니다. selectors-source-audit-401c72cb…/report.json에 원문 지문을 기록했으며 standalone 고지/최종 검토를 임의로 해결 처리하지 않았습니다. 의존성/배포 고지 원문/패키지는 변경하지 않았고 소스 실행·새 설치는 미실행입니다.
+
+8e6e7fa의 검사 수정 후 현재PC에서 기존 모델/소스 캐시를 사용해 새 release NSIS를 빌드했습니다.2분05초의 앱 컴파일/NSIS 묶음 성공 뒤 `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/Test-ValidationInstaller.ps1 -BuildProfile release`가 **성공**했습니다. 새 식별자 com.guitarlab.validation.rund7fa7764672245da8b49355a4325d7a3·AppData/프로세스/설치경로만 사용했고 실제 관리자 토큰=false였습니다.
+
+시작 기록 대기1455ms·새v9/quick_check/빈 프로젝트·보관 목록/녹음 없음·runtime3393/모든고지·NSIS 표식 외본문 동등성·정상종료0·독립Python2회·제거 후DB/알 수 없는 파일/등록 제거까지 성공했습니다. installer-tests/d0fe3b87-4f52-4e1f-8630-c8ae01f45c5b/receipt.json과 installer-startup-local-20261025.log에 보존했습니다. 설치기 SHA **39031dab462ad6fde0f61a1d179ee1a53afceaa40335349e76ba0369ae715ccd**,설치본문 SHA **80dacbc35697d75868a10bd94fa6c04b6e5212e2d74b3b595687bd3623d47cf5**입니다. 제품 앱/기존 개인 데이터는 변경하지 않았습니다.
+
+원격 [기능40114852674](https://github.com/BomJin2/GuitarLab/actions/runs/40114852674)/job120933920738와 [설치40114852830](https://github.com/BomJin2/GuitarLab/actions/runs/40114852830)/job120933920945는 조회 시 in_progress/단계 목록 공백이어서 **결론 미확정**입니다. 로컬 성공으로 이전 원격 실패를 덮어쓰지 않으며 두 원격의 실제 결과를 계속 확인합니다. 별도Windows10/11·장치/최종출시 수용은 미완료입니다.
+
 ## 후속 — 원격 설치 초기화 기록 대기 경계 (2026-10-25)
 
 ### 1. 작업 개요
