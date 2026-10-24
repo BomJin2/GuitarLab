@@ -689,7 +689,7 @@ fn deferred_recording_keeps_early_pcm_and_never_marks_unmapped_audio_ready() {
         time::Duration,
     };
     let f = Fixture::new();
-    for bind in [true, false] {
+    for (bind, abort_observation) in [(true, false), (false, false), (false, true)] {
         let mut take = prepared(&f);
         let backing = f
             .store
@@ -718,18 +718,6 @@ fn deferred_recording_keeps_early_pcm_and_never_marks_unmapped_audio_ready() {
         let path = f.store.prepare_recording(&take).expect("ARMING");
         let writer = wave::create(&path, 48000).expect("입력 원본");
         let (sender, receiver) = mpsc::sync_channel(192001);
-        let send = |start: u64, end: u64| {
-            for i in start..end {
-                sender
-                    .send(RecordingMessage::Sample(Sample {
-                        value: if i == 0 { 0.75 } else { 0.25 },
-                        index: i,
-                        captured_ns: 1_000_000_000 + i * 1_000_000_000 / 48000,
-                    }))
-                    .expect("합성 입력");
-            }
-        };
-        send(0, 48000);
         let (probe, observed) = mpsc::channel();
         let calls = AtomicUsize::new(0);
         let origin = RecordingCapture {
@@ -739,55 +727,73 @@ fn deferred_recording_keeps_early_pcm_and_never_marks_unmapped_audio_ready() {
         };
         let shared = Mutex::new(take.clone());
         let store = &f.store;
-        std::thread::scope(|scope| {
-            let take_ref = &mut take;
-            scope.spawn(move || {
-                write_input(
-                    writer,
-                    receiver,
-                    take_ref,
-                    &origin,
-                    &RecordingRouter::default(),
-                    |transport| {
-                        let song_time_ms = if transport.is_some() {
-                            let n = calls.fetch_add(1, Ordering::SeqCst) + 1;
-                            probe.send(n).expect("연결 관측");
-                            if !bind || n == 1 {
-                                return Err(record_error("CLOCK_UNCERTAIN"));
-                            }
-                            Some(500.0)
-                        } else {
-                            None
-                        };
-                        Ok(RecordingCapture {
-                            key: origin.key.clone(),
-                            now_ns: 1_500_000_000,
-                            song_time_ms,
-                        })
-                    },
-                    store,
-                    &shared,
-                    &AtomicU64::new(u64::MAX),
-                    &AtomicU64::new(0),
-                )
-            });
-            assert_eq!(
-                observed
-                    .recv_timeout(Duration::from_secs(3))
-                    .expect("clock 준비 대기"),
-                1
-            );
-            if bind {
-                send(48000, 192000);
+        let observation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            std::thread::scope(|scope| {
+                // 관측 대기가 실패해도 scope가 worker를 join하기 전에 입력을 닫습니다.
+                let sender = sender;
+                let send = |start: u64, end: u64| {
+                    for i in start..end {
+                        sender
+                            .send(RecordingMessage::Sample(Sample {
+                                value: if i == 0 { 0.75 } else { 0.25 },
+                                index: i,
+                                captured_ns: 1_000_000_000 + i * 1_000_000_000 / 48000,
+                            }))
+                            .expect("합성 입력");
+                    }
+                };
+                send(0, 48000);
+                let take_ref = &mut take;
+                scope.spawn(move || {
+                    write_input(
+                        writer,
+                        receiver,
+                        take_ref,
+                        &origin,
+                        &RecordingRouter::default(),
+                        |transport| {
+                            let song_time_ms = if transport.is_some() {
+                                let n = calls.fetch_add(1, Ordering::SeqCst) + 1;
+                                probe.send(n).expect("연결 관측");
+                                if !bind || n == 1 {
+                                    return Err(record_error("CLOCK_UNCERTAIN"));
+                                }
+                                Some(500.0)
+                            } else {
+                                None
+                            };
+                            Ok(RecordingCapture {
+                                key: origin.key.clone(),
+                                now_ns: 1_500_000_000,
+                                song_time_ms,
+                            })
+                        },
+                        store,
+                        &shared,
+                        &AtomicU64::new(u64::MAX),
+                        &AtomicU64::new(0),
+                    )
+                });
+                assert!(!abort_observation, "자체 관측 대기 실패 주입");
                 assert_eq!(
                     observed
-                        .recv_timeout(Duration::from_secs(3))
-                        .expect("시각 연결"),
-                    2
+                        .recv_timeout(Duration::from_secs(30))
+                        .expect("clock 준비 대기"),
+                    1
                 );
-            }
-            sender.send(RecordingMessage::Boundary).expect("STOP 경계");
-        });
+                if bind {
+                    send(48000, 192000);
+                    assert_eq!(
+                        observed
+                            .recv_timeout(Duration::from_secs(30))
+                            .expect("시각 연결"),
+                        2
+                    );
+                }
+                sender.send(RecordingMessage::Boundary).expect("STOP 경계");
+            });
+        }));
+        assert_eq!(observation.is_err(), abort_observation);
         if bind {
             assert!(take.state == RecordingState::Ready);
             assert_eq!(take.frames, 192000);
@@ -800,7 +806,14 @@ fn deferred_recording_keeps_early_pcm_and_never_marks_unmapped_audio_ready() {
             assert_eq!(&bytes[58..62], &0.75f32.to_le_bytes());
         } else {
             assert!(take.state == RecordingState::RecoverableError);
-            assert_eq!(take.error_code.as_deref(), Some("CLOCK_UNCERTAIN"));
+            assert_eq!(
+                take.error_code.as_deref(),
+                Some(if abort_observation {
+                    "INPUT_NOT_ACTIVE"
+                } else {
+                    "CLOCK_UNCERTAIN"
+                })
+            );
             assert_eq!(take.frames, 48000);
             assert!(take.song_start_ms.is_none());
             assert_eq!(
