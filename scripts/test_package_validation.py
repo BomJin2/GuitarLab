@@ -4,14 +4,91 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 import zipfile
-from package_validation import checked_payload, verify_archive
+import package_validation
+from package_validation import checked_payload, verify_archive, verify_manager_build
 from backup_local_data import BackupError
 
 
 class PackageTests(unittest.TestCase):
+    def test_manager_build_info_uses_only_fixed_bounded_metadata_command(self):
+        manager = Path("manager.exe").resolve()
+        digest = "a" * 64
+        output = json.dumps({"schemaVersion": 1, "tool": "GUITARLAB_MODEL_MANAGER", "runtimeBundleLockSha256": digest}).encode()
+        result = subprocess.CompletedProcess([], 0, output, b"")
+        with patch("package_validation.subprocess.run", return_value=result) as run:
+            verify_manager_build(manager, digest)
+        run.assert_called_once_with(
+            [str(manager), "build-info"], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5, check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+
+    def test_manager_build_info_refuses_old_wrong_ambiguous_or_unbounded_response(self):
+        value = {"schemaVersion": 1, "tool": "GUITARLAB_MODEL_MANAGER", "runtimeBundleLockSha256": "a" * 64}
+        for change in ({"schemaVersion": True}, {"schemaVersion": 2}, {"tool": "other"},
+                       {"runtimeBundleLockSha256": "b" * 64}, {"privatePath": "not allowed"}):
+            with self.subTest(change=change):
+                result = subprocess.CompletedProcess([], 0, json.dumps({**value, **change}).encode(), b"")
+                with patch("package_validation.subprocess.run", return_value=result):
+                    with self.assertRaisesRegex(ValueError, "다시 빌드"):
+                        verify_manager_build(Path("manager.exe"), "a" * 64)
+        raw = json.dumps(value).encode()
+        for result in (
+            subprocess.CompletedProcess([], 1, b'{"error":"INVALID_REQUEST"}', b""),
+            subprocess.CompletedProcess([], 0, raw, b"unexpected diagnostics"),
+            subprocess.CompletedProcess([], 0, b"x" * 4097, b""),
+            subprocess.CompletedProcess([], 0, b"", b""),
+            subprocess.CompletedProcess([], 0, b"\xff", b""),
+            subprocess.CompletedProcess([], 0, b"[]", b""),
+            subprocess.CompletedProcess([], 0, raw.replace(b'"schemaVersion": 1', b'"schemaVersion":1,"schemaVersion":1'), b""),
+        ):
+            with self.subTest(response=result):
+                with patch("package_validation.subprocess.run", return_value=result):
+                    with self.assertRaisesRegex(ValueError, "다시 빌드"):
+                        verify_manager_build(Path("manager.exe"), "a" * 64)
+
+    def test_manager_timeout_or_launch_failure_does_not_fall_back_or_install(self):
+        for error in (OSError("synthetic launch failure"), subprocess.TimeoutExpired(["manager.exe"], 5)):
+            with self.subTest(error=type(error).__name__):
+                with patch("package_validation.subprocess.run", side_effect=error) as run:
+                    with self.assertRaisesRegex(ValueError, "다시 빌드"):
+                        verify_manager_build(Path("manager.exe"), "a" * 64)
+                self.assertEqual(run.call_count, 1)
+        with patch("package_validation.subprocess.run") as run:
+            with self.assertRaisesRegex(ValueError, "lock 지문"):
+                verify_manager_build(Path("manager.exe"), "invalid")
+            run.assert_not_called()
+
+    def test_old_manager_is_rejected_before_package_output_directory_exists(self):
+        with tempfile.TemporaryDirectory(prefix="guitarlab-package-manager-test-") as directory:
+            root = Path(directory).resolve()
+            validation = root / "src-tauri/target/runtime-validation"
+            source = validation / "portable/current"
+            source.mkdir(parents=True)
+            exe = source / "GuitarLab.exe"
+            exe.write_bytes(b"synthetic application, never executed")
+            manager = root / "src-tauri/target/debug/examples/manage_ai_model.exe"
+            manager.parent.mkdir(parents=True)
+            manager.write_bytes(b"synthetic manager, never executed")
+            lock = root / "ai/models/runtime-bundle-lock.json"
+            lock.parent.mkdir(parents=True)
+            lock.write_bytes(b'{"files":[]}\n')
+            candidate = validation / "candidate.json"
+            candidate.write_text(json.dumps({"destination": str(source), "executableBytes": exe.stat().st_size,
+                                             "executableSha256": hashlib.sha256(exe.read_bytes()).hexdigest()}))
+            before = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            result = subprocess.CompletedProcess([], 1, b'{"error":"INVALID_REQUEST"}', b"")
+            with patch.object(package_validation, "PROJECT", root), patch("package_validation.subprocess.run", return_value=result):
+                with self.assertRaisesRegex(ValueError, "다시 빌드"):
+                    package_validation.package(candidate)
+            self.assertFalse((validation / "validation-packages").exists())
+            self.assertEqual(before, {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()})
+
     def fixture(self, root, *, change=None, extras=(), manifest_raw=None):
         payload = {name: b"synthetic package fixture" for name in
                    ("GuitarLab.exe", "manage_ai_model.exe", "LICENSE", "Test-ValidationPackage.ps1")}

@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 개발 패키지 검증 도구의 빌드 정보 v1 — 2026-10-24
+
+`manage_ai_model.exe build-info`는 인수 한 개만 받으며 `{schemaVersion:1,tool:'GUITARLAB_MODEL_MANAGER',runtimeBundleLockSha256:<컴파일 시 내장한 원문 lock의 SHA256>}` 한 줄을 반환합니다. Python/자식 프로세스·입력 스레드·AppData/모델 설치·네트워크를 시작하지 않습니다. 기존 inspect/install/verify/download와 제품 IPC/DB 계약은 유지합니다.
+
+개발 ZIP 작성기는 고정된 검증 도구 경로/파일 경계를 확인한 뒤 shell 없이 이 명령만 실행합니다.5초 한도/표준 입력 없음·출력4KiB 이내·정상 종료/정확한3필드·고정 tool/schema와 현재 원문 lock 지문 일치가 필수입니다. 구형 도구/다른 lock·손상/중복 키/실패·시간 초과는 ZIP 출력 폴더를 만들기 전에 거부합니다. 빌드 정보는 서명/전체 소스 동일성이나 실제 Python 실행 성공을 보증하지 않으므로 기존 전체 리소스 지문과 ZIP/독립 실행 검사를 생략하지 않습니다.
+
 ## 키보드 이벤트 소유권 — 2026-10-24
 
 악보·로컬 컨트롤이 `preventDefault()`로 처리한 키는 전역 재생/화면 전환에서 다시 실행하지 않습니다. TAB 좌우 선택은 음표 선택만 변경하며 전역 5초 탐색을 함께 실행하지 않습니다. 일반 영역의 좌우 탐색은 기존 동작과 키 반복을 유지합니다. Space/R의 반복 keydown, 조합 입력 중 keydown은 재생/반복 토글을 실행하지 않습니다. 화면 전환·안내 전역 키도 처리 완료·조합 입력·키 반복을 무시합니다.

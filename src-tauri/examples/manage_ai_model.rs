@@ -5,6 +5,7 @@ use guitarlab_lib::{
     ipc::AppError,
 };
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::{
     io::{self, BufRead, Write},
     path::PathBuf,
@@ -23,6 +24,9 @@ fn emit(value: serde_json::Value) -> Result<(), AppError> {
 
 fn run() -> Result<(), AppError> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+    if arguments.as_slice() == ["build-info"] {
+        return emit(build_info());
+    }
     let cancel = Arc::new(AtomicBool::new(false));
     let input_cancel = cancel.clone();
     // 표준 입력에 cancel 한 줄을 보내면 native의 기존 취소·정리 경로를 사용합니다.
@@ -94,9 +98,42 @@ fn run() -> Result<(), AppError> {
     emit(result)
 }
 
+fn build_info() -> serde_json::Value {
+    let hash: String = Sha256::digest(include_bytes!("../../ai/models/runtime-bundle-lock.json"))
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    json!({
+        "schemaVersion": 1,
+        "tool": "GUITARLAB_MODEL_MANAGER",
+        "runtimeBundleLockSha256": hash,
+    })
+}
+
 fn main() {
     if let Err(cause) = run() {
         let _ = emit(json!({"error":cause.code}));
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_info_matches_current_source_lock_bytes() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../ai/models/runtime-bundle-lock.json");
+        let raw = std::fs::read(path).expect("현재 소스 lock 읽기");
+        let value = build_info();
+        assert_eq!(value.as_object().expect("빌드 정보 객체").len(), 3);
+        assert_eq!(value["schemaVersion"], 1);
+        assert_eq!(value["tool"], "GUITARLAB_MODEL_MANAGER");
+        let expected: String = Sha256::digest(raw)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        assert_eq!(value["runtimeBundleLockSha256"], expected);
     }
 }

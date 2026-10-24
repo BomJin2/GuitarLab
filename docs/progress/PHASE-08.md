@@ -1259,3 +1259,34 @@ Phase5 이름 편집 후보의 최신 UI 내장/기존 데이터 보존·개발�
 소스 `3e0ada0`의 [Windows40013246581](https://github.com/BomJin2/GuitarLab/actions/runs/40013246581)/job120618689178은 **사후 정리 포함 전 단계 success**입니다. 정확한 기존 이미지/도구 키의 캐시 복원을 확인했지만 모든 검사를 다시 실행했습니다. 프론트 **444개/103파일**, 타입/lint/빌드/Prettier·cargo fmt/기본Clippy, 기본Rust **228개/39.09초**와 확장Clippy/all-features Rust **231개/37.91초**(각26개 제외), native synthetic **1개/0.15초**, AI pytest **113개/2.26초**, 개발 도구 unittest **108개/15.450초·OK**, MSRV1.90 all-targets/all-features **9.23초 성공**을 로그로 확인했습니다.
 
 이 단축키 수정/자동 검증/문서화는2026-10-24 완료했습니다. 앞선 빌드/원격 대기 문구는 당시 진행 이력입니다. 전체 Phase8/남은5개 단계와 실제 GUI 수용은 미완료이며 기존 수용된 앱을 바꾸지 않았습니다. 다음 세션은 `keyboard-candidate.json`/성공한 `keyboard-package-roundtrip-rebuilt.json`과 이전 실패 영수증을 구분해 재사용하세요. 사용자 직접 테스트 없는 조건에서는 새 앱/입력·REC를 시작하지 않고, 기존 공개 참조의 미확정 단위·고급 점수 비활성·특화 가중치/별도Windows의 외부 조건을 유지합니다. 같은 임계값 가설/다운로드·구형 실행 파일과 새 리소스 조합 검사를 처음부터 반복하지 않습니다.
+## 검증 도구·런타임 혼합 패키지 사전 차단 — 2026-10-24
+
+## 1. 작업 개요
+
+작업일2026-10-24. 앞선 실제 패키지 검사에서 발견한 ‘구형 검증 도구+새 LF 리소스’ 조합을 ZIP 작성 전에 자동 거부하는 안정성 후속입니다. 사용자에게 직접 테스트가 가능하다는 답변을 받아 기존 단축키 후보만 열었고 수용 결과는 대기 중입니다. 이 후속은 실행 중인 앱/UI 소스를 수정하거나 재시작하지 않습니다. 전체 Phase8 완료는 아니며 최종 원격/패키지 검사 전 상태는 아래 후속 기록으로 갱신합니다.
+
+## 2. 구현 및 변경 사항
+
+- `src-tauri/examples/manage_ai_model.rs`: 정확한 한 인수 build-info만 컴파일 시 원문 runtime lock SHA와 schema/tool 정보를 반환합니다. 입력 스레드·Python/자식 프로세스·AppData 접근보다 먼저 종료합니다. 기존 install/verify/download/inspect 경로는 유지합니다.
+- `scripts/package_validation.py`: 고정 도구 파일 검증 뒤 build-info의5초/입력 없음·정상 종료/4KiB/UTF8·중복 없는 정확한3필드와 현재 lock SHA를 확인합니다. 실패하면 새 ZIP 폴더 생성 전 중단하며 검증을 우회하지 않습니다.
+- `scripts/test_package_validation.py`: 정상 명령/계약과 구형/실패·잘못된 버전/tool/SHA·중복/알 수 없는 필드·비UTF8/한도·시간 초과, 실패 시 출력 없음/원본 바이트 보존4개 테스트를 추가했습니다.
+- `.github/workflows/verify.yml`: native 빌드 정보 단위 검사도 Windows 회귀에 추가합니다. 기존 전체 검사는 유지하며 workflow 지문이 캐시 키에 포함돼 다음 실행은 새 키/캐시 없음일 수 있습니다.
+- `docs/12`, `09`, `13`과 진행 문서: 개발 CLI 계약·재발 방지/검사·실행 앱과 재개 위치를 구분합니다. 신규 라이브러리/IPC·DB/모델/프론트 변경은 없습니다.
+
+## 3. 테스트 결과
+
+- `python -B -X utf8 -m unittest discover -s scripts -p test_package_validation.py`: 개발3.10.8 **11개 성공**,0.495초. 번들3.12.15도 작업공간 TMP/TEMP에서 **11개 성공**,0.475초.
+- 최초 번들3.12 기본 sandbox Temp에서는11개 실행 중 파일 쓰기/정리 접근 오류21건이 발생했습니다. 프로젝트 임시 폴더를 TMP/TEMP로 지정해 해결했고 제품 코드/검증을 완화하지 않았습니다.
+- 개발 도구 전체 `python -B -X utf8 -m unittest discover -s scripts -p test_*.py`: **112개 실행/111성공·링크 권한1개 제외**,9.319초. 기본 Windows Temp에 대한 알려진 sandbox 오탐을 피하려고 권한 검토를 통과한 테스트 프로세스에서 자체 임시 자료만 사용했습니다.
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --example manage_ai_model`: **1개 성공**,0.04초(컴파일4.08초). 최초 Sha256::digest의 LowerHex 구현 가정은 설치된sha2 0.11.1에서 E0277로 실패해 기존 코드처럼 바이트별16진 표현으로 수정했습니다. 의존성을 추가하지 않았습니다.
+- `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --example manage_ai_model`: **성공**,4.36초. 실제 최소 환경의 build-info/잘못된 추가 인수 거부·기존 패키지 도구 거부/현재 도구 허용도 **성공**했습니다. 최초 ad-hoc 검사의 오류 코드를 INVALID_REQUEST로 잘못 기대해 실패했고 기존 실제 INVALID_INPUT으로 바로잡았습니다. 제품 오류 코드는 변경하지 않았습니다. 영수증 manager-build-info-validation-b6be87e1-0a10-413a-8f48-02be361e2b5f.json에 기록했습니다.
+- `cargo fmt --check`, all-targets/all-features `cargo clippy --locked --offline ... -- -D warnings`: **성공**,Clippy11.88초. `cargo +1.90.0 check --locked --offline --all-targets --all-features ...`: **성공**,13.10초. `pnpm format:check`: **성공**.
+- 새 ZIP 실제 사전 검사/전체 지문/독립 실행·새 원격 전체 CI는 **미실행** — 다음 단계로 진행합니다. 프론트444개/실제 GUI/AI 모델 재분석은 **미실행** — 이번 후속에서 관련 소스를 바꾸지 않았으며 이전 CI 수용과 구분합니다.
+
+## 4. 미구현 및 알려진 문제
+
+빌드 정보는 서명이나 전체 소스 동일성 검증이 아니며 현재 runtime lock과 도구의 호환 경계만 확인합니다. 구형 도구는 같은 소스 재빌드가 필요합니다. 기존 전체 파일 지문/실제 Python·외부 Windows/최종 배포 검사는 유지합니다. source 기반의 정상 빌드 도구만 실행하며 임의 파일 실행 UI를 추가하지 않습니다.
+
+## 5. 다음 작업 계획
+
+사전 검사까지 포함한 새 검증 ZIP/독립 실행과 원격 전체 회귀를 확인하고 결과를 확정합니다. 현재 PID30248/PTY22831의 ‘GuitarLab · 단축키 충돌 수정’은 사용자 확인 중이므로 그대로 유지합니다. 실행 파일 SHA는46eae0bc…이며 실행 전 기존 DB9의 읽기 전용 snapshot을 keyboard-candidate.json에 연결했습니다. 사용자 입력/REC를 자동 시작하지 않고 수용 답변 후 해당 결과만 따로 기록합니다.

@@ -1,5 +1,9 @@
 # 09. 테스트 전략 / 검증 기준
 
+## 패키지 검증 도구의 빌드 정보 사전 검사 — 2026-10-24
+
+현재 원문 runtime lock SHA와 native 검증 도구의 컴파일 시 지문이 일치해야 ZIP 작성을 시작합니다. shell 없는 고정 build-info/표준 입력 없음·5초 제한, 정확한 응답 필드/자료형·중복 키·4KiB 초과/비UTF8·구형 도구/다른 지문·실행 실패/시간 초과를 검사합니다. 실패 때 새 패키지 출력 폴더가 없고 기존 후보/도구/lock 파일이 바이트 그대로인지 확인합니다. native 단위 검사와 실제 최소 환경(APPDATA 없음)의 build-info·잘못된 추가 인수 거부·보존된 구형 EXE 거부를 구분해 실행합니다. 메타데이터 일치를 실제 Python/GUI/모델 수용으로 확대하지 않습니다.
+
 ## 전역 단축키의 중복 실행 방지 — 2026-10-24
 
 실제 ScoreViewport와 TransportBar를 같은 Player Context에 렌더링해 TAB 좌우 선택이 각 한 번 실행되고 seek는 호출되지 않는지 확인합니다. 일반 영역의 좌우 탐색은 유지해야 합니다. Space/R 반복·IME 조합·이미 preventDefault한 이벤트와 빈/상속/plaintext-only contenteditable·SVG 버튼의 Space는 재생을 시작하지 않아야 합니다. 표준/커스텀 텍스트 입력, 잘못된 contenteditable의 상속과 명시적 false 경계도 검사합니다. App 모드/안내 단축키의 같은 보호, 기존 녹음 잠금·3초 준비·일반 재생 회귀를 함께 실행합니다. jsdom 자동 회귀와 실제 Windows 키보드 수용은 구분합니다.

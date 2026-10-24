@@ -6,6 +6,8 @@ import io
 import json
 from pathlib import Path
 import re
+import subprocess
+import sys
 from uuid import uuid4
 import zipfile
 
@@ -160,6 +162,31 @@ def checked_payload(root, name, size=None, digest=None):
     return path, {"path": name, "bytes": length, "sha256": actual}
 
 
+def verify_manager_build(manager, lock_sha256):
+    """고정 명령으로 빌드 지문만 조회하며 Python/모델/앱은 시작하지 않습니다."""
+    if not isinstance(lock_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", lock_sha256) is None:
+        raise ValueError("현재 런타임 lock 지문이 필요합니다.")
+    message = "검증 도구와 현재 런타임 lock이 다릅니다. manage_ai_model을 같은 소스로 다시 빌드하세요."
+    try:
+        result = subprocess.run(
+            [str(manager), "build-info"], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5, check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+    except (OSError, subprocess.TimeoutExpired) as cause:
+        raise ValueError(message) from cause
+    if result.returncode != 0 or result.stderr or not 1 <= len(result.stdout) <= 4096:
+        raise ValueError(message)
+    try:
+        value = json.loads(result.stdout.decode("utf-8"), object_pairs_hook=unique_object)
+    except (ValueError, UnicodeError) as cause:
+        raise ValueError(message) from cause
+    if (not isinstance(value, dict) or set(value) != {"schemaVersion", "tool", "runtimeBundleLockSha256"}
+            or type(value["schemaVersion"]) is not int or value["schemaVersion"] != 1
+            or value["tool"] != "GUITARLAB_MODEL_MANAGER" or value["runtimeBundleLockSha256"] != lock_sha256):
+        raise ValueError(message)
+
+
 def package(candidate_path):
     validation = (PROJECT / "src-tauri/target/runtime-validation").resolve(strict=True)
     candidate_path = candidate_path.resolve(strict=True)
@@ -179,6 +206,7 @@ def package(candidate_path):
     manager = PROJECT / "src-tauri/target/debug/examples"
     add(manager, "manage_ai_model.exe")
     lock_raw = (PROJECT / "ai/models/runtime-bundle-lock.json").read_bytes()
+    verify_manager_build(manager / "manage_ai_model.exe", hashlib.sha256(lock_raw).hexdigest())
     lock = json.loads(lock_raw)
     for entry in lock["files"]:
         add(source / "ai-runtime", entry["path"], "ai-runtime/" + entry["path"], entry["bytes"], entry["sha256"])
