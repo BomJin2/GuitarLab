@@ -20,7 +20,8 @@
 - `cargo test --locked --manifest-path src-tauri/Cargo.toml project_trash_usage -- --nocapture`: **4개 성공**,8.76초. 외부 참조·미분류/빈 프로젝트·시간/17단계·실제10001항목·revision/오래된 trash/취소·Windows junction/원본 보존을 자체 임시 자료로 검사했습니다. 최초 컴파일은 rusqlite가 u64 직접 읽기를 지원하지 않아 실패했고 범위 검증한 u32→u64 변환으로 수정했습니다.
 - `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**,22.13초. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **237개 성공/28개 기본 제외**,17.77초. 로그 `runtime-validation/trash-usage-rust-20261025.log`를 보존합니다.
 - `cargo +1.90.0 check --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features`/`cargo fmt --check`: **성공**,18.10초. `pnpm build`: **성공**,Vite2분1초/기존 큰 chunk 경고 유지. `pnpm format:check`: **성공**이며 기존 ignore 문서/Python/Rust를 Prettier가 검사한 것은 아닙니다.
-- `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 실행 파일 빌드 성공**,15.14초/40,792,064바이트. MSVC 링크 산출물 안내 경고는 유지됩니다. 기존 앱 재실행/실제 사용자 자료 용량 확인/새 ZIP·설치 수용: **미실행** — 임시 자료/자동 회귀와 컴파일만 수행했고 실행 중 앱/사용자 자료는 건드리지 않았습니다.
+- `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 실행 파일 빌드 성공**,15.14초/40,792,064바이트·SHA `5fdda6efa409600012c0d466b9c23be60a212aadedead2d8ca261c1a014341d6`. MSVC 링크 산출물 안내 경고는 유지됩니다. 기존 앱 재실행/실제 사용자 자료 용량 확인/새 설치 수용: **미실행** — 임시 자료/자동 회귀와 컴파일·별도 패키지만 검사했고 사용자 자료는 건드리지 않았습니다.
+- `scripts/package_validation.py trash-usage-candidate-31f811dc-870a-46cf-ac79-43402924cc6e.json`: ef9d343 후보의 **새3613파일 ZIP 생성·전체 지문/CRC·새 폴더 추출 성공**. `validation-packages/2867cab8-d373-44d7-b9cd-c29eaa3ee030/GuitarLab-validation.zip`은40,189,781바이트/SHA `034d7eabf94e64794d218304e941e8216c83ada92ad077467974b58a206f6025`입니다. 실제 `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <새 추출본>/Test-ValidationPackage.ps1` **exit0/독립Python3.12.15 두 번 성공**이며 모델/앱·사용자 데이터는 실행/변경하지 않았습니다. 영수증 `trash-usage-package-receipt-cd25d42b-f8f3-4080-8877-78888a4029ef.json`, 추출본 `trash-usage-roundtrip-1293cd49-7474-4bc4-bead-0bb239e27a9c/GuitarLab`을 보존합니다. 최초 직접 검사는 ZIP 안의 `GuitarLab/` 접두어를 빠뜨려 목록 조회에 실패했고 추출 전에 중단됐습니다. ZIP을 수정하지 않고 기존 `verify_archive`를 재사용해 검증한 동일 바이트를 새 폴더에 추출했습니다.
 - 직전 `97d7dc7`의 [Windows 회귀40117525600](https://github.com/BomJin2/GuitarLab/actions/runs/40117525600)/job120941829930: **전체 success**,466프론트·기본230/확장233Rust·AI113/도구143·MSRV/정리까지 성공했습니다. 이번 용량 확인 변경은 별도 후속 회귀 전입니다.
 
 ### 4. 미구현 및 알려진 문제
@@ -29,7 +30,11 @@
 
 ### 5. 다음 작업 계획
 
-새 기능/문서를 Git에 반영하고 원격 전체471개/확장 native 회귀를 확인합니다. 실제 데이터 정리의 후속은 현재 논리 크기 보고를 삭제 권한/대상 목록으로 재사용하지 않고, 외부 참조/알 수 없는 자료 보존과 중단 복구·명시적 확인 계약을 먼저 정의합니다. Phase7 pYIN/배음 교정 기각과 고급 점수 비활성·독립 정답 필요성은 유지합니다.
+ef9d343의 [원격40118428965](https://github.com/BomJin2/GuitarLab/actions/runs/40118428965)/job120944549176는 **전체 success**입니다.471프론트/103파일·기본234개39.02초/확장237개40.39초(각28개 제외)·예제1+1개·AI113개/5.73초·도구143개/14.093초·Clippy/MSRV/정리까지 통과했습니다. 실제 앱/사용자 자료 용량 수용을 대체하지 않습니다.
+
+결과 검토 중 마지막 metadata 호출이 늦게 반환되거나 직후 취소되는 경계도 게시 전에 다시 확인하도록 scan 마지막에 공통 검사4줄을 보완했습니다. OS 호출 자체를 강제 중단하는 하드 시간 제한은 아닙니다. 보완 뒤 확장Rust **237개/28개 제외·17.10초**,Clippy6.86초/MSRV5.40초/fmt·Windows 내장 재빌드4.79초가 성공했습니다. 새 실행 파일 SHA `7c21097565a9437a7a4361c822fac3b5308f5a4757a90a2f6098aca5324bf8d6`이며 위3613파일 ZIP은 보완 전 ef9d343 산출물로 구분합니다. 보완의 새 원격/ZIP 수용은 아직 미실행입니다.
+
+실제 데이터 정리의 후속은 현재 논리 크기 보고를 삭제 권한/대상 목록으로 재사용하지 않고 외부 참조/알 수 없는 자료 보존과 중단 복구·명시적 확인을 먼저 요구합니다. Phase7의 기존 미지원 표기 보호를 점검한 결과 alphaTab1.6.1의 몸통 타격 `GolpeType` 누락 가능성이 있어 실제 파서/GP 왕복과 구형 복원에서 재현하는 다음 독립 슬라이스로 진행합니다. pYIN/배음 교정 기각과 고급 점수 비활성·독립 정답 필요성은 유지합니다.
 
 ## 초기화 대기 수정의 양쪽 원격 수용 확정 — 2026-10-25
 

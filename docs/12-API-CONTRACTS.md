@@ -4,7 +4,7 @@
 
 `inspect_trashed_project_usage`는 기존 StorageJob/취소 계약으로 `{schemaVersion:1,projectId,trashId}`만 받습니다. 현재 휴지통 UUID/revision을 검사하고 녹음/다른 파일 작업 중에는 시작하지 않습니다. 반환은 `{schemaVersion:1,state:"PROJECT_TRASH_USAGE",usage:{projectId,trashId,files,logicalBytes,externalReferences}}`입니다. 정수는 안전 범위, files≤10000·externalReferences≤100000입니다. 관리 폴더가 아직 없는 새 프로젝트는0파일/0바이트이며 외부 참조 파일은 열거나 크기를 조회하지 않습니다.
 
-앱 데이터의 정확한 projects/UUID 아래 metadata만 읽습니다. 루트/조상/항목의 심볼릭 링크·Windows reparse point,특수 파일·16단계 초과·10000항목 초과·30초 초과·읽기 오류는 부분 합계를 성공으로 반환하지 않습니다. 취소/실패/보관 UUID 변경 시 기존 DB/파일을 보존합니다. 논리 파일 크기는 공유 링크/압축/클러스터/동시 외부 수정 등을 반영한 실제 회수 가능 공간이 아닙니다. 자동 정리·삭제 토큰/영구 삭제 API·DB 마이그레이션은 추가하지 않습니다. UI는 각 보관 항목의 명시적 ‘용량 확인’ 요청과 상태/취소·결과만 표시합니다.
+앱 데이터의 정확한 projects/UUID 아래 metadata만 읽습니다. 루트/조상/항목의 심볼릭 링크·Windows reparse point,특수 파일·16단계 초과·10000항목 초과·30초 초과·읽기 오류는 부분 합계를 성공으로 반환하지 않습니다. 취소/시간은 각 파일 시스템 호출 사이와 최종 결과 반환 전에 확인하며 OS 호출 자체를 강제 중단하지 않습니다. 취소/실패/보관 UUID 변경 시 기존 DB/파일을 보존합니다. 논리 파일 크기는 공유 링크/압축/클러스터/동시 외부 수정 등을 반영한 실제 회수 가능 공간이 아닙니다. 자동 정리·삭제 토큰/영구 삭제 API·DB 마이그레이션은 추가하지 않습니다. UI는 각 보관 항목의 명시적 ‘용량 확인’ 요청과 상태/취소·결과만 표시합니다.
 
 ## 기존 공개 단음의 pYIN 오프라인 비교 계획 — 2026-10-25
 

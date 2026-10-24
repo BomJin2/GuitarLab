@@ -76,6 +76,10 @@ fn scan(folder: &Path, cancel: &AtomicBool, deadline: Instant) -> Result<(u64, u
             }
         }
     }
+    canceled(cancel)?;
+    if Instant::now() >= deadline {
+        return Err(unavailable());
+    }
     Ok((files, bytes))
 }
 impl ProjectStore {
