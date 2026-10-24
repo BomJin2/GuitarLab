@@ -26,6 +26,16 @@ alphaTabAdapter.ts의 공통 hasUnsupportedTechnique에 Note.ornament!==None 조
 
 native/Windows·새 독립 패키지를 검증한 뒤 현재 앱을 정상 종료 경로로 전환합니다. 미저장 확인창은 우회하지 않습니다. 새 원격에463개 회귀를 포함하고, 독립 정답/특화모델·별도Windows 수용의 외부 제약은 유지합니다.
 
+### Windows·패키지 적용 확정
+
+구현 커밋 **01a1d80**의 `cargo test ... unsupported`는 **6개 성공/0.60초**,내장 custom-protocol bundle_tests는 **3개 성공/0.12초**(각컴파일11.35/11.19초)입니다. 새 고정 설정의 `pnpm tauri build --debug --no-bundle --ci --config ... -- --locked --offline`는 **21.02초 성공**했습니다. 기존 MSVC 출력/identifier 권고 외 오류 없습니다. 고정runtime3393파일/64,095,466바이트를 원본/새 복사본에서 lock SHA191c1e80…와 대조했습니다.
+
+EXE40,689,152바이트/SHA **f591465cecbac97b6257c92cb9aed07baa3f5bac1bf5d1715a7a3e555ec910c3**를 새 portable/ornament-support-9f18e333-c130-465c-843f-7a2a485b2e7f에 보존했습니다. 패키지 CLI 최초 --candidate 옵션은 실제 위치 인수 계약과 달라 거부됐고 같은 준비 파일을 재생성/삭제하지 않고 올바른 위치 인수로 해결했습니다. 새 ZIP59d1d77b…/3613파일/40,165,787바이트/SHA **0b1aca8799944542fb7e197851a2a246e37825e5eb340ca7ad7e8010b29f5ecc**의 전체지문/CRC·새 추출을 검증했습니다. 실제 WindowsPowerShell5.1 전체파일 지문·개발 PATH 없는 독립Python3.12.15 두 번 실행도 **exit0**입니다.
+
+이전 PID30808/PTY82434는 CloseMainWindow 정상 종료 **exit0/forced=false**였습니다. 새 **PID32076/PTY61414·‘GuitarLab · 장식음 보호’**가 READY/응답 중이며 실제 입력/REC는 켜지 않았습니다. 전환 전 읽기 전용 SQLite snapshot과 시작 후 **DB9/15사용자테이블의 모든 행 지문 동일**을 ornament-startup-data-comparison.json에 기록했고 복원하지 않았습니다. ornament-support-candidate.json·ornament-package-roundtrip.json/현재 portable-candidate.json을 연결했으며 이전 포인터/실행파일은 보존했습니다.
+
+이 안전 수정 슬라이스/문서화는 완료입니다. 실제 사용자의 장식음 import/연주 검사는 **미실행**이며 자동 실제 파서/GP 왕복과 구분합니다. 전체Phase7·실제 장식음 인식/고급 점수·새 Windows 수용은 미완료입니다.463개를 포함한 새 원격 회귀/Git 후속은 다음 기록을 따릅니다.
+
 ## 후속 — 주기적 변화 보류 조건의 고정 사후 감사 (2026-10-24)
 
 ### 1. 작업 개요
