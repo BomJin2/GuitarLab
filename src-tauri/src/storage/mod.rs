@@ -18,6 +18,7 @@ pub mod project_trash_usage;
 pub mod projects;
 #[cfg(test)]
 pub(crate) mod projects_tests;
+mod recording_window;
 pub mod recordings;
 #[cfg(test)]
 pub(crate) mod recordings_tests;

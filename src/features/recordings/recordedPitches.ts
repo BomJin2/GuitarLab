@@ -7,6 +7,8 @@ import {
 import { isUuid, runStorageJob, type JobSnapshot } from '../library/projects';
 import type { RecordedTake } from './recordings';
 
+export const MAX_RECORDED_ANALYSIS_START_MS = 600_000;
+
 export const pitchWarningLabels = {
   EXPERIMENTAL: '실험적 스펙트럼 후보이며 정답이나 코드 판정이 아닙니다.',
   OCTAVE_VOICES_AMBIGUOUS:
@@ -54,12 +56,16 @@ export function pitchAnalysisErrorCode(
   )
     return 'CHORD_TAKE_UNVERIFIED';
   if (
-    take.frames > take.sampleRate * 30 ||
-    58 + take.frames * 4 > 16 * 1024 * 1024
+    !isSafeUnsigned(take.sampleRate, 192000) ||
+    take.sampleRate < 8000 ||
+    !isSafeUnsigned(
+      take.frames,
+      Math.min(take.sampleRate * 600, Math.floor((256 * 1024 * 1024 - 58) / 4)),
+    )
   )
     return 'CHORD_TAKE_LIMIT';
   if (
-    !isNumberWithin(startMs, 0, 30000) ||
+    !isNumberWithin(startMs, 0, MAX_RECORDED_ANALYSIS_START_MS) ||
     Math.floor((startMs * take.sampleRate) / 1000) +
       Math.floor((take.sampleRate * durationMs) / 1000) >
       take.frames
@@ -75,6 +81,7 @@ export function decodeRecordedPitches(
   requestedStartMs: number,
 ): RecordedPitches {
   if (
+    pitchAnalysisErrorCode(take, requestedStartMs) ||
     !isRecord(value) ||
     Object.keys(value).length !== 12 ||
     value.schemaVersion !== 1 ||
@@ -87,7 +94,7 @@ export function decodeRecordedPitches(
     (value.state !== 'CANDIDATES' &&
       value.state !== 'SILENT' &&
       value.state !== 'UNVERIFIED') ||
-    !isNumberWithin(value.startMs, 0, 30000) ||
+    !isNumberWithin(value.startMs, 0, MAX_RECORDED_ANALYSIS_START_MS) ||
     Math.abs(
       value.startMs -
         (Math.floor((requestedStartMs * take.sampleRate) / 1000) * 1000) /
@@ -177,7 +184,7 @@ export function recordedPitchesError(cause: unknown): string {
         : '';
   const messages: Record<string, string> = {
     CHORD_TAKE_UNVERIFIED: '누락 없는 READY 테이크를 선택하세요.',
-    CHORD_TAKE_LIMIT: '실험 분석은30초/16MiB 이하 테이크만 지원합니다.',
+    CHORD_TAKE_LIMIT: '녹음 한도10분/256MiB 이하 테이크만 지원합니다.',
     CHORD_WINDOW_INVALID:
       '녹음 안의 시작 시각을 입력하세요. 뒤에400ms 이상 남아 있어야 합니다.',
     PITCH_TRACK_WINDOW_INVALID:

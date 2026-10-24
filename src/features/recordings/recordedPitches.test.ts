@@ -74,7 +74,8 @@ it('누락/상태/길이·구간 한도와 개인 오류 경로를 안전하게 
   expect(pitchAnalysisErrorCode(take, 3600)).toBeNull();
   expect(pitchAnalysisErrorCode(take, 3601)).toBe('CHORD_WINDOW_INVALID');
   expect(pitchAnalysisErrorCode(take, NaN)).toBe('CHORD_WINDOW_INVALID');
-  expect(pitchAnalysisErrorCode({ ...take, frames: 48000 * 31 }, 0)).toBe(
+  expect(pitchAnalysisErrorCode({ ...take, frames: 48000 * 31 }, 0)).toBeNull();
+  expect(pitchAnalysisErrorCode({ ...take, frames: 48000 * 601 }, 0)).toBe(
     'CHORD_TAKE_LIMIT',
   );
   expect(pitchAnalysisErrorCode({ ...take, droppedFrames: 1 }, 0)).toBe(
@@ -86,6 +87,38 @@ it('누락/상태/길이·구간 한도와 개인 오류 경로를 안전하게 
   expect(recordedPitchesError(new Error('C:\\private\\dry.wav'))).not.toContain(
     'private',
   );
+});
+it('긴 녹음의 끝400ms와 높은 샘플레이트의 실제 바이트 한도를 구분한다', () => {
+  const take = { ...recordingFixture(), frames: 48000 * 600 };
+  expect(pitchAnalysisErrorCode(take, 599600)).toBeNull();
+  expect(pitchAnalysisErrorCode(take, 599600.1)).toBe('CHORD_WINDOW_INVALID');
+  expect(pitchAnalysisErrorCode(take, 599000, 1000)).toBeNull();
+  expect(pitchAnalysisErrorCode(take, 599001, 1000)).toBe(
+    'PITCH_TRACK_WINDOW_INVALID',
+  );
+  expect(
+    decodeRecordedPitches(
+      { ...recordedPitchesFixture(), startMs: 599000 },
+      take,
+      599000,
+    ).startMs,
+  ).toBe(599000);
+  expect(() =>
+    decodeRecordedPitches(
+      { ...recordedPitchesFixture(), startMs: 599900 },
+      take,
+      599900,
+    ),
+  ).toThrow();
+  const large = {
+    ...take,
+    sampleRate: 192000,
+    frames: Math.floor((256 * 1024 * 1024 - 58) / 4),
+  };
+  expect(pitchAnalysisErrorCode(large, 31000)).toBeNull();
+  expect(
+    pitchAnalysisErrorCode({ ...large, frames: large.frames + 1 }, 0),
+  ).toBe('CHORD_TAKE_LIMIT');
 });
 it('명시적 작업은 구간만 요청하고 원본 binary를 프론트로 가져오지 않는다', async () => {
   vi.mocked(invoke).mockResolvedValueOnce({

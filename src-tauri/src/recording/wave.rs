@@ -15,7 +15,7 @@ fn invalid() -> io::Error {
         "녹음 WAV 형식 또는 샘플이 유효하지 않습니다.",
     )
 }
-fn header(sample_rate: u32, frames: u64) -> io::Result<[u8; 58]> {
+pub(crate) fn header(sample_rate: u32, frames: u64) -> io::Result<[u8; 58]> {
     if !(8000..=192000).contains(&sample_rate) || frames > frame_limit(sample_rate) {
         return Err(invalid());
     }

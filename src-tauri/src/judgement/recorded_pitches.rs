@@ -30,7 +30,7 @@ impl RecordedPitchesRequest {
         validate_uuid(&self.take_id)?;
         if self.schema_version != 1
             || !self.start_ms.is_finite()
-            || !(0.0..=30000.0).contains(&self.start_ms)
+            || !(0.0..=600_000.0).contains(&self.start_ms)
         {
             return Err(AppError::invalid());
         }
@@ -97,10 +97,10 @@ fn read_window(
         ));
     }
     let size = wave::HEADER_BYTES + take.frames * 4;
-    if take.frames > u64::from(take.sample_rate) * 30 || size > 16 * 1024 * 1024 {
+    if take.frames > wave::frame_limit(take.sample_rate) || size > wave::MAX_BYTES {
         return Err(AppError::new(
             "CHORD_TAKE_LIMIT",
-            "실험 분석은30초/16MiB 이하 테이크만 지원합니다.",
+            "녹음 한도10분/256MiB 이하 테이크만 지원합니다.",
             false,
         ));
     }
@@ -121,18 +121,7 @@ fn read_window(
             false,
         ));
     }
-    progress(0, size)?;
-    let bytes = store.recording_bytes(&take.project_id, &take.id, cancel)?;
-    progress(size, size)?;
-    let offset = wave::HEADER_BYTES as usize + start * 4;
-    let pcm: Vec<f32> = bytes
-        .get(offset..offset + frames * 4)
-        .ok_or_else(|| AppError::new("WAV_INVALID", "녹음 구간을 읽을 수 없습니다.", false))?
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|chunk| f32::from_le_bytes(*chunk))
-        .collect();
+    let pcm = store.recording_window(&take, start as u64, frames as u32, cancel, progress)?;
     Ok((take, start, pcm))
 }
 

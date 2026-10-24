@@ -15,6 +15,14 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
 }));
 afterEach(() => vi.resetAllMocks());
+it('10분 녹음의 마지막1초 응답도 샘플 기준 시각으로 수용한다', () => {
+  const take = { ...recordingFixture(), frames: 48000 * 600 };
+  const result = { ...recordedPitchTrackFixture(), startMs: 599000 };
+  expect(decodeRecordedPitchTrack(result, take, 599000).startMs).toBe(599000);
+  expect(() =>
+    decodeRecordedPitchTrack({ ...result, startMs: 599001 }, take, 599001),
+  ).toThrow('PITCH_TRACK_ANALYSIS_INVALID');
+});
 it('현재 테이크의 실제 창 위치·유효 비율·주기성·변화량만 수용한다', () => {
   const take = recordingFixture(),
     track = recordedPitchTrackFixture();

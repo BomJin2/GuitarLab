@@ -1,6 +1,9 @@
 import { pitchReading } from '../../shared/pitch';
 import type { RecordedTake } from './recordings';
-import { pitchWarningLabels } from './recordedPitches';
+import {
+  pitchWarningLabels,
+  MAX_RECORDED_ANALYSIS_START_MS,
+} from './recordedPitches';
 import {
   motionLabels,
   trackWarningLabels,
@@ -15,8 +18,9 @@ export function RecordedPitchesPanel({ take }: { take: RecordedTake }) {
       <h2>녹음 구간 음정 후보 · 실험</h2>
       <p>
         선택한 테이크의{state.mode === 'TRACK' ? '1초' : '400ms'}를 로컬에서
-        읽습니다. 코드 정답·줄·프렛 판정이 아니며 점수에는 반영하지 않습니다.
-        녹음을 새로 만들거나 원본을 바꾸지 않습니다.
+        분석합니다. 코드 정답·줄·프렛 판정이 아니며 점수에는 반영하지 않습니다.
+        녹음을 새로 만들거나 원본을 바꾸지 않습니다. 무결성 확인을 위해 전체
+        녹음 파일을 검사한 뒤 선택 구간만 분석합니다.
       </p>
       <label>
         분석 방식{' '}
@@ -37,7 +41,7 @@ export function RecordedPitchesPanel({ take }: { take: RecordedTake }) {
         <input
           type="number"
           min={0}
-          max={30000}
+          max={MAX_RECORDED_ANALYSIS_START_MS}
           step={100}
           value={state.startText}
           disabled={state.busy}

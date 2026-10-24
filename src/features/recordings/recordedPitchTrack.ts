@@ -1,7 +1,10 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { isNumberWithin, isRecord } from '../../shared/validation';
 import { isUuid, runStorageJob, type JobSnapshot } from '../library/projects';
-import { pitchAnalysisErrorCode } from './recordedPitches';
+import {
+  pitchAnalysisErrorCode,
+  MAX_RECORDED_ANALYSIS_START_MS,
+} from './recordedPitches';
 import type { RecordedTake } from './recordings';
 
 export const motionLabels = {
@@ -80,7 +83,7 @@ export function decodeRecordedPitchTrack(
     value.method !== 'MONOPHONIC_TRACK_EXPERIMENTAL' ||
     typeof value.motion !== 'string' ||
     !Object.hasOwn(motionLabels, value.motion) ||
-    !isNumberWithin(value.startMs, 0, 30000) ||
+    !isNumberWithin(value.startMs, 0, MAX_RECORDED_ANALYSIS_START_MS) ||
     Math.abs(
       value.startMs -
         (Math.floor((requestedStartMs * take.sampleRate) / 1000) * 1000) /

@@ -1,5 +1,34 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 긴 녹음의 제한 메모리 구간 분석 (2026-10-25)
+
+### 1. 작업 개요
+
+완료일2026-10-25. 최대10분/256MiB 녹음의 끝부분도 기존400ms 스펙트럼/1초 음정 변화 진단에 사용할 수 있도록 분석 전용30초/16MiB 제한을 대체했습니다. 전체 파일 무결성 검사를 유지하면서 읽기 메모리를 제한하는 기능 슬라이스이며 실제 코드/주법 인식 정확도·전체 Phase7 완료는 아닙니다. 기존 사용자 녹음·앱은 건드리지 않았습니다.
+
+### 2. 구현 및 변경 사항
+
+- `storage/recording_window.rs`: 현재 소유권/보관 상태·READY/누락·불변 WAV 메타데이터를 확인한 뒤 같은 열린 파일의 정확한 헤더/길이·전체 SHA256을 검사합니다.64KiB 단위로 읽으며 필요한 최대1초의 f32만 수집하고 청크/최종 반환에서 취소를 확인합니다. 선택 구간 밖 변조도 거부합니다. 기존 전체 녹음 재생용 `recording_bytes`는 유지했습니다.
+- `recording/wave.rs`: 기존 정규 헤더 생성만 내부 공유합니다. `judgement/recorded_pitches.rs`는 기존 녹음 한도/새 읽기를 재사용하고 DSP·판정 알고리즘은 유지합니다. 요청v1/스펙트럼 결과v1·궤적 결과v2/DB와 Python 계약 형식은 바꾸지 않았으며 구현 전에 docs/12에 확장 범위를 기록했습니다.
+- `recordedPitches.ts`/`recordedPitchTrack.ts`: 최대 시작 시각600000ms·실제 남은400ms/1000ms·샘플레이트/파일 크기를 검증합니다. 패널은 전체 무결성 검사 후 선택 구간만 분석한다는 안내를 표시하고 핵심 읽기/분석을 UI에 넣지 않았습니다.
+- native/프론트 회귀와 docs/05·09·17·로드맵/진행표·남은 작업을 갱신했습니다. 새 라이브러리/모델 설치나 개인 오디오 전송은 없습니다.
+
+### 3. 테스트 결과
+
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features judgement::recorded_pitches -- --nocapture`: **7개 성공**,5.24초. 실제 자체 DEMO WAV는8kHz/4,800,000프레임·600초/19,200,058바이트이며 끝1초를130.8128Hz로 구성했습니다.599초의400ms/1초 분석·전체 해시/진행률·청크 및 마지막 취소·선택 구간 밖 손상·오래된 메타데이터/콜백 오류·잘못된 헤더/읽기 중 파일 증가 거부를 확인했습니다. 기존31초 거부 기대는 한도 확장에 맞춰 바꿨으며 길이가 다른 메타데이터는 계속 거부합니다.
+- `pnpm typecheck`/대상 Vitest3파일: **14개 성공**,2.92초. 긴 녹음의 끝 경계/192kHz 바이트 한도·응답 디코딩을 확인했습니다. `pnpm lint`/`pnpm test`/`pnpm format:check`: **성공**,전체 **476개/103파일**,35.51초. Prettier 대상에서 제외된 Markdown/Python/Rust를 포맷했다고 주장하지 않습니다.
+- `cargo fmt --check`/`cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**(Clippy6.77초). 전체 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **239개 성공/28개 기본 제외**,23.48초. 이 최종 검사에는64KiB 경계 양쪽을 걸치는8000샘플이 원본과 정확히 일치하는 추가 확인도 포함됩니다. `cargo +1.90.0 check --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**,8.75초.
+- `pnpm build`: **성공**,Vite1분17초/기존 큰 chunk 경고 유지. 내장 `bundle_tests`: **3개 성공**,0.00초/컴파일10.82초. 기본 icon resource 조회 경고2회는 검사 문맥에서 유지하며 실제 창 아이콘은 확인하지 않았습니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,11.43초/40,804,864바이트/SHA `27b59d5c20e3a528af9d5bfc0ce450dd80a8020e8588f4a648cda28b619b2140`. 기존 MSVC 링크 산출물 경고를 유지합니다.
+- 로그는 `src-tauri/target/runtime-validation/long-take-frontend-20261025.log`, `long-take-rust-20261025.log`, `long-take-build-20261025.log`에 보존했습니다. 새 독립 ZIP/원격 CI·실제 앱/기타 입력/개인 장기 녹음 검사는 **미실행** — ZIP/원격은 다음 검증 단계이며 합성 임시 자료만 사용했습니다. Python/AI 코드는 변경하지 않았고 별도 로컬 전체 AI/도구 반복 검사는 미실행입니다.
+
+### 4. 미구현 및 알려진 문제
+
+무결성을 위해 최대256MiB 전체를 읽으므로 느린 디스크에서는 대기가 생깁니다. 선택 PCM 최대192000샘플/768000바이트와64KiB 버퍼는 **읽기 경로의 할당 상한**이며 분석기/전체 프로세스의 실측 최고 메모리가 아닙니다. 진행률은 읽은 전체 바이트입니다.400ms/1초의 후보 품질·배음/옥타브 한계와 기존 고급 점수 비활성은 그대로입니다. 일반 재생의 전체 파일 버퍼 정책은 이 변경 범위가 아닙니다.
+
+### 5. 다음 작업 계획
+
+정확한 소스 커밋의 새 독립 ZIP·실제 PowerShell5.1/번들 Python 검증 후 Git/원격 전체 결과를 확정합니다. 실제 앱/장치 조작을 반복 요청하지 않습니다. 별도 Windows10/11·독립 정답/허위 감점률·검증된 특화 가중치가 필요한 남은 수용 조건은 유지하고 이 제한 메모리 개선으로 완료 표시하지 않습니다.
+
 ## 후속 — 골페 표기의 일반 피킹 채점 누락 보호 (2026-10-25)
 
 ### 1. 작업 개요
