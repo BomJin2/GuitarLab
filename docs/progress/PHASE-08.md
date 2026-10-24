@@ -1,5 +1,7 @@
 # Phase8 — 품질·릴리스
 
+2026-10-25 긴 녹음 후속 확정: main89bcf8e의 [Windows40123636305](https://github.com/BomJin2/GuitarLab/actions/runs/40123636305)/job120960317516는476프론트·기본236/확장239Rust·AI113/도구143·MSRV/사후 정리까지 **전체 success**입니다. source0495a61의Windows 내장 빌드/새3613파일ZIP·전체SHA/CRC·실제PS5.1·독립Python 두 번도 성공했으며 지문/영수증은 Phase7 최신 절을 따릅니다. 실제 앱/개인 장기 녹음·새 설치/별도Windows10/11은 미실행이고 전체Phase8/최종 출시 완료로 표시하지 않습니다. 아래474개 확정은 직전 이력입니다.
+
 2026-10-25 최신 후속 확정: main b56ee1b의 [Windows40120378119](https://github.com/BomJin2/GuitarLab/actions/runs/40120378119)/job120950419156는474프론트·기본234/확장237Rust·AI113/도구143·MSRV/정리까지 **전체 success**입니다. 보관 용량 최종 경계와 골페 표기 보호를 포함합니다. source66be01d의 새3613파일ZIP/전체 지문·새 추출/실제PS5.1·독립Python2회도 성공했으며 후보/지문은 Phase7 최신 절을 따릅니다. 앱 재실행·실제 사용자 자료 용량/연주·새 설치/별도Windows10/11 수용은 미실행이고 전체Phase8/출시 완료로 표시하지 않습니다.
 
 ## 보관 프로젝트 용량 확인 — 2026-10-25
