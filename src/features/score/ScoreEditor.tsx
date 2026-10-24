@@ -142,7 +142,8 @@ export function ScoreEditor({
             · TAB 숫자나 같은 박자 위치의 줄 영역을 클릭하거나 목록·이전/다음
             버튼으로 선택하세요. 선택을 바꾸면 적용하지 않은 입력값은
             사라집니다. 악보에 초점을 두면 좌/우 화살표로 이동하고 Home/End로
-            처음/끝 음표를 선택합니다.
+            처음/끝 음표를 선택합니다. 준비된 반주가 있으면 선택한 음표의 시작
+            위치로 이동하고 일시정지합니다.
           </p>
           <form
             key={`${track.id}:${selected ? JSON.stringify(selected) : 'new'}`}

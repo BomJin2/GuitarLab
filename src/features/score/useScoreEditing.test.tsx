@@ -291,6 +291,149 @@ it('새 트랙 선택·음표 추가·Undo 삭제의 선택 복귀와 같은 ID 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function loadAudio(engine: PlayerEngine) {
+  vi.stubGlobal('URL', {
+    createObjectURL: vi.fn(() => 'blob:fixture'),
+    revokeObjectURL: vi.fn(),
+  });
+  engine.load(new Blob(['fixture']));
+  Object.defineProperty(engine.audio, 'duration', { value: 10 });
+  engine.audio.dispatchEvent(new Event('loadedmetadata'));
+}
+
+it('선택은 현재 싱크의 원곡 ms로 한 번 탐색하고 배속·반복·문서/history를 보존한다', async () => {
+  const { result, engine, initial } = harness();
+  act(() => result.current.editor.begin());
+  act(() =>
+    result.current.setSession({
+      ...initial,
+      document: {
+        ...initial.document,
+        syncAnchors: [
+          { scoreTick: 0, audioTimeMs: 1000 },
+          { scoreTick: 960, audioTimeMs: 1500 },
+          { scoreTick: 3840, audioTimeMs: 4500 },
+        ],
+      },
+    }),
+  );
+  loadAudio(engine);
+  engine.setRate(0.5);
+  engine.setLoop({ startMs: 0, endMs: 8000 });
+  const play = vi.spyOn(engine.audio, 'play').mockResolvedValue();
+  await engine.play();
+  play.mockClear();
+  const seek = vi.spyOn(engine, 'seek');
+  const document = result.current.session!.document;
+  const epoch = engine.getSnapshot().playbackEpoch;
+  act(() => result.current.editor.selectNote(document.tracks[0]!.notes[2]!.id));
+  expect(seek).toHaveBeenCalledExactlyOnceWith(2500);
+  expect(engine.getSnapshot()).toMatchObject({
+    status: 'paused',
+    audioTimeMs: 2500,
+    rate: 0.5,
+    loop: { startMs: 0, endMs: 8000 },
+    playbackEpoch: epoch + 2,
+  });
+  expect(play).not.toHaveBeenCalled();
+  act(() => result.current.editor.moveSelection('next'));
+  expect(engine.getSnapshot().audioTimeMs).toBe(3500);
+  expect(seek).toHaveBeenCalledTimes(2);
+  expect(result.current.session!.document).toBe(document);
+  expect(result.current.session!.originalBytes).toBe(initial.originalBytes);
+  expect(result.current.editor.canUndo).toBe(false);
+  engine.dispose();
+});
+
+it('편집 전·잠금·없는 ID·새 음표 선택은 준비된 반주를 탐색하지 않는다', () => {
+  const { result, engine, initial, rerender } = harness();
+  loadAudio(engine);
+  const seek = vi.spyOn(engine, 'seek');
+  const second = initial.document.tracks[0]!.notes[1]!.id;
+  act(() => result.current.editor.selectNote(second));
+  act(() => result.current.editor.begin());
+  rerender({ locked: true });
+  act(() => result.current.editor.selectNote(second));
+  rerender({ locked: false });
+  act(() => result.current.editor.selectNote('없는 ID'));
+  act(() => result.current.editor.selectNote(null));
+  expect(result.current.editor.selectedNote).toBeUndefined();
+  expect(seek).not.toHaveBeenCalled();
+  engine.dispose();
+});
+
+it('음원 없음·로딩·오류에서도 선택은 가능하고 미디어 상태는 바꾸지 않는다', () => {
+  const { result, engine, initial } = harness();
+  act(() => result.current.editor.begin());
+  const seek = vi.spyOn(engine, 'seek');
+  const notes = initial.document.tracks[0]!.notes;
+  act(() => result.current.editor.selectNote(notes[1]!.id));
+  expect(result.current.editor.selectedNote?.id).toBe(notes[1]!.id);
+  expect(engine.getSnapshot().status).toBe('empty');
+  vi.stubGlobal('URL', {
+    createObjectURL: vi.fn(() => 'blob:fixture'),
+    revokeObjectURL: vi.fn(),
+  });
+  engine.load(new Blob(['fixture']));
+  const loading = engine.getSnapshot();
+  act(() => result.current.editor.selectNote(notes[2]!.id));
+  expect(engine.getSnapshot()).toBe(loading);
+  expect(result.current.editor.selectedNote?.id).toBe(notes[2]!.id);
+  engine.audio.dispatchEvent(new Event('error'));
+  const failed = engine.getSnapshot();
+  act(() => result.current.editor.selectNote(notes[3]!.id));
+  expect(engine.getSnapshot()).toBe(failed);
+  expect(result.current.editor.selectedNote?.id).toBe(notes[3]!.id);
+  expect(seek).not.toHaveBeenCalled();
+  engine.dispose();
+});
+
+it('음원 밖·손상 싱크·미디어 탐색 실패는 선택을 유지하고 오류를 안내한다', () => {
+  const { result, engine, initial } = harness();
+  act(() => result.current.editor.begin());
+  loadAudio(engine);
+  engine.seek(750);
+  const second = initial.document.tracks[0]!.notes[1]!;
+  for (const anchors of [
+    [
+      { scoreTick: 0, audioTimeMs: 10000 },
+      { scoreTick: 3840, audioTimeMs: 12000 },
+    ],
+    [
+      { scoreTick: 0, audioTimeMs: 0 },
+      { scoreTick: 3840, audioTimeMs: 0 },
+    ],
+    [
+      { scoreTick: 1920, audioTimeMs: 0 },
+      { scoreTick: 3840, audioTimeMs: 2000 },
+    ],
+  ]) {
+    act(() =>
+      result.current.setSession({
+        ...initial,
+        document: { ...initial.document, syncAnchors: anchors },
+      }),
+    );
+    act(() => result.current.editor.selectNote(second.id));
+    expect(result.current.editor.selectedNote?.id).toBe(second.id);
+    expect(engine.getSnapshot().audioTimeMs).toBe(750);
+    expect(result.current.editor.error).toContain('재생 위치');
+  }
+  act(() => result.current.setSession(initial));
+  const seek = vi.spyOn(engine, 'seek').mockImplementationOnce(() => {
+    throw new Error('민감한 미디어 오류');
+  });
+  act(() => result.current.editor.selectNote(second.id));
+  expect(result.current.editor.error).toContain('재생 위치');
+  expect(result.current.editor.error).not.toContain('민감');
+  expect(engine.getSnapshot().audioTimeMs).toBe(750);
+  act(() => result.current.editor.selectNote(second.id));
+  expect(result.current.editor.error).toBeNull();
+  expect(seek).toHaveBeenCalledTimes(2);
+  engine.dispose();
 });
 function harness(legacy = false) {
   const engine = new PlayerEngine();

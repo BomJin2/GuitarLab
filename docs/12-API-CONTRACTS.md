@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 편집 선택의 로컬 탐색 동작 — 2026-10-24
+
+useScoreEditing.selectNote는 편집 허용/현재 트랙의 유효 ID·잠금을 먼저 확인합니다. 선택할 기존 음표와 준비된 로컬 음원이 있으면 현재 syncAnchors/startTick을 scoreTickToAudioTime으로 변환해 pause 후 seek를 한 번 요청합니다. 원곡 ms는 재생 배속과 독립이며 엔진의 기존 pause/seek epoch 정책을 그대로 사용합니다. 자동 play/REC·IPC/저장 형식 변경은 없습니다. loading/empty/error 미디어는 건드리지 않고 선택만 변경합니다. null 선택은 pause/seek하지 않습니다. 잘못된 싱크·음원 밖/미디어 탐색 실패는 고정 안내를 표시하고 선택을 유지합니다. 키보드 preventDefault 소유권과 전역5초 탐색 중복 방지는 계속 적용합니다.
+
 ## 개발 패키지 검증 도구의 빌드 정보 v1 — 2026-10-24
 
 `manage_ai_model.exe build-info`는 인수 한 개만 받으며 `{schemaVersion:1,tool:'GUITARLAB_MODEL_MANAGER',runtimeBundleLockSha256:<컴파일 시 내장한 원문 lock의 SHA256>}` 한 줄을 반환합니다. Python/자식 프로세스·입력 스레드·AppData/모델 설치·네트워크를 시작하지 않습니다. 기존 inspect/install/verify/download와 제품 IPC/DB 계약은 유지합니다.

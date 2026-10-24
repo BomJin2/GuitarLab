@@ -1,5 +1,44 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 선택한 음표의 반주 위치로 이동 (2026-10-24)
+
+### 1. 작업 개요
+
+작업 완료일2026-10-24. 사용자는 편집 시작 후 TAB 선택/화살표와 재생 위치 유지가 정상임을 확인한 뒤, 선택한 음표에 맞춰 반주 위치도 움직이도록 요청했습니다. 이전 전역5초 탐색 충돌 방지는 유지하고 선택한 음표의 싱크 기반 탐색을 추가했습니다. 구현·자동 검사·Windows 실행과 사용자의 ‘클릭·화살표 모두 음표 위치로 이동함’ 응답으로 이번 후속 수용을 완료했습니다. 전체 고급 판정/배포 완료와는 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- useScoreEditing.ts: 클릭·목록·이전/다음·좌우/Home/End가 호출하는 공통 selectNote에 현재 syncAnchors/startTick 변환과 pause/seek를 연결했습니다. 자동 재생·REC는 시작하지 않습니다.
+- 준비된 음원만 탐색하며 loading/empty/error는 상태를 보존합니다. 기존 선택 코드가 로딩 중 pause를 호출해 loading을 paused로 바꾸던 문제도 재현·수정했습니다. null/없는 ID·잠금·편집 전은 탐색하지 않습니다.
+- 음원 밖/손상 앵커·미디어 탐색 실패는 고정 안내로 표시하고 선택과 기존 위치를 유지합니다. 배속으로 원곡 ms를 재변환하거나 경계로 강제 보정하지 않습니다.
+- ScoreEditor.tsx는 동작 안내만 추가했습니다. 렌더/UI와 독립된 기존 컨트롤러·sync 함수를 재사용하며 신규 의존성·IPC/DB·문서/history/원본/녹음 변경은 없습니다.
+- useScoreEditing.test.tsx와 ScoreViewport.test.tsx에 실패/상태 보존 및 실제 컨트롤러·TAB·전역 transport 연결 회귀5개를 추가했습니다. docs/00·04·09·12와 진행 문서를 갱신합니다.
+
+### 3. 테스트 결과
+
+- 변경 전 추가 컨트롤러 테스트:15개 중3개 실패/12개 성공으로 탐색 누락·로딩 상태 변경·오류 안내 누락을 재현했습니다.
+- `pnpm test src/features/score/useScoreEditing.test.tsx src/features/score/ScoreViewport.test.tsx src/app/scoreSession.test.tsx src/features/player/TransportBar.test.tsx`: **49개/4파일 성공**,12.93초.
+- `pnpm test`: **449개/103파일 성공**,35.47초. 인트로/비선형 싱크·0.5배속·반복/문서/history 불변, 음원 없음/로딩/오류·잠금/없는 ID/null·잘못된 싱크/음원 밖·탐색 실패/재시도를 확인했습니다. 실제 ScoreViewport+컨트롤러+TransportBar의 클릭500ms→Right1000ms→Home0ms는 각각 seek 한 번이며 전역5초 탐색은 추가 호출되지 않습니다. alphaTab 렌더 이벤트 자체는 테스트 대역입니다.
+- `pnpm lint`, `pnpm format:check`, `pnpm build`(TypeScript 포함): **성공**. Vite81초/176모듈이며 기존500kB 청크 경고는 유지됩니다.
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **3개 성공**,컴파일18.86초. 최신 프론트 내장과 기존 CSP/원격 권한 보호를 확인했습니다.
+- `pnpm tauri build --debug --no-bundle --ci --config <새 검증 설정> -- --locked --offline`: **성공**,25.77초. 기존 MSVC 링크·incremental 복사·macOS용 identifier 권고 외 새 오류는 없습니다. 새 실행 파일의 리소스 지문 확인/실제 앱 수용은 별도 기록합니다.
+- 실제 사용자 수용: **성공** — 새 ‘GuitarLab · 음표 위치 탐색’에서 사용자가 클릭·화살표 모두 음표 위치로 이동함을 확인했습니다. ‘음표만 바뀌고 위치 유지됨’은 이전 동작 수용이며 새 검사와 구분합니다. Rust/AI 전체 재검사: **미실행** — 관련 소스/계약을 바꾸지 않았습니다.
+- 기존 PID30248/PTY22831은 정상 종료 요청을 받아 exit0으로 종료했습니다. 새 PID37656/PTY67859가 READY/응답 중이며 note-seek-candidate.json에 연결했습니다. EXE40,689,152바이트/SHA `f550692d4de191c5f0506b70c0ac2b53a33459f6348948d78aa2e534df4e33de`, 같은 LF runtime3393파일/64,095,466바이트의 복사 전후 지문을 확인했습니다. DB9 읽기 전용 snapshot과 시작 후 사용자 테이블15개 전체 내용/행 지문 동일, 복원 없음도 note-seek-startup-data-comparison.json에 기록했습니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 반주와 음표의 일치는 사용자가 지정한 싱크 앵커에 따릅니다. 음원 밖 음표를 선택해도 재생 위치를 추측하지 않습니다. 음원이 없는 악보의 MIDI 자동 재생이나 YouTube/녹음 테이크 탐색을 추가한 기능은 아닙니다. 현재 ‘준비 중’이 음원 미선택도 포함하는 표시는 이번 범위에서 유지합니다.
+
+### 5. 다음 작업 계획
+
+현재 앱/UI 소스를 유지하고 새 ZIP/독립 검증 결과와 Git/원격 회귀를 정리합니다. 실제 사용자 수용은 위 완료 결과를 재사용하며 같은 조작을 반복 요청하지 않습니다. 이후 Phase7 독립 참조/Phase8 외부 Windows·출시 수용의 남은 조건은 기존 계획을 따르며 이번 작은 편집 기능 수용을 전체 완료로 확대하지 않습니다.
+
+### 패키지 검사 확정
+
+새 ZIP은 validation-packages/1aa89807-f9cd-4774-bce9-a3493871fc6e/GuitarLab-validation.zip,3613파일/40,161,948바이트/SHA `5b912eb92f470ec1b433f80d7411d30d52106c7e26d376465dd848556704f268`입니다. 빌드 정보 사전 검사·전체 ZIP 지문/CRC·새 roundtrip-240ee5cb… 추출 후 기본PowerShell5.1의 전체 파일 지문/최소PATH 독립Python3.12.15 두 번 실행이 **성공(exit0)**했습니다. 기본 도구 환경의 앞선 두 실행은 Get-FileHash 명령을 찾지 못해 실패했으며 PSModulePath 제거만으로 해결되지 않았습니다. 일반 Windows 환경의 동일한 패키지/스크립트 재실행으로 통과했고 제품/검사 스크립트를 완화하지 않았습니다. 정확한 환경 내부 원인은 미확정입니다.
+
+note-seek-package-roundtrip.json에 실패 이력과 성공을 구분했습니다. 사용자 수용된 note-seek-candidate.json을 현재 portable-candidate.json으로 연결하고 이전 portable 영수증은 별도 파일로 보존했습니다. 실제 모델 설치·새OS·서명/최종 배포 검사는 **미실행**이며 현재 앱/개인 데이터/모델은 이 패키지 검사로 바꾸지 않았습니다.
+
 ## 후속 — 저장/프로젝트 재열기 후 작업 화면 유지 (2026-10-23)
 
 ### 1. 작업 개요

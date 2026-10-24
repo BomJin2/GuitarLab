@@ -20,6 +20,7 @@ import {
 import { editStructure, type StructureEdit } from './scoreStructure';
 import { getActiveTrackIndex, selectScoreTrack } from './trackSelection';
 import type { NoteNavigation } from './scoreNoteSelection';
+import { scoreTickToAudioTime } from '../player/sync';
 
 export function useScoreEditing(
   session: ScoreSession | null,
@@ -122,12 +123,32 @@ export function useScoreEditing(
       (noteId !== null && !activeTrack.notes.some((n) => n.id === noteId))
     )
       return;
-    engine.pause();
     setSelection({
       source: session.originalBytes,
       trackId: activeTrack.id,
       noteId,
     });
+    const note = activeTrack.notes.find((entry) => entry.id === noteId);
+    const playback = engine.getSnapshot();
+    if (
+      !note ||
+      playback.durationMs <= 0 ||
+      !['paused', 'playing', 'countIn'].includes(playback.status)
+    )
+      return;
+    engine.pause();
+    try {
+      const time = scoreTickToAudioTime(
+        session.document.syncAnchors,
+        note.startTick,
+      );
+      engine.seek(time);
+      setError(null);
+    } catch {
+      setError(
+        '선택한 음표의 재생 위치로 이동하지 못했습니다. 싱크 앵커와 음원 길이를 확인하세요.',
+      );
+    }
   }
   return {
     enabled,

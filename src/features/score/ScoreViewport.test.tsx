@@ -12,6 +12,10 @@ import { ScoreViewport } from './ScoreViewport';
 import { Context } from '../player/playerContextValue';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { TransportBar } from '../player/TransportBar';
+import { useState } from 'react';
+import { useScoreEditing } from './useScoreEditing';
+import { scoreEditingFixture } from '../../test/scoreEditingFixture';
+import { renderedNoteId } from './scoreNoteSelection';
 
 const bounds = vi.hoisted(() => ({ x: 30, y: 20 }));
 const clicks = vi.hoisted(() => ({
@@ -361,9 +365,77 @@ it('실제 악보의 좌우 선택과 전역 반주 탐색은 중복 실행되�
   expect(seek).toHaveBeenCalledExactlyOnceWith(5000);
   engine.dispose();
 });
+it('TAB 클릭과 실제 화살표는 선택 음표 시간으로 한 번만 탐색하고 전역5초 탐색은 실행하지 않는다', () => {
+  vi.stubGlobal('URL', {
+    createObjectURL: vi.fn(() => 'blob:fixture'),
+    revokeObjectURL: vi.fn(),
+  });
+  const engine = new PlayerEngine();
+  engine.load(new Blob(['fixture']));
+  Object.defineProperty(engine.audio, 'duration', { value: 10 });
+  engine.audio.dispatchEvent(new Event('loadedmetadata'));
+  const seek = vi.spyOn(engine, 'seek');
+  function Workspace() {
+    const [session, setSession] = useState(scoreEditingFixture);
+    const editor = useScoreEditing(
+      session,
+      (next) => {
+        setSession(
+          (current) =>
+            (typeof next === 'function' ? next(current) : next) ?? current,
+        );
+      },
+      false,
+    );
+    return (
+      <>
+        <button onClick={editor.begin}>편집 시작</button>
+        <ScoreViewport
+          score={session.score}
+          lookup={session.playbackLookup}
+          trackIndex={0}
+          tick={0}
+          onSelectNote={
+            editor.enabled
+              ? (note) => {
+                  const id = renderedNoteId(session, note, 0);
+                  if (id) editor.selectNote(id);
+                }
+              : undefined
+          }
+          onNavigateNote={editor.enabled ? editor.moveSelection : undefined}
+        />
+        <TransportBar workspace />
+      </>
+    );
+  }
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '편집 시작' }));
+  const beat =
+    clicks.scores[0]!.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  act(() => clicks.listeners[0]!(beat));
+  expect(seek).toHaveBeenCalledExactlyOnceWith(500);
+  const region = screen.getByRole('region', { name: '실제 TAB 악보' });
+  expect(document.activeElement).toBe(region);
+  fireEvent.keyDown(region, { key: 'ArrowRight' });
+  expect(seek.mock.calls).toEqual([[500], [1000]]);
+  expect(engine.getSnapshot()).toMatchObject({
+    status: 'paused',
+    audioTimeMs: 1000,
+  });
+  fireEvent.keyDown(region, { key: 'Home' });
+  expect(seek.mock.calls).toEqual([[500], [1000], [0]]);
+  engine.dispose();
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   if (originalScroll)
     Object.defineProperty(
       HTMLElement.prototype,
