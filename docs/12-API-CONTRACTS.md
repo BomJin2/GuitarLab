@@ -2,6 +2,8 @@
 
 ## 장식음의 미지원 판정/편집 보호 — 2026-10-24
 
+명시적 GraceType.OnBeat/BeforeBeat/BendGrace도 단순 피킹 목표로 지원하지 않습니다. 기존 음정/양수 재생 tick·duration을 보존하며 실제 파서/GP 왕복에서 grace beat만 UNSUPPORTED로 보류합니다. 주법 표기만 빠진 구형 원본의 기존 ID/시각이 같을 때 비파괴 복원합니다. 첫 마디보다 앞선 음수 tick의 before-beat grace를 임의로0으로 이동하거나 지우지 않고 기존 도메인 검증에서 거부하는 제약은 유지합니다. 꾸밈음의 자동 검출/편집 지원을 추가하지 않습니다.
+
 alphaTab1.6.1 Note.ornament가 None 이외인 Turn/InvertedTurn/UpperMordent/LowerMordent는 단일 피킹이 아니므로 기존 judgementSupport=UNSUPPORTED로 정규화합니다. 동일 원본의 반복/구형 metadata 비파괴 복원에도 적용하고 기본 편집/출력에서는 장식 표기를 지워 저장하지 않도록 기존 거부를 재사용합니다. 원본/ID·음정/시각·동기 앵커와 일반 NoteOrnament.None은 유지합니다. 새 IPC/DB·실제 장식음 검출이나 과거 점수 재계산은 없습니다.
 
 ## EG-IPT 주기 조건의 사후 감사 v1 — 2026-10-24

@@ -1,5 +1,9 @@
 # 09. 테스트 전략 / 검증 기준
 
+## 명시적 grace의 타이밍/원본 보호 — 2026-10-24
+
+실제 AlphaTex on-beat·마디 안 before-beat와 GP7 왕복에서 grace만 감점 제외/편집 거부여야 합니다. 내부 before-beat840tick·원래 ID/앵커·구형 원본 metadata/기존JSON을 보존합니다. 첫 마디 전 -120tick은 임의 clamp/삭제 없이 기존 도메인 거부를 확인하고 전체 grace import 지원으로 기록하지 않습니다.
+
 ## 실제 장식음 파서의 감점 제외·편집 보호 — 2026-10-24
 
 AlphaTex의 음표 효과 구문으로 turn/iturn/umordent/lmordent를 실제 파싱하고 인접 None 피킹은 유지해야 합니다. 원본 GP7 바이너리 export→제품 import/정규화·JSON 보존·PracticeTarget.unsupported·기본 편집 거부와 반복/구형 원본의 ID/앵커·과거 내용 불변을 확인합니다. Note 효과를 Beat 효과 구문에 넣은 fixture 오류와 실제 미지원 표기 누락 회귀를 구분합니다.

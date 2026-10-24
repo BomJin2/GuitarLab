@@ -23,6 +23,7 @@ it.each([
   'iturn',
   'umordent',
   'lmordent',
+  'gr ob',
 ])(
   '실제 파서의 음표·박자 효과 %s는 인접 피킹과 분리해 감점 제외하고 편집 소실을 막는다',
   (effect) => {
@@ -41,7 +42,8 @@ it.each([
         first.deadSlapped ||
         first.fade !== model.FadeType.None ||
         first.hasRasgueado ||
-        first.notes[0]!.ornament !== model.NoteOrnament.None,
+        first.notes[0]!.ornament !== model.NoteOrnament.None ||
+        first.graceType !== model.GraceType.None,
     ).toBe(true);
     const document = normalizeScore(score);
     expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual([
@@ -68,6 +70,57 @@ it.each([
     expect(binary).toEqual(before);
   },
 );
+
+it('마디 안의 before-beat 꾸밈음은 시각/원본을 유지하고 구형 표기 복원과 GP 왕복에서도 보류한다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex(
+    '. 3.1.4 0.1.4 {gr} 5.1.4 7.1.4',
+  );
+  const grace = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  expect(grace.graceType).toBe(model.GraceType.BeforeBeat);
+  const document = normalizeScore(score);
+  expect(document.tracks[0]!.notes[1]!.startTick).toBe(840);
+  const flags = [undefined, 'UNSUPPORTED', undefined, undefined];
+  expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+    flags,
+  );
+  expect(
+    buildPracticeTargets(document, 0, 3000, null).map(
+      (n) => n.unsupported ?? false,
+    ),
+  ).toEqual([false, true, false, false]);
+  expect(() => validateEditable(document)).toThrow('미지원 주법');
+  const legacy = structuredClone(document);
+  for (const track of legacy.tracks)
+    for (const note of track.notes) delete note.judgementSupport;
+  const before = JSON.stringify(legacy);
+  const restored = restoreJudgementSupport(legacy, score);
+  expect(restored.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+    flags,
+  );
+  expect(restored.tracks[0]!.notes.map((n) => n.id)).toEqual(
+    legacy.tracks[0]!.notes.map((n) => n.id),
+  );
+  expect(restored.syncAnchors).toBe(legacy.syncAnchors);
+  expect(JSON.stringify(legacy)).toBe(before);
+  const binary = new exporter.Gp7Exporter().export(score);
+  const bytes = binary.slice();
+  expect(
+    normalizeScore(importScore(binary)).tracks[0]!.notes.map(
+      (n) => n.judgementSupport,
+    ),
+  ).toEqual(flags);
+  expect(binary).toEqual(bytes);
+});
+
+it('첫 마디 전 음수 꾸밈음은 임의로 시각을 바꾸지 않고 기존 도메인에서 거부한다', () => {
+  const document = normalizeScore(
+    importer.ScoreLoader.loadAlphaTex('. 0.1.4 {gr} 3.1.4 5.1.4 7.1.4'),
+  );
+  const before = JSON.stringify(document);
+  expect(document.tracks[0]!.notes[0]!.startTick).toBe(-120);
+  expect(() => decodeScoreDocument(JSON.parse(before))).toThrow();
+  expect(JSON.stringify(document)).toBe(before);
+});
 
 it.each(['태핑', '장식음'])(
   '%s의 반복/구형 복원은 ID·싱크·이전 내용을 유지하며 두 occurrence를 보류한다',
