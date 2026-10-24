@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 골페 표기의 기존 미지원 계약 적용 — 2026-10-25
+
+설치된 alphaTab1.6.1의 박자 `GolpeType.Thumb/Finger`는 몸통 타격 표기이므로 일반 단음 피킹 지원으로 취급하지 않습니다. 실제 파서/GP import에서 해당 박자의 모든 음을 기존 `judgementSupport:UNSUPPORTED`로 보존하고 matcher 감점 제외/기본 편집의 주법 소실 거부에 연결합니다. 반복 occurrence와 구형 원본 복원도 같은 공유 조건을 사용하며 원본/기존 리비전·ID/싱크를 변경하지 않습니다. 새 골페 검출/점수·IPC/DB/판정 버전은 추가하지 않습니다. 실제 파서/GP 왕복/구형 복원 회귀가 통과하기 전 구현 완료로 표시하지 않습니다.
+
 ## 보관 프로젝트 용량 확인 v1 — 2026-10-25
 
 `inspect_trashed_project_usage`는 기존 StorageJob/취소 계약으로 `{schemaVersion:1,projectId,trashId}`만 받습니다. 현재 휴지통 UUID/revision을 검사하고 녹음/다른 파일 작업 중에는 시작하지 않습니다. 반환은 `{schemaVersion:1,state:"PROJECT_TRASH_USAGE",usage:{projectId,trashId,files,logicalBytes,externalReferences}}`입니다. 정수는 안전 범위, files≤10000·externalReferences≤100000입니다. 관리 폴더가 아직 없는 새 프로젝트는0파일/0바이트이며 외부 참조 파일은 열거나 크기를 조회하지 않습니다.

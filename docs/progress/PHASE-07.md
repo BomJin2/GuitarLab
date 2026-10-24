@@ -1,5 +1,33 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 골페 표기의 일반 피킹 채점 누락 보호 (2026-10-25)
+
+### 1. 작업 개요
+
+작업일2026-10-25. 기존 미지원 표기의 안전 처리 감사에서 골페 박자가 일반 피킹으로 통과하는3개 회귀를 재현하고 공통 조건 한 곳을 보완했습니다. 실제 골페 인식/점수·전체 Phase7 완료는 아닙니다. 사용자 기타 입력·녹음·프로젝트와 제품 DSP를 변경하지 않았습니다.
+
+### 2. 구현 및 변경 사항
+
+- 설치된 alphaTab1.6.1의 d.ts `Beat.golpe`/`GolpeType.None·Thumb·Finger` 및 실제 AlphaTex `glpf`/`glpt` 파서·GP7 exporter/importer를 확인했습니다. [공식1.4 도입 기록](https://alphatab.net/docs/releases/release1_4)의 표기 지원 설명을 참고하되 실제 호환성은 설치된1.6.1 코드/왕복으로 확인했습니다. 새 라이브러리/모델·다운로드는 없습니다.
+- `alphaTabAdapter.ts`의 기존 `hasUnsupportedTechnique`에 `note.beat.golpe !== model.GolpeType.None` 조건 한 줄을 추가했습니다. normalize/구형 원본 metadata 복원과 반복 occurrence가 같은 경로를 재사용하며 기존 감점 제외/편집 소실 거부로 전달합니다.
+- `alphaTabAdapter.test.ts`에 실제 두 파서 표기와 골페 반복/구형 복원 사례를 추가했습니다. 정상 인접 피킹·원본 GP 바이트·구형 JSON/ID·싱크 참조를 보존합니다. 구현 전에 docs/12의 기존 v1 계약 적용 범위를 기록했고 docs/05·09·로드맵/진행표를 갱신합니다. IPC/DB·판정 버전/기존 기록은 바꾸지 않습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts`: **3실패/23성공**,2.84초. 손가락/엄지 표기 두 경우와 반복 구형 복원에서 `UNSUPPORTED`가 누락됐습니다. 원래 실패 로그 `runtime-validation/golpe-before-20261025.log`를 보존합니다.
+- 공통 조건 수정 후 `pnpm typecheck`/`pnpm lint`/`pnpm test`/`pnpm format:check`: **성공**,전체 **474개/103파일**,41.55초. 실제 파서/GP7 왕복·내부 JSON과 편집 거부·반복/구형 복원 회귀가 포함됩니다. 결과 `golpe-after-20261025.log`를 보존합니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features unsupported -- --nocapture`: **6개 성공**,0.64초. 미지원 onset의 인접 음 누출 방지/동시음·감점 제외/중단 우선·시도 재열기/원본 metadata 보존5개와 같은 검색어의 mixer 경계1개입니다. Rust 코드는 이 슬라이스에서 변경하지 않았으며 전체 native 반복 검사는 **미실행**입니다. 직전210ee8b 보완의 로컬237개/Clippy/MSRV 성공과 ef9d343의 전체 원격 성공은 Phase8을 따릅니다.
+- `pnpm build`: **성공**,Vite1분30초/기존 큰 chunk 경고 유지. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **내장3개 성공**,0.01초/컴파일12.94초. 내장 문맥 검사에서 기본 icon resource 조회 경고2회가 출력됐으며 실제 제품 창 아이콘 확인은 미실행입니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,12.86초/40,792,064바이트·SHA `af244e7b55ec49115567b6bd4195f3dfe7ed286c47046af7cd8780c89d0274b8`입니다. MSVC 링크 산출물 안내 경고는 유지합니다.
+- 새 독립 ZIP/PS5.1은 **검사 전**,실제 기타/수동 골페 연주·앱 재실행/사용자 자료 변경은 **미실행** — 표기 보호의 자동 검사이며 주법 검출 실험이 아닙니다. 현재 제품 DSP/원본·데이터를 바꾸지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+악보에 표기되지 않은 몸통 타격을 입력에서 검출하지 못합니다. 이 변경은 명시된 미지원 표기의 안전 처리이며 모든 기타 주법/모든 악보 형식 지원이나 실제 허위 감점률 수용을 보장하지 않습니다. pYIN/배음 교정 미채택·고급 실시간 점수 비활성·독립적인 연속 정답 필요성을 유지합니다.
+
+### 5. 다음 작업 계획
+
+내장 UI/Windows 빌드·독립 ZIP의 자동 검사를 마친 뒤 문서/Git과 원격 회귀를 확정합니다. 수동 기타 확인을 반복 요청하지 않고, 별도 Windows10/11·특화 가중치/실제 고급 품질처럼 현재 외부 조건이 없는 항목은 완료로 바꾸지 않습니다. 현재 슬라이스 수용이 끝난 뒤 로드맵의 남은 독립 검증을 검토합니다.
+
 ## 후속 — pYIN 오프라인 비교 완료·제품 미채택 (2026-10-25)
 
 ### 1. 작업 개요

@@ -160,6 +160,7 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.beat.slap ||
     note.beat.pop ||
     note.beat.deadSlapped ||
+    note.beat.golpe !== model.GolpeType.None ||
     note.beat.fade !== model.FadeType.None ||
     note.beat.hasRasgueado ||
     note.beat.hasWhammyBar ||

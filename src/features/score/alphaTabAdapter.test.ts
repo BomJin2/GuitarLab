@@ -15,6 +15,8 @@ it.each([
   's',
   'p',
   'ds',
+  'glpf',
+  'glpt',
   'f',
   'fo',
   'vs',
@@ -40,6 +42,7 @@ it.each([
         first.slap ||
         first.pop ||
         first.deadSlapped ||
+        first.golpe !== model.GolpeType.None ||
         first.fade !== model.FadeType.None ||
         first.hasRasgueado ||
         first.notes[0]!.ornament !== model.NoteOrnament.None ||
@@ -122,7 +125,7 @@ it('첫 마디 전 음수 꾸밈음은 임의로 시각을 바꾸지 않고 기�
   expect(JSON.stringify(document)).toBe(before);
 });
 
-it.each(['태핑', '장식음'])(
+it.each(['태핑', '장식음', '골페'])(
   '%s의 반복/구형 복원은 ID·싱크·이전 내용을 유지하며 두 occurrence를 보류한다',
   (effect) => {
     const score = importer.ScoreLoader.loadAlphaTex(
@@ -136,6 +139,7 @@ it.each(['태핑', '장식음'])(
     const before = JSON.stringify(legacy);
     const first = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!;
     if (effect === '태핑') first.tap = true;
+    else if (effect === '골페') first.golpe = model.GolpeType.Finger;
     else first.notes[0]!.ornament = model.NoteOrnament.Turn;
     const restored = restoreJudgementSupport(legacy, score, lookup);
     expect(
