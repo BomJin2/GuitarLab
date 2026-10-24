@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 장식음의 미지원 판정/편집 보호 — 2026-10-24
+
+alphaTab1.6.1 Note.ornament가 None 이외인 Turn/InvertedTurn/UpperMordent/LowerMordent는 단일 피킹이 아니므로 기존 judgementSupport=UNSUPPORTED로 정규화합니다. 동일 원본의 반복/구형 metadata 비파괴 복원에도 적용하고 기본 편집/출력에서는 장식 표기를 지워 저장하지 않도록 기존 거부를 재사용합니다. 원본/ID·음정/시각·동기 앵커와 일반 NoteOrnament.None은 유지합니다. 새 IPC/DB·실제 장식음 검출이나 과거 점수 재계산은 없습니다.
+
 ## EG-IPT 주기 조건의 사후 감사 v1 — 2026-10-24
 
 개발용 audit_egipt_periodicity.py는 고정 공개 관측 JSON(SHA a524f4f17a1477046364832dbd3ed378c02c3dd3d2a26400619da9c74b86625e)만 읽습니다. 기존31창 중 vibrato 라벨/coverage90% 이상3창의 점 시각·음정으로 현재3~9Hz/0.1Hz 탐색의 적합도·깊이·주기 수·선형 경향을 별도 계산합니다. 원본/모델 재분석·네트워크·제품 threshold 변경은 없고 입력SHA와 사후 선택/계산임을 표시합니다. 경향 guard 실패 후 계산한 최적 곡선은 제품이 반환한 주기 후보가 아닙니다. 고정 관측의 허용 경로/크기512KiB·원문SHA·유효 점을 확인하고 새 UUID JSON/POSTHOC_PERIODICITY_CONDITIONS_AUDITED만 기록합니다. 연속 정답/실제 점수·독립 평가 필드는 false입니다.

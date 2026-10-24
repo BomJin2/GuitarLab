@@ -1,5 +1,9 @@
 # 09. 테스트 전략 / 검증 기준
 
+## 실제 장식음 파서의 감점 제외·편집 보호 — 2026-10-24
+
+AlphaTex의 음표 효과 구문으로 turn/iturn/umordent/lmordent를 실제 파싱하고 인접 None 피킹은 유지해야 합니다. 원본 GP7 바이너리 export→제품 import/정규화·JSON 보존·PracticeTarget.unsupported·기본 편집 거부와 반복/구형 원본의 ID/앵커·과거 내용 불변을 확인합니다. Note 효과를 Beat 효과 구문에 넣은 fixture 오류와 실제 미지원 표기 누락 회귀를 구분합니다.
+
 ## 원격 확장 검사 관측 가능성 — 2026-10-24
 
 확장Clippy/테스트·공개 타격 예제·설치 예제는 같은 명령/실패 기준의 별도 순차 단계로 실행합니다. 각10/10/5/5분 상한 초과는 성공으로 처리하지 않습니다. 확장 테스트 --nocapture/short backtrace는 관측 실패 직후의 로그를 남기며 의도적 실패 주입 후 전체 테스트 성공과 실제 assertion 실패를 exit/result로 구분합니다. cold cache와 별도Windows/모델 수용은 다릅니다.

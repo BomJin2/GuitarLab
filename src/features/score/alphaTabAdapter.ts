@@ -154,6 +154,7 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.isHarmonic ||
     note.vibrato !== model.VibratoType.None ||
     note.isTrill ||
+    note.ornament !== model.NoteOrnament.None ||
     note.beat.tap ||
     note.beat.slap ||
     note.beat.pop ||
