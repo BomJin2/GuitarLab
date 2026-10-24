@@ -1,5 +1,46 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 박자 단위 미지원 주법의 감점 제외 누락 수정 (2026-10-24)
+
+### 1. 작업 개요
+
+작업 완료일2026-10-24. 설치된 alphaTab1.6.1에서 Note의 왼손 태핑과 별개인 Beat의 태핑/슬랩/팝·dead slap·페이드/volume swell·rasgueado가 일반 피킹으로 정규화되던 누락을 발견했습니다. 해당 표기만 기존 UNSUPPORTED 경로에 연결하는 안정성 수정을 구현·자동 검증하고 Windows에 적용했습니다. 실제 주법 검출이나 코드/고급 실시간 채점 지원은 추가하지 않습니다.
+
+### 2. 구현 및 변경 사항
+
+- src/features/score/alphaTabAdapter.ts: 공통 hasUnsupportedTechnique에 Beat.tap/slap/pop/deadSlapped·fade/hasRasgueado6개 조건을 추가했습니다. 기존 Note 효과·일반 피킹·음정/시각/운지·DSP/입력/REC는 유지합니다.
+- alphaTabAdapter.test.ts: 실제 AlphaTex 파서의8개 효과와 반복/구형 metadata 비파괴 복원9개를 추가했습니다. 같은8개를 Gp7Exporter로 실제 바이너리로 만든 뒤 제품 importScore 경로로 다시 읽어도 flags가 남고 원본 바이트가 유지됨을 확인합니다.
+- 기존 PracticeTarget.unsupported→native NOT_SCORED/UNSUPPORTED·구형 원본 보완/새 revision 저장, 미지원 표기를 지워버리는 기본 편집/출력 거부를 재사용합니다. DB/IPC·저장 과거 점수는 변경하지 않습니다.
+- docs/05·09·12와 진행 문서: 지원 범위·검사·미실행 상태를 기록합니다. 새 라이브러리나 모델/원음 다운로드는 없습니다.
+
+### 3. 테스트 결과
+
+- 변경 전 실제 파서 회귀 **15개 중9개 실패/6개 성공**으로 각 효과/반복 보류 누락을 재현했습니다.
+- 수정 뒤 관련 프론트6파일 **70개 성공**,3.07초. 전체 `pnpm test`: **458개/103파일 성공**,33.33초. 실제 GP 바이너리 왕복 보강 뒤 대상15개도2.36초 **성공**했습니다.
+- `pnpm lint`, `pnpm format:check`, `pnpm build`(타입 포함): **성공**. Vite77초/176모듈, 기존500kB 청크 경고는 유지됩니다. 테스트의 GP exporter 보강 뒤 타입/해당 파일 lint·포맷은 아래 확정 절에 기록합니다.
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml unsupported -- --nocapture`: **6개 성공**,0.81초. 기본 도구 환경에서는 임시 원본 import의 STORAGE_ERROR로3개 실패했고 같은 검사를 일반 Windows 환경에서 재실행해 통과했습니다. 저장/안전 코드를 완화하지 않았으며 실제 사용자 DB는 사용하지 않습니다.
+- 새 내장 프론트/Windows 실행 파일 빌드·앱 전환: **성공**,아래 확정 절을 따릅니다. 실제 기타 주법 입력·새 악보의 사용자가 직접 import하는 수용·고급 점수 품질/전체Rust·AI 재분석은 **미실행**이며 자동 GP 파서 왕복과 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+원본에 해당 주법 표기가 있어야 감점 제외됩니다. 실제 PCM에서 태핑/슬랩/페이드를 식별하거나 모든 악보 형식·악보에 쓰이지 않은 효과를 검증한 기능은 아닙니다. 과거 저장 점수는 다시 계산하지 않으며 이전 metadata를 보완한 문서는 기존 안내에 따라 새 버전으로 저장해야 합니다. 새로운 효과가 있는 원본의 기본 편집은 표기 소실 방지를 위해 거부되며 원본 보기/재생은 유지합니다.
+
+### 5. 다음 작업 계획
+
+기존 수용 앱과 사용자 내용을 보호하면서 새 고정 Windows 빌드/패키지·원격 회귀를 마무리합니다. 사용자에게 같은 수동 검사를 반복 요청하지 않고 자동 실제 GP/기존 native 보류·저장 회귀를 우선 재사용합니다. 이후 남은 실제 주법/독립 정답·외부 환경 수용은 기존 계획을 유지하며 임의로 고급 점수를 활성화하지 않습니다.
+
+### 빌드 확정
+
+실제 GP 바이너리 왕복 보강 뒤 `pnpm typecheck`·대상ESLint/Prettier도 **성공**했습니다. 최신 dist를 사용한 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`는 **3개 성공**,컴파일17.02초이며 새 고정 설정의 `pnpm tauri build --debug --no-bundle --ci --config ... -- --locked --offline`도 **22.10초 성공**입니다. 기존 linker/incremental 복사·identifier 권고 외 새 빌드 오류는 없습니다. 실제 앱 전환·새 패키지와 원격 회귀는 다음 확정 결과로 구분합니다.
+
+### Windows 적용·패키지 확정
+
+기존 PID37656/PTY67859는 정상 종료 요청 후 exit0으로 종료했습니다. 새 **PID30808/PTY82434·‘GuitarLab · 미지원 주법 보호’**가 READY/응답 중이며 강제 종료·실제 입력/REC 시작은 없습니다. EXE40,689,152바이트/SHA `af6ffa40704304701186540cf2951a3b7cbee8f9562efb6e71400d0d94791097`,runtime3393개/64,095,466바이트의 복사 전후 지문을 확인했습니다. 실행 전 읽기 전용 DB9 snapshot과 실행 후 사용자테이블15개 행/내용 지문 동일을 beat-support-startup-data-comparison.json에 기록했으며 복원하지 않았습니다.
+
+새 ZIP은 validation-packages/0ef20b47-3540-4e3a-967a-5d0f218562f1/GuitarLab-validation.zip,3613파일/40,161,792바이트/SHA `f1b310575ec637b51b414732a94036ef8bc6ca4f9f5be3daf2d28a2cc7cf1656`입니다. 사전 빌드 정보·전체ZIP 지문/CRC·새추출/일반 Windows PowerShell5.1의 독립Python3.12.15 두 번 실행 **exit0 성공**입니다. beat-support-package-roundtrip.json을 보존했습니다.
+
+현재 portable-candidate.json은 새 beat-support-candidate.json에 연결하고 이전 수용 영수증도 별도 보존했습니다. 상태는 WINDOWS_RUNNING_AUTOMATED_GUARD_VALIDATED이며 manualGuitarTechniqueValidated=false를 명시합니다. 같은 수동 검사를 반복 요청하지 않았고 실제 고급 주법 품질 수용을 주장하지 않습니다. 이 보호 후속은 완료이며 다음은 Phase8의 실제 프로세스 중단 시 합성 녹음 복구 검증입니다. 현재 사용자 앱을 강제 종료하거나 실제 녹음/개인 파일로 검사하지 않습니다.
+
 ## 후속 — 저자 참조 범위 감사를 개발 도구로 재현 (2026-10-24)
 
 ### 1. 작업 개요

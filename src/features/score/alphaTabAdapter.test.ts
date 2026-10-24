@@ -5,7 +5,73 @@ import {
   normalizeScore,
   restoreJudgementSupport,
 } from './alphaTabAdapter';
-import { importer, model } from '@coderline/alphatab';
+import { exporter, importer, model } from '@coderline/alphatab';
+import { buildPracticeTargets } from '../practice/practice';
+import { validateEditable } from './normalizedNotation';
+import { decodeScoreDocument } from '../../entities/scoreValidation';
+
+it.each(['tt', 's', 'p', 'ds', 'f', 'fo', 'vs', 'rasg "ii"'])(
+  '실제 파서의 박자 효과 %s는 인접 피킹과 분리해 감점 제외하고 편집 소실을 막는다',
+  (effect) => {
+    const score = importer.ScoreLoader.loadAlphaTex(
+      `. 0.1.4 {${effect}} 3.1.4 5.1.4 7.1.4`,
+    );
+    const first = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!;
+    expect(first.notes[0]!.isLeftHandTapped).toBe(false);
+    expect(
+      first.tap ||
+        first.slap ||
+        first.pop ||
+        first.deadSlapped ||
+        first.fade !== model.FadeType.None ||
+        first.hasRasgueado,
+    ).toBe(true);
+    const document = normalizeScore(score);
+    expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual([
+      'UNSUPPORTED',
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(
+      buildPracticeTargets(document, 0, 3000, null).map(
+        (n) => n.unsupported ?? false,
+      ),
+    ).toEqual([true, false, false, false]);
+    expect(() => validateEditable(document)).toThrow('미지원 주법');
+    expect(decodeScoreDocument(JSON.parse(JSON.stringify(document)))).toEqual(
+      document,
+    );
+    const binary = new exporter.Gp7Exporter().export(score);
+    const before = binary.slice();
+    const imported = normalizeScore(importScore(binary));
+    expect(imported.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+      document.tracks[0]!.notes.map((n) => n.judgementSupport),
+    );
+    expect(binary).toEqual(before);
+  },
+);
+
+it('박자 태핑의 반복/구형 복원은 ID·싱크·이전 내용을 유지하며 두 occurrence를 보류한다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4 5.1.4 7.1.4');
+  score.masterBars[0]!.isRepeatStart = true;
+  score.masterBars[0]!.repeatCount = 2;
+  score.rebuildRepeatGroups();
+  const lookup = buildPlaybackLookup(score);
+  const legacy = normalizeScore(score, lookup);
+  const before = JSON.stringify(legacy);
+  score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!.tap = true;
+  const restored = restoreJudgementSupport(legacy, score, lookup);
+  expect(
+    restored.tracks[0]!.notes.map((n) => n.judgementSupport === 'UNSUPPORTED'),
+  ).toEqual([true, false, false, false, true, false, false, false]);
+  expect(restored.tracks[0]!.notes.map((n) => n.id)).toEqual(
+    legacy.tracks[0]!.notes.map((n) => n.id),
+  );
+  expect(restored.syncAnchors).toBe(legacy.syncAnchors);
+  expect(JSON.stringify(legacy)).toBe(before);
+  expect(restoreJudgementSupport(restored, score, lookup)).toBe(restored);
+});
 describe('악보 import 계약', () => {
   it('자체 단음의 피치·tick·운지를 유지한다', () => {
     const score = importer.ScoreLoader.loadAlphaTex(

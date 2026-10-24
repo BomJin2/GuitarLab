@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 박자 단위의 미지원 주법 보완 — 2026-10-24
+
+설치된 alphaTab1.6.1의 Beat.tap/slap/pop/deadSlapped, fade(None 이외), hasRasgueado는 단음 피킹 지원으로 취급하지 않습니다. 기존 NoteEvent.judgementSupport=UNSUPPORTED/PracticeTarget.unsupported/NOT_SCORED 계약으로 연결하고 반복 occurrence와 구형 원본 재열기의 비파괴 metadata 복원에도 같은 규칙을 적용합니다. 일반 피킹·None 효과는 그대로 두며 녹음/원음·저장된 과거 점수를 재계산하지 않습니다. 기본 편집/정규화 출력은 기존 미지원 주법 소실 방지 정책으로 거부합니다. 새 IPC/DB/기록 버전이나 실제 주법 검출 성공을 추가하지 않습니다. 원본에 표기되지 않은 주법을 추측하지 않습니다.
+
 ## 공개 참조의 저자 평가 범위 감사 v1 — 2026-10-24
 
 개발 전용 audit_agpt_reference_scope.py는 고정 CSV4개·수신 manifest/UUID·표본 계획과 저자 TaskA 노트북 원문 SHA를 확인한 뒤8파일의281개 타격 참조를 모두 보존한 별도 결과만 생성합니다. 외부 노트북/코드·모델 실행과 네트워크·앱 데이터 접근은 없습니다. filename에 pitched 포함/impro 제외 조건을 먼저 적용하고, 정수 문자열의108 상한을 검사합니다. 결측/비정수 문자열은 변환 추측 없이 RAW_PITCH_UNRESOLVED로 남기므로 다른 pandas 버전의 결측/형변환 정책을 재현했다고 주장하지 않습니다.
