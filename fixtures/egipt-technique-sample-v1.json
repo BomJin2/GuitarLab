@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "state": "FIXED_SELECTION_BEFORE_AUDIO_OR_DETECTOR_RESULTS",
+  "recordId": 15205644,
+  "license": "cc-by-4.0",
+  "archiveBytes": 23757983313,
+  "archiveMd5": "48a5135adfd090515ff0af7dc5c3c32f",
+  "catalogSha256": "0014c0e2b41cb7d04eca119428a76b98c03e8561a25063c5eeb9b482f628e92e",
+  "selection": "HB-bridge/DI의 사전 정의8조건별 사전순 첫 파일. 1s/6s는 재생 초가 아닌 줄 표기입니다. 온음 벤드는 목록에 있는2번 줄을 사용합니다.",
+  "continuousPitchGroundTruthVerified": false,
+  "actualAppJudgements": false,
+  "independentPerformerEvaluation": false,
+  "samples": [
+    {
+      "technique": "ordinario",
+      "variant": "ordinario",
+      "stringNumber": 6,
+      "member": "EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_13-02_6s_DI.wav",
+      "bytes": 5151606,
+      "compressedBytes": 4268418,
+      "crc32": "55d3affb",
+      "headerOffset": 9425076515
+    },
+    {
+      "technique": "ordinario",
+      "variant": "ordinario",
+      "stringNumber": 1,
+      "member": "EG-IPT/HB-bridge/DI/ordinario/HB-bridge_ordinario_18-02_1s_DI.wav",
+      "bytes": 2447338,
+      "compressedBytes": 1806633,
+      "crc32": "145bf773",
+      "headerOffset": 9220036681
+    },
+    {
+      "technique": "bend",
+      "variant": "bend-up-halftone",
+      "stringNumber": 6,
+      "member": "EG-IPT/HB-bridge/DI/bend/HB-bridge_bend-up-halftone_140-02_6s_DI.wav",
+      "bytes": 460528,
+      "compressedBytes": 410914,
+      "crc32": "2140eb63",
+      "headerOffset": 9961185467
+    },
+    {
+      "technique": "bend",
+      "variant": "bend-down-halftone",
+      "stringNumber": 6,
+      "member": "EG-IPT/HB-bridge/DI/bend/HB-bridge_bend-down-halftone_158-02_6s_DI.wav",
+      "bytes": 396746,
+      "compressedBytes": 347010,
+      "crc32": "7150a5ac",
+      "headerOffset": 9953976427
+    },
+    {
+      "technique": "bend",
+      "variant": "bend-up-wholetone",
+      "stringNumber": 2,
+      "member": "EG-IPT/HB-bridge/DI/bend/HB-bridge_bend-up-wholetone_121-02_2s_DI.wav",
+      "bytes": 232382,
+      "compressedBytes": 200141,
+      "crc32": "97ce7abb",
+      "headerOffset": 9982703991
+    },
+    {
+      "technique": "bend",
+      "variant": "bend-down-wholetone",
+      "stringNumber": 2,
+      "member": "EG-IPT/HB-bridge/DI/bend/HB-bridge_bend-down-wholetone_124-02_2s_DI.wav",
+      "bytes": 221200,
+      "compressedBytes": 188393,
+      "crc32": "12ed4e18",
+      "headerOffset": 9965609370
+    },
+    {
+      "technique": "vibrato",
+      "variant": "vibrato-fast",
+      "stringNumber": 6,
+      "member": "EG-IPT/HB-bridge/DI/vibrato/HB-bridge_vibrato-fast_104-02_6s_DI.wav",
+      "bytes": 444242,
+      "compressedBytes": 396279,
+      "crc32": "32ff3fa8",
+      "headerOffset": 9746278864
+    },
+    {
+      "technique": "vibrato",
+      "variant": "vibrato-slow",
+      "stringNumber": 1,
+      "member": "EG-IPT/HB-bridge/DI/vibrato/HB-bridge_vibrato-slow_72-02_1s_DI.wav",
+      "bytes": 870516,
+      "compressedBytes": 651219,
+      "crc32": "592ef53e",
+      "headerOffset": 9771195510
+    }
+  ],
+  "source": "https://zenodo.org/records/15205644",
+  "version": "1",
+  "archiveUrl": "https://zenodo.org/api/records/15205644/files/EG-IPT.zip/content",
+  "metadataSha256": "c9612c0da9404de5f1360961e236a0ff2037049a62619360374912627c903b59",
+  "selectionBeforeAudioAnalysis": true,
+  "archiveMd5FullyVerified": false,
+  "maxNetworkBytes": 33554432,
+  "maxUncompressedAudioBytes": 12582912,
+  "totalAudioBytes": 10224558,
+  "totalCompressedAudioBytes": 8269007
+}

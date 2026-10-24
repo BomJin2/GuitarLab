@@ -1,5 +1,13 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## EG-IPT 고정 표본 수신 도구 v1 — 2026-10-24
+
+앱 IPC가 아닌 개발용 scripts/fetch_egipt_sample.py는 기본 실행에서 로컬 계획만 읽으며 --download-samples에만 네트워크를 사용합니다. 공식 레코드15205644/version1/CC BY4.0·EG-IPT.zip23757983313바이트/선언MD548a5135adfd090515ff0af7dc5c3c32f 및 정확한 주소를 확인합니다. fixtures/egipt-technique-sample-v1.json의 raw SHA2566da7035d1d8b121c0c9038201d0715ae25e4784dbd23426c1716512c12f51766에 HB-bridge/DI8조건을 분석 전에 고정합니다. 파일명1s/6s는 초가 아니라 기타 줄 번호입니다.
+
+전체 ZIP은 받지 않습니다. 정확한 HTTP206/Content-Range/주소·ETag 변경 검사를 재사용하고 ZIP 합계32MiB/요청8MiB·180초를 제한합니다. 고정 중앙 목록(offset23741203027/16780188바이트)만 요청을 분할하며 다른 큰 read는 거부합니다. 선택8개는 합계10224558바이트, 파일 선언 크기/CRC/headerOffset/압축 방식·실제 CRC·mono PCM24/96kHz/최대30초/실제 프레임을 확인해 새 UUID 경로에 수정 없이 보존합니다. 기존 출력은 덮어쓰지 않고 실패/취소 manifest와 완료한 파일을 남깁니다. 공식 metadata의 통계는 바뀔 수 있어 기존 raw SHA와 동일해야 한다고 요구하지 않고 새 지문을 기록합니다.
+
+공식 설명52320개와 실제 WAV 목록52317개의 차이3개는 미해결입니다. manifest v1 성공은 DI_FILES_VERIFIED_NOT_ANALYZED이며 전체 ZIP MD5/연속 F0 정답·독립 연주자 품질·실제 앱 판정 수용을 뜻하지 않습니다. 소리/모델 분석·학습·네트워크 업로드는 하지 않으며 앱/배포물에 포함하지 않습니다.
+
 ## 박자 단위의 미지원 주법 보완 — 2026-10-24
 
 설치된 alphaTab1.6.1의 Beat.tap/slap/pop/deadSlapped, fade(None 이외), hasRasgueado는 단음 피킹 지원으로 취급하지 않습니다. 기존 NoteEvent.judgementSupport=UNSUPPORTED/PracticeTarget.unsupported/NOT_SCORED 계약으로 연결하고 반복 occurrence와 구형 원본 재열기의 비파괴 metadata 복원에도 같은 규칙을 적용합니다. 일반 피킹·None 효과는 그대로 두며 녹음/원음·저장된 과거 점수를 재계산하지 않습니다. 기본 편집/정규화 출력은 기존 미지원 주법 소실 방지 정책으로 거부합니다. 새 IPC/DB/기록 버전이나 실제 주법 검출 성공을 추가하지 않습니다. 원본에 표기되지 않은 주법을 추측하지 않습니다.
