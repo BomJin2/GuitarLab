@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-완료일2026-10-25(코드/전체 자동 검사, 최종Windows·패키지/원격은 아래 참조). F-01의 파일 drop을 프로젝트 없는 작업 공간에 추가했습니다. 기존 파일 선택/자산 관리·편집과 기본9개/부분5개 상태는 유지하며 Explorer/새OS 수용·프로젝트 drag/drop 저장 완료와 구분합니다.
+완료일2026-10-25(코드/전체 자동 검사·Windows/독립ZIP·원격 기능/격리 설치 검증 완료). F-01의 파일 drop을 프로젝트 없는 작업 공간에 추가했습니다. 기존 파일 선택/자산 관리·편집과 기본9개/부분5개 상태는 유지하며 Explorer/새OS 수용·프로젝트 drag/drop 저장 완료와 구분합니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -24,13 +24,25 @@
 
 최종 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **내장4개 성공**,0.00초/컴파일11.79초. 제품/설치 main 설정과 기존 로컬/원격 권한·YouTube 정책 검사를 포함하며 기본 icon resource 조회 경고2회는 실제 창 아이콘 수용과 구분합니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,11.65초/40,905,216바이트·SHA `0db3809348b6b8800a37cc06c60711d5e09adc0bd6d9f163951da50dbf21bf45`. 기존 MSVC 링크 안내는 유지하고 사용자 앱은 재실행하지 않았습니다. 다음은 정확한 소스의 새ZIP/실제PS/Python 및 두 원격 검사입니다.
 
+독립 패키지도 **성공**입니다. source `847296d5b4d28503eecdac97ba097f1f1d6b14cc`/후보 `file-drop-candidate-e32c362c-6929-4770-a0a4-bf5faa7d14d2.json`은 새 앱 미실행 상태이며 generic 실행 포인터/이전 후보를 바꾸지 않았습니다. 고정 runtime3393파일/64,095,466바이트와 lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`를 대조했습니다. 새ZIP `validation-packages/d550ed5d-ea61-41bd-a844-16f7c255cfd8/GuitarLab-validation.zip`은 **3613파일/40,220,571바이트·SHA `d0fe7684bd986dc54c88e6d66ce8ede5e44060615574f1c25c43be22ef04283c`**입니다. 기존 `package_validation.py`/`verify_archive`의 전체SHA·CRC/목록과 동일 지문 바이트의 새 폴더 추출, 실제 PS5.1 `-File Test-ValidationPackage.ps1` exit0·개발 경로 제외 Python3.12.15 두 번이 통과했습니다. 영수증 `file-drop-package-receipt-8df107fc-7c3c-4c1c-8099-adf702580b26.json`/로그 `file-drop-package-check-c14d9cf2-8234-479c-adef-03ea84024ab5.log`를 보존합니다. main847296d까지 push했고 [기능40185819117](https://github.com/BomJin2/GuitarLab/actions/runs/40185819117)·[격리 설치40185819137](https://github.com/BomJin2/GuitarLab/actions/runs/40185819137)는 현재 진행 중이며 최종 수용은 미확정입니다.
+
 ### 4. 미구현 및 알려진 문제
 
 열린 프로젝트의 관리용 복사/참조에는 drop을 연결하지 않았고 기존 프로젝트 파일 선택을 사용합니다. 폴더/다중·URL/FLAC/OGG 등 확인하지 않은 형식을 받지 않으며 기존 악보8MiB/음원256MiB·압축32MiB 한도를 유지합니다. 영상/시스템 캡처·고급 판정/AI 품질을 확장한 기능이 아닙니다.
 
 ### 5. 다음 작업 계획
 
-내장/Windows 실행 파일·새 독립ZIP/실제PowerShell/Python과 원격 기능·격리 설치를 확인합니다. 물리적 Explorer drop은 빌드/서버 시작 성공으로 대체하지 않습니다. 자동 입력/REC·사용자 자료 가져오기를 하지 않고 남은 고급 품질·특화 가중치/별도Windows 조건을 유지합니다.
+내장/Windows 실행 파일·새 독립ZIP/실제PowerShell/Python과 원격 기능·격리 설치 검증은 아래 최종 결과로 확정했습니다. 다음은 물리적 Explorer drop과 남은 고급 품질·특화 가중치/별도Windows 조건입니다. 실제 drop 수용을 빌드/서버 시작 성공으로 대체하지 않고 자동 입력/REC·사용자 자료 가져오기를 하지 않습니다.
+
+### 원격 최종 결과 — 2026-10-25
+
+source `847296d5b4d28503eecdac97ba097f1f1d6b14cc`의 [기능40185819117](https://github.com/BomJin2/GuitarLab/actions/runs/40185819117)/job121146256106와 [격리 설치40185819137](https://github.com/BomJin2/GuitarLab/actions/runs/40185819137)/job121146256206는 사후 정리까지 **모두 success**입니다. 위 진행 중/다음 검사는 당시 이력으로 보존합니다.
+
+- 기능: **492프론트/106파일·기본240Rust/42.56초·확장244Rust/47.51초**(각28개 환경 의존 기본 제외), 예제1+1·AI113/2.41초·개발 도구143/14.964초(제외 없음), 타입/lint/Vite/포맷·Clippy·최소Rust1.90 전체 컴파일12.14초와 사후 정리까지 성공했습니다. 새 main 설정 검사는 custom-protocol 전용이므로 기본Rust 수에 더하지 않습니다.
+- 설치: Windows Server의 실제 `powershell.exe -File scripts/Test-ValidationInstaller.ps1 -BuildProfile release`에서 별도 식별자 release 설치·새DB9/빈 보관·녹음 없음·3393개runtime/고지 지문, 시작 대기3583ms·정상 종료코드0·제거 등록 해제·AppData/알 수 없는 파일 보존을 확인했습니다. CI 토큰은 관리자이며 `cleanWindowsValidated=false`, 모델 가중치는 미포함입니다. 이 결과를 비관리자/별도Windows10/11·실제Explorer 조작 수용으로 확대하지 않습니다.
+- 설치 영수증: `installer-tests/6038c2ce-d591-489f-93b3-b301040b6107/receipt.json`, 별도 식별자 `com.guitarlab.validation.run828819d254224a77a8b26b48f9410397`, 설치기SHA `c8ff6ec9ed152484c8140d747fb8c6f859477f04e3e5112963e9a6d1f2cc5013`. 최적화 앱/도구 빌드는 각각7분04초/2분45초이며 폴더는 CI 작업 공간의 `src-tauri/target/runtime-validation/` 아래입니다.
+- 정확한 소스/최종 결론은 `file-drop-ci-final-ba2fd5f9-1b94-446c-aca9-c50138f82667.json`에 보존했습니다. 현재PC 후보EXE/ZIP만의 Defender custom scan도 각exit0/탐지 없음·SHA 불변입니다. 정의1.461.194.0·서명NotSigned/삭제·격리 미적용과 영수증은 [Phase8](PHASE-08.md)을 따릅니다. 원격NSIS/다른백신·최종 출시 수용과 구분합니다.
+- root README·로드맵/남은 작업/진행표·Phase8에 최종 범위와 재개 위치를 반영했습니다. 결과 문서는 중복 전체 CI를 피하도록 로컬 커밋에 보존하고 다음 실제 코드 변경 push에 함께 포함합니다. 현재PC 앱·개인 파일/입력/REC·generic 실행 포인터는 변경하지 않았습니다.
 
 ## 후속 — 마디 단위 반복 선택 (2026-10-23)
 

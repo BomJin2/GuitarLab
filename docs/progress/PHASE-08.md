@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## 파일 끌어놓기 후속의 원격 기능·격리 설치 확정 — 2026-10-25
+
+### 1. 작업 개요
+
+완료일2026-10-25. 프로젝트 없는 파일 입력 후속 source `847296d5b4d28503eecdac97ba097f1f1d6b14cc`의 독립Windows 패키지와 원격 기능/실제Server 설치를 검증했습니다. 전체Phase8/별도Windows10/11·실제Explorer drop 수용은 미완료이며9개 기본/5개 부분 상태를 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+제품/격리 설치의 main HTML5 입력 설정을 같은 타입으로 검사했고 기존CSP/원격·YouTube 권한은 유지했습니다. 변경 코드와 전체 파일 목록은 [Phase2](PHASE-02.md)의 최신 절을 따릅니다. root README·로드맵/진행표·남은 작업에 원격 최종 결과와 미실행 범위를 반영했으며 개인 자료/현재PC 앱·입력/REC·generic 실행 포인터를 바꾸지 않았습니다.
+
+### 3. 테스트 결과
+
+- [기능40185819117](https://github.com/BomJin2/GuitarLab/actions/runs/40185819117)/job121146256106: 사후 정리까지 **success**.492프론트/106파일·기본240Rust/42.56초·확장244Rust/47.51초(각28개 환경 의존 기본 제외), 예제1+1·AI113/2.41초·개발 도구143/14.964초(제외 없음), 타입/lint/Vite/포맷·Clippy·Rust1.90 전체 컴파일12.14초를 확인했습니다.
+- [격리 설치40185819137](https://github.com/BomJin2/GuitarLab/actions/runs/40185819137)/job121146256206: 사후 정리까지 **success**. 실제 `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/Test-ValidationInstaller.ps1 -BuildProfile release`에서 별도 식별자 release 설치·새DB9/빈 보관/녹음 없음·3393runtime/고지 전체 지문·3583ms 시작 대기·정상종료0·제거 등록 해제·AppData/알 수 없는 파일 보존을 확인했습니다. 관리자CI 토큰/모델 미포함/`cleanWindowsValidated=false`를 그대로 기록합니다.
+- 설치 영수증 `installer-tests/6038c2ce-d591-489f-93b3-b301040b6107/receipt.json`, 식별자 `com.guitarlab.validation.run828819d254224a77a8b26b48f9410397`, 설치기SHA `c8ff6ec9ed152484c8140d747fb8c6f859477f04e3e5112963e9a6d1f2cc5013`. 최적화 앱7분04초/독립 도구2분45초 빌드도 성공했습니다.
+- 로컬 내장4개/Windows 빌드·3613파일ZIP/전체SHA·CRC·같은 바이트 추출·실제PS5.1/개발PATH 제외Python3.12.15 두 번도 **성공**입니다. `file-drop-candidate-e32c362c-6929-4770-a0a4-bf5faa7d14d2.json`/`file-drop-package-receipt-8df107fc-7c3c-4c1c-8099-adf702580b26.json`과 실행 명령/전체 지문은 Phase2에 보존했습니다. 경로는 각 작업 공간의 `src-tauri/target/runtime-validation/` 아래입니다.
+- 실제 REST run 응답으로 두 workflow의 `head_sha=847296d5b4d28503eecdac97ba097f1f1d6b14cc`/completed/success를 다시 대조한 증거는 `file-drop-ci-final-ba2fd5f9-1b94-446c-aca9-c50138f82667.json`입니다. 생성한 후보/ZIP만 대상으로 설치된 MpCmdRun4.18.26090.9 도움말의 `-Scan -ScanType 3 -File <단일 산출물> -DisableRemediation`를 사용한 현재PC 검사도 각각exit0/`found no threats`였고 후보EXE/ZIP의 정확한 SHA가 유지됐습니다. 제품 보호/제외 설정·정의 업데이트는 변경하지 않았으며 자동 삭제/격리는 적용하지 않았습니다. 정의1.461.194.0(2026-10-25 10:31:04 KST), 엔진1.1.26090.9·실시간 보호 켜짐/Authenticode `NotSigned`를 기록한 영수증은 `file-drop-defender-b9ad88cb-a1cb-4500-8a84-c7aca31a692d.json`입니다. 다른SHA의 원격NSIS나 다른 백신/SmartScreen·서명/최종배포 안전성 결과로 일반화하지 않습니다.
+- 발생 오류와 해결: 첫 프론트 대상 검사의 JSDOM URL API/cleanup 순서 및 기존 heading 가정 실패는 테스트 대역/정리 순서로 해결했고 최종대상30개/전체492개로 재확인했습니다. 원격 두 workflow는 실패가 없었습니다. 실제Explorer/개인 파일·별도Windows10/11은 **미실행** — 사용자 자료/앱 조작과 별도OS 환경 부재를 자동 회귀로 대체하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+열린 프로젝트의 파일drop 자산 저장, 실제Explorer 조작·모델 있는 별도Windows10/11/오프라인·장치/백신/서명·최종 법률/출시 수용은 남습니다. 서버 설치의 시작/정상종료 성공이 물리적 파일drop이나 실제 기타 검증은 아닙니다. 고급 점수/특화 두 기타 모델의 품질·이용 조건도 별도 보류입니다.
+
+### 5. 다음 작업 계획
+
+기존 기능을 다시 구현하지 않고 남은 독립적인 실제 참조/특화 가중치·별도Windows 수용 조건과 Explorer drop을 확인할 수 있는 환경부터 이어갑니다. 결과 확정 문서는 로컬 커밋으로 보존하고 다음 실제 코드 변경 push에 포함해 중복 전체CI를 피합니다. 실제 사용자 데이터 교체/삭제·고급 점수 활성화로 외부 수용 조건을 대신하지 않습니다.
+
 2026-10-25 두 출력 후속 확정: main1874417의 [Windows40183110904](https://github.com/BomJin2/GuitarLab/actions/runs/40183110904)/job121138145977는485프론트·기본240/확장243Rust·AI113/도구143·MSRV/사후 정리 **전체 success**입니다. 원본 테이크 WAV 보존/악보 출력 오류 안내와 source6d48613의최종Windows 내장·새3613파일ZIP·실제PS5.1/독립Python 두 번을 포함합니다. 지문/실패 해결·미실행은 PHASE-04A/PHASE-05 최신 절을 따릅니다. 사용자 자료/기존 앱·generic 포인터는 불변이며 새 앱 저장 창·새 설치/별도Windows10/11·서명/전체 출시 수용으로 확대하지 않습니다.
 
 2026-10-25 긴 녹음 후속 확정: main89bcf8e의 [Windows40123636305](https://github.com/BomJin2/GuitarLab/actions/runs/40123636305)/job120960317516는476프론트·기본236/확장239Rust·AI113/도구143·MSRV/사후 정리까지 **전체 success**입니다. source0495a61의Windows 내장 빌드/새3613파일ZIP·전체SHA/CRC·실제PS5.1·독립Python 두 번도 성공했으며 지문/영수증은 Phase7 최신 절을 따릅니다. 실제 앱/개인 장기 녹음·새 설치/별도Windows10/11은 미실행이고 전체Phase8/최종 출시 완료로 표시하지 않습니다. 아래474개 확정은 직전 이력입니다.
