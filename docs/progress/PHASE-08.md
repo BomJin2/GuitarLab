@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업 시작2026-10-25/로컬 검증 완료2026-10-26. 단축키 수정의 원격 대기 중 긴 곡/대형 악보 수용 조건을 자체데이터로 점검했습니다. 허용된1·128트랙/256마디·2000음 왕복은 통과했으나 큰 박자 조합에서 기존8MiB보다 큰 파생문자열을 제한 없이 먼저 생성하는1개 실패를 재현했습니다. 생성 중 용량 보호/기존편집 보존과 전체프론트·Windows 검증은 완료했고 패키지/원격은 아래 결과로 구분합니다. 전체Phase8/별도Windows 수용과 구분합니다.
+작업 시작2026-10-25/후속 구현·자동 검증 완료2026-10-26. 단축키 수정의 원격 대기 중 긴 곡/대형 악보 수용 조건을 자체데이터로 점검했습니다. 허용된1·128트랙/256마디·2000음 왕복은 통과했으나 큰 박자 조합에서 기존8MiB보다 큰 파생문자열을 제한 없이 먼저 생성하는1개 실패를 재현했습니다. 생성 중 용량 보호/기존편집 보존과 전체프론트·Windows/독립ZIP·원격 회귀는 완료했습니다. 전체Phase8/별도Windows 수용과 구분합니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -31,7 +31,25 @@
 
 ### 5. 다음 작업 계획
 
-이 후속의 전체검사/Vite·내장/Windows/새독립ZIP/원격을 확인하고 최종 결과를 기록합니다. 이미진행 중인6a50564 원격부터 실제결론을 확인한 뒤 새변경을push해 이전검사를 취소하지 않습니다. 향후 실제 화면렌더/별도OS·고급 참조 검증을 합성파서 시간으로 대신하지 않습니다.
+이 후속의 전체검사/Vite·내장/Windows/새독립ZIP/원격은 아래 최종 결과로 확정했습니다. 다음은 실제 화면SVG/RSS·키/Explorer·별도OS와 독립적인 고급 정답/특화 모델 수용 조건입니다. 새 모델/개인 자료 전송·실제 데이터 교체나 합성파서 시간으로 이 조건을 대신하지 않습니다. 재개 위치/미실행을 유지하고 기존 정상 기능을 다시 구현하지 않습니다.
+
+### 독립 패키지 완료·새 원격 — 2026-10-26
+
+source `ef0c69d2e4317b76bf6ae541c787265e8a890690`를 main에push했습니다. [Windows40222832196](https://github.com/BomJin2/GuitarLab/actions/runs/40222832196)/job121257913173는 진행 중이며 최종 수용은 미확정입니다. 앞선6a50564 회귀는494프론트·240/244Rust·AI113/도구143·MSRV/정리 전체success로 확인했고 이번500개 소스와 구분합니다.
+
+새 후보 `score-capacity-candidate-ac07388f-b347-46c0-8aef-eeabf95dcbd4.json`은 앱 미실행이며 고정3393runtime/64,095,466바이트·lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`를 대조했습니다. ZIP `validation-packages/28828e22-5f77-4f77-a85a-248c3f7c0870/GuitarLab-validation.zip`은 **3613파일/40,220,680바이트·SHA `36f566dc923636d94eac6cb52c41ff3742e686ea51e589b6158bfbaa8d7065a4`**입니다. 전체SHA/CRC/목록과 동일지문 바이트의 새폴더 추출/재검사 및 실제 `powershell.exe -NoProfile -File Test-ValidationPackage.ps1` **exit0**, 개발PATH 제외/모델 없는 Python3.12.15 두 번이 성공했습니다. 영수증 `score-capacity-package-receipt-07fb6676-e57d-47f8-b0d2-9d743a1bae6b.json`/로그 `score-capacity-package-check-05ea927c-5a68-402d-ab9e-038e93d969e6.log`를 `src-tauri/target/runtime-validation/` 아래에 보존합니다. 원본 후보/generic 포인터·사용자앱/데이터는 불변이며 실제 키/Explorer·새OS/새설치/서명/최종출시 수용은 미실행입니다. 새Defender는 별도로 확인합니다.
+
+### 현재PC 후보/ZIP Defender 검사 — 2026-10-26
+
+동일한 새 후보EXE/ZIP 두 개만 설치된 MpCmdRun4.18.26090.9의 `-Scan -ScanType 3 -File <단일 산출물> -DisableRemediation`로 검사해 **각exit0/탐지 없음·검사 전후SHA 불변**을 확인했습니다. 영수증 `score-capacity-defender-e7541a3d-9e72-4ff3-a357-d3d94496dda8.json`은 정의1.461.194.0(2026-10-25 10:31:04KST)/엔진1.1.26090.9·실시간보호 활성/Authenticode `NotSigned`와 두 대상의 출력을 보존합니다. Defender 설정/제외·정의 업데이트는 변경하지 않았고 삭제·격리는 적용하지 않았습니다. 다른SHA의NSIS·다른백신/SmartScreen·서명/최종출시의 안전성 결과로 확대하지 않습니다. 위 새Defender 미실행은 검사 전 이력입니다.
+
+### 원격 전체 최종 확정 — 2026-10-26
+
+source `ef0c69d2e4317b76bf6ae541c787265e8a890690`의 [Windows40222832196](https://github.com/BomJin2/GuitarLab/actions/runs/40222832196)/job121257913173는 사후 정리까지 **전체 success**입니다. **500프론트/107파일·기본240Rust/43.57초·확장244Rust/85.53초**(각28개 환경 의존 기본 제외), 예제1+1·AI113/3.01초·개발 도구143/14.933초(제외 없음)·타입/lint/Vite/포맷·Clippy·최소Rust1.90 전체 컴파일11.75초를 확인했습니다. 원격 용량 사례의 XML바이트444,150/7,567,955와 단회파서왕복207.051/1239.945ms도 관측했으며 전체프로세스/RSS·화면SVG/실제입력 지연과 구분합니다.
+
+REST run의 head_sha/completed/success와 job 최종결론을 다시 대조한 영수증은 `score-capacity-ci-final-498b0e1c-c6f8-4646-8281-5a8dfffa3e40.json`입니다. 로컬 산출물과 같은 `src-tauri/target/runtime-validation/` 아래에 보존합니다.
+
+위 진행 중/새원격 미실행은 이전 시점의 이력입니다. 로컬Windows/새3613파일ZIP·실제PS5.1/독립Python·해당EXE/ZIP Defender까지 이 후속의 검증/문서화를 완료했습니다. 새설치/개인 자료/실제Windows 키·Explorer·별도Windows10/11·서명/최종출시와 고급 정답/특화 모델 조건은 미완료로 유지합니다. 결과 확정 문서는 중복CI를 피하도록 로컬 커밋으로 보존하고 다음 실제 코드 변경 push에 포함합니다. 현재사용자 앱/입력·REC/개인자료/generic 포인터는 불변입니다.
 
 ## 파일 끌어놓기 후속의 원격 기능·격리 설치 확정 — 2026-10-25
 

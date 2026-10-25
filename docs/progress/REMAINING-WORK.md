@@ -1,6 +1,6 @@
 # 남은 작업과 완료 기준
 
-2026-10-26 현재: 단축키6a50564의 [Windows40188520521](https://github.com/BomJin2/GuitarLab/actions/runs/40188520521)는494프론트·240/244Rust·AI113/도구143·MSRV/정리 전체 성공입니다. 이어 대형악보의 파생MusicXML 생성 중8MiB 예산 보호·명시적 오류/Undo·원본 보존을 구현해500프론트/107파일·타입/lint/포맷을 통과했습니다. 전날 사용량 한도로 미실행된 Vite/Windows 명령은 오늘 승인 절차를 통과해 재검증 중이며 새ZIP/원격은 후속입니다. 실제키/Explorer·별도Windows는 미실행이고 사용자 앱/자료는 유지합니다. 기존9기본/5부분·고급 품질/특화 모델 조건을 바꾸지 않습니다. [Phase8](PHASE-08.md) 최신 절을 따릅니다.
+2026-10-26 확정: main ef0c69d의 [Windows40222832196](https://github.com/BomJin2/GuitarLab/actions/runs/40222832196)는500프론트/107파일·240/244Rust·AI113/도구143·MSRV/정리 **전체 success**입니다. 대형 악보의 MusicXML 생성 중8MiB 예산 보호와 오류 안내/Undo·원본 보존, 로컬타입/lint/포맷/Vite·내장4개/Windows·독립ZIP/실제PS5.1/독립Python 두 번·같은EXE/ZIP Defender 검증/문서화를 마쳤습니다. 앞선 단축키6a50564의 [40188520521](https://github.com/BomJin2/GuitarLab/actions/runs/40188520521)/494개도 전체 성공 이력입니다. 실제SVG/RSS·키/Explorer·별도Windows는 미실행이고 사용자 앱/자료는 유지합니다. 기존9기본/5부분·독립 고급정답/특화 모델/최종출시 조건을 바꾸지 않습니다. [Phase8](PHASE-08.md) 최신 절을 따릅니다.
 
 2026-10-25 편집 단축키 보호 후속: 반복Ctrl+Z가 기록을 소비하는 실패를 재현하고 기존 공통 입력 판별/IME·Alt·처리된 이벤트·편집 시작/잠금과 Ctrl+Y Redo를 연결했습니다. 대상28개/전체494프론트·타입/lint/포맷·Vite 성공이며 내장/Windows·새ZIP/원격은 검사 중입니다. 실제Windows 키/Explorer·새OS는 미실행이고 사용자 자료/앱은 유지합니다. 기본9개/부분5개와 아래 외부 수용 조건은 바꾸지 않습니다. [Phase5](PHASE-05.md)를 따릅니다.
 
