@@ -7,7 +7,8 @@ import {
   screen,
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { buildPlaybackLookup } from './alphaTabAdapter';
+import { buildPlaybackLookup, importScore } from './alphaTabAdapter';
+import dualXml from '../../../public/fixtures/dual-guitar.musicxml?raw';
 import { ScoreViewport } from './ScoreViewport';
 import { Context } from '../player/playerContextValue';
 import { PlayerEngine } from '../player/PlayerEngine';
@@ -24,6 +25,7 @@ const clicks = vi.hoisted(() => ({
   >,
   settings: [] as unknown[],
   scores: [] as import('@coderline/alphatab').model.Score[],
+  renderTracks: [] as number[][],
   deferred: false,
   events: [] as Array<{
     start?: () => void;
@@ -66,11 +68,14 @@ vi.mock('@coderline/alphatab', async (importOriginal) => ({
         realBounds: { y: bounds.y, h: 20 },
       }),
     };
-    renderScore = vi.fn((score: import('@coderline/alphatab').model.Score) => {
-      clicks.scores.push(score);
-      this.events.start?.();
-      if (!clicks.deferred) this.events.finish?.();
-    });
+    renderScore = vi.fn(
+      (score: import('@coderline/alphatab').model.Score, tracks: number[]) => {
+        clicks.scores.push(score);
+        clicks.renderTracks.push(tracks);
+        this.events.start?.();
+        if (!clicks.deferred) this.events.finish?.();
+      },
+    );
     destroy = () => this.events.destroy();
   },
 }));
@@ -83,6 +88,7 @@ beforeEach(() => {
   clicks.listeners = [];
   clicks.settings = [];
   clicks.scores = [];
+  clicks.renderTracks = [];
   clicks.events = [];
   clicks.deferred = false;
   bounds.x = 30;
@@ -106,6 +112,35 @@ beforeEach(() => {
   );
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(500);
+});
+it('두 번째 트랙도 복사본0으로 렌더하며 클릭은 원래 선택 트랙의 음표로 연결한다', () => {
+  const score = importScore(new TextEncoder().encode(dualXml));
+  const original = score.tracks[1]?.staves[0]?.bars
+    .flatMap((bar) => bar.voices.flatMap((voice) => voice.beats))
+    .find((beat) => beat.notes.length > 0);
+  if (!original) throw new Error('자체 두 번째 트랙 필요');
+  const onSelect = vi.fn();
+  render(
+    <ScoreViewport
+      score={score}
+      lookup={buildPlaybackLookup(score)}
+      trackIndex={1}
+      tick={original.playbackStart}
+      onSelectNote={onSelect}
+    />,
+  );
+  expect(clicks.renderTracks).toEqual([[0]]);
+  expect(clicks.scores[0]?.tracks).toHaveLength(1);
+  expect(clicks.scores[0]?.tracks[0]?.name).toBe(score.tracks[1]?.name);
+  const copied = clicks.scores[0]?.tracks[0]?.staves[0]?.bars
+    .flatMap((bar) => bar.voices.flatMap((voice) => voice.beats))
+    .find((beat) => beat.notes.length > 0);
+  if (!copied) throw new Error('표시 음표 필요');
+  act(() => clicks.listeners[0]?.(copied));
+  expect(onSelect).toHaveBeenCalledWith(original.notes[0]);
+  expect(
+    screen.getByRole('region').querySelector('.score-cursor'),
+  ).toHaveProperty('hidden', false);
 });
 it('표시 변경만 새 렌더를 만들고 이전 완료/오류는 현재 커서와 선택에 적용하지 않는다', () => {
   const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');

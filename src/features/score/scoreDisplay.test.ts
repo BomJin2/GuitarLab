@@ -9,6 +9,49 @@ import {
 } from './alphaTabAdapter';
 import { createDisplayScore } from './scoreDisplay';
 import { renderedNoteId } from './scoreNoteSelection';
+import { scoreCapacityFixture } from '../../test/scoreCapacityFixture';
+import { renderNormalized } from './normalizedNotation';
+
+it('128트랙 중 마지막 트랙만 복사하고 트랙별 표기·원래 객체/시간/문서를 보존한다', () => {
+  const capacity = scoreCapacityFixture(128);
+  const document = {
+    ...capacity,
+    timeSignatures: capacity.timeSignatures.slice(0, 4),
+  };
+  const { score } = renderNormalized(document);
+  score.stylesheet.perTrackDisplayTuning = new Map([
+    [0, true],
+    [127, false],
+  ]);
+  score.stylesheet.perTrackChordDiagramsOnTop = new Map([[127, true]]);
+  score.stylesheet.perTrackMultiBarRest = new Set([127]);
+  const before = model.JsonConverter.scoreToJson(score);
+  const display = createDisplayScore(score, 127, 'tab');
+  expect(display.score.tracks).toHaveLength(1);
+  expect(display.score.tracks[0]?.name).toBe(score.tracks[127]?.name);
+  expect(display.score.tracks[0]?.staves[0]?.bars).toHaveLength(4);
+  expect([...(display.score.stylesheet.perTrackDisplayTuning ?? [])]).toEqual([
+    [0, false],
+  ]);
+  expect([
+    ...(display.score.stylesheet.perTrackChordDiagramsOnTop ?? []),
+  ]).toEqual([[0, true]]);
+  expect([...(display.score.stylesheet.perTrackMultiBarRest ?? [])]).toEqual([
+    0,
+  ]);
+  expect(display.renderTrackIndex).toBe(0);
+  expect(display.notes.size).toBe(document.tracks[127]?.notes.length);
+  for (const original of display.notes.values())
+    expect(original.beat.voice.bar.staff.track.index).toBe(127);
+  expect(
+    buildPlaybackLookup(display.score).masterBars.map((bar) => bar.start),
+  ).toEqual(buildPlaybackLookup(score).masterBars.map((bar) => bar.start));
+  expect(model.JsonConverter.scoreToJson(score)).toBe(before);
+  const absent = createDisplayScore(score, 1, 'score');
+  expect(absent.score.stylesheet.perTrackDisplayTuning).toBeNull();
+  expect(absent.score.stylesheet.perTrackChordDiagramsOnTop).toBeNull();
+  expect([...(absent.score.stylesheet.perTrackMultiBarRest ?? [])]).toEqual([]);
+});
 
 it.each([xml, dual])(
   'TAB 전용 원본은 불변이고 표시 복사본의 음표/박자는 원래 ID와 연결한다',
@@ -30,7 +73,9 @@ it.each([xml, dual])(
           originalBytes,
           activeTrackIndex: index,
         };
-        for (const staff of display.score.tracks[index]!.staves) {
+        expect(display.score.tracks).toHaveLength(1);
+        expect(display.renderTrackIndex).toBe(0);
+        for (const staff of display.score.tracks[0]!.staves) {
           expect(staff.showStandardNotation).toBe(notation === 'score');
           expect(staff.showTablature).toBe(notation === 'tab');
           for (const bar of staff.bars)

@@ -1,5 +1,43 @@
 # Phase8 — 품질·릴리스
 
+## 선택 트랙 표시 복사본과 실제 SVG 관측 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26. 대형 문서에서 선택1트랙을 보여줄 때 전체128트랙을 다시 복사/worker에 전달하는 비용을 줄였습니다. 대상/전체 프론트·정적 검사/웹 빌드·내장/Windows 빌드와 별도 실제 브라우저 관측을 완료했습니다. 새 독립 패키지/원격은 후속 결과로 구분하고 전체 Phase8 수용은 미완료이며 기본9개/부분5개 상태를 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 표시 복사본/렌더 인덱스0·원본 객체/lookup·트랙별 표기 설정의 유지 계약을 기록했습니다. 설치된 alphaTab1.6.1의 공개 JsonConverter 타입과 실제 ScoreSerializer의 Map/트랙 구조를 확인했으며 새 의존성/IPC·저장 형식은 없습니다.
+- `scoreDisplay.ts`: 직렬화된 tracks 중 선택 트랙만 역직렬화합니다. 원래 인덱스의 tuning/chord diagram/multibar-rest를 복사본의0으로 매핑하고 음표/박자는 원래 선택 트랙 객체에 연결합니다. 원본·전역 마디/템포/반복과 도메인 인덱스는 유지합니다. 전체 score의 최초 직렬화/파싱은 여전히 필요합니다.
+- `ScoreViewport.tsx`: 표시 복사본의 명시적 renderTrackIndex를 사용하며 원래 lookup·커서/선택 경로를 유지합니다. UI 배치/디자인은 변경하지 않습니다. 두 파일의 기존 회귀에128트랙 중 마지막 트랙/표기·원본 불변과 실제 두 번째 트랙의 복사본0 렌더/원래 음표 클릭 연결을 추가했습니다.
+- docs/04·08·09·12/진행표와 이 문서를 갱신합니다. 별도 `src-tauri/target/runtime-validation/render-probe-20261026/` 페이지는 자체 fixture만 사용하고 입력/재생/저장·현재 앱/개인 자료를 조작하지 않았습니다.
+
+### 3. 테스트 결과
+
+- `pnpm exec vitest run src/features/score/scoreDisplay.test.ts src/features/score/ScoreViewport.test.tsx`: **13개/2파일 성공**,3.62초. 새128트랙 검사는4마디/2000음으로 범위를 격리해528ms에 성공했습니다. 첫256마디 중복파싱 회귀는 jsdom 기본5초를 넘어 실패했고, 트랙 매핑에 필요한4마디로 한정했습니다. 256마디 스트레스는 기존 용량 회귀와 아래 실제 브라우저에서 별도 수행했습니다.
+- `pnpm test`: **517개/112파일 성공**,35.20초. 로그 `selected-render-front-20261026.log`. `pnpm typecheck`/`pnpm lint`/`pnpm format:check` **성공**,`pnpm build` **성공**(Vite1분2초·기존500kB chunk 경고). 로그 `selected-render-build-20261026.log`. Rust/Python 엔진 변경은 없어 이번 로컬 전체 재검사는 **미실행**이며 직전 aa48866의 기본247/확장251Rust·AI113/도구143·MSRV 원격 전체 성공과 구분합니다.
+- 실제 브라우저: Windows의 내장 Chromium156/1280×720/DPR1, 호스트1100px·256마디/전체2000음·선택 트랙0/TAB/worker/재생OFF. main aa48866의 기존 scoreDisplay를 별도 파일로 보존해 같은 페이지의 before/selectedOnly로 비교했습니다. 6회 모두 실제SVG 자식 생성/원문서 불변을 확인했고 영수증 `selected-render-observed-20261026.json`에 기록했습니다.
+
+| 조건 | 이전 표시 복사 ms | 수정 표시 복사 ms | 이전 전체 관측 ms | 수정 전체 관측 ms |
+|---|---:|---:|---:|---:|
+|128트랙·기본 lazy|266.7|164.6|2600.9|1085.4|
+|128트랙·전체 SVG|224.9|130.0|2607.7|1081.2|
+|1트랙·기본 lazy 대조|16.0|14.1|323.2|290.9|
+
+- 전체 관측은 fixture 생성/정규화 왕복·표시복사·layout·실제SVG 자식10개 이상/두 프레임까지 포함합니다. 128트랙 전체SVG는 전후 모두24 SVG/2958자식으로 동일했습니다. 기본lazy는 보이는 chunk가 관측 시점에 따라 달라5/3 SVG였으며 모든 마디의 동시 paint 완료를 보장하지 않습니다. source JSON 불변은6회 모두true입니다.
+- 첫 계측의 postRenderFinished/두 프레임만으로는 실제SVG가 뒤늦게 붙어0개 판정 실패가 발생했습니다. MutationObserver로 실제SVG를 기다리게 보완했습니다. Vite가 watch 제외한 검증 폴더의 이전 모듈을 캐시해 결과variant가 누락된 중간 비교도 최종값에서 제외했습니다. 새 probe-v2.js/variant 확인 후 위6회만 채택했습니다. 예비 `render-baseline-20261026.json`은 PRELIMINARY_LAYOUT_ONLY로 보존하며 최종 비교에 사용하지 않습니다.
+- JS heap은 관측 순서/GC 때문에128트랙 eager에서 이전451,063,942바이트·다음 수정714,925,259바이트였습니다. 이를 메모리 절감/누수 또는 프로세스 RSS로 해석하지 않습니다. 강제GC/별도 프로세스 RSS·통계적 반복은 **미실행**입니다. native/독립ZIP·원격은 아래 후속 결과로 구분합니다.
+- 최종 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **4개 성공**,0.01초. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 성공**,12.62초·기존MSVC 링크/테스트 아이콘 안내. 로그 `selected-render-bundle-20261026.log`/`selected-render-native-build-20261026.log`를 보존하며 위 native 진행 중은 이전 시점입니다. 앱은 실행하지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+128트랙의 최초 정규화/파싱은 약777~827ms로 여전히 주 스레드 비용이 남고, 이번 관측의 최대 heartbeat 지연도 수정본에서약871~899ms입니다. 이 변경을 전체 렌더 무지연·메모리 절감·출시 성능 수용으로 기록하지 않습니다. 한 PC/6회·개발 브라우저의 관측이며 실제 Tauri 앱/다른 장치·OS/GC 통제·RSS/긴 반복은 미실행입니다. 고급 판정 정답/특화 모델·서명/별도 Windows 조건은 그대로 남습니다.
+
+### 5. 다음 작업 계획
+
+Windows 내장/빌드·정확한 소스의 새 독립 패키지와 원격 회귀를 마칩니다. 이후 선택 트랙 표시를 바꾸는 기능에서 이 원본/객체 매핑 경계를 유지하고, 남은 주 스레드 파싱과 메모리/RSS는 별도의 계약·검증으로 다룹니다. 현재 사용자 앱/입력·REC/개인 자료/generic 포인터는 유지합니다.
+
 ## 대형 정규화 악보 회귀와 생성 용량 보호 — 2026-10-25
 
 ### 1. 작업 개요

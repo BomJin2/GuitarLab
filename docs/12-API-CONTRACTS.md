@@ -1197,6 +1197,12 @@ native cfg(test) 평가만 이 정책을 추가 수용하고 기존 stable-windo
 ## 내부 설치 검증의 빌드 프로필 — 2026-10-21
 
 최적화 산출물 검증을 위해 개발용 prepare_validation_installer.py의 --profile과 Test-ValidationInstaller.ps1의 -BuildProfile에 debug/release 두 값만 허용합니다. 기존 기본값은debug이며 새 계획의 buildProfile과 검사 인자가 일치하지 않으면 설치 전에 거부합니다. 이전 프로필 없는 계획은debug로만 해석합니다. 목표 경로는 해당 고정target/debug 또는target/release에서 계산하고 임의 경로·profile 이름은 받지 않습니다. UUID별제품명/프로세스/AppData·현재 사용자 설치·데이터 보존/원격 권한은 유지하며 제품 IPC/DB/모델 계약은 변경하지 않습니다. release 검증도 서명/최종배포·새Windows 수용을 뜻하지 않습니다.
+## 선택 트랙 표시용 복사본의 범위 축소 — 구현 전 계약(2026-10-26)
+
+실제 브라우저의128트랙/256마디/전체2000음 관측에서 선택1트랙 표시에도 전체트랙 복사/worker 전송 비용이 발생했습니다. createDisplayScore는 기존 alphaTab1.6.1의 공개 JsonConverter 왕복을 유지하되 직렬화된 tracks 중 선택 트랙만 역직렬화합니다. 표시 복사본의 트랙 인덱스는0이며 기존 ScoreViewport는 명시적으로 이 렌더 인덱스를 사용합니다. 현재 선택 인덱스·도메인/원본 ScoreDocument·lookup과 저장/판정/녹음 계약은 변경하지 않습니다.
+
+음표/박자는 원래 선택 트랙 객체와 기존 Map으로 연결합니다. 원래 트랙 인덱스에 귀속된 stylesheet의 tuning/chord diagram/multibar-rest 설정은 복사본의0으로 재매핑하고 전역 masterBars/템포/박자/반복·튜닝·음정/길이는 유지합니다. 실패/잘못된 인덱스는 기존 표시 오류로 처리하며 원본·커서/선택에 추정값을 적용하지 않습니다. UI/저장 형식·의존성/IPC 변경은 없습니다. 실제 브라우저 관측은 OS RSS·GC 통제/통계 수용이나 전체 앱 성능 수용으로 기록하지 않습니다.
+
 ## 저장된 악보 버전의 읽기 전용 조회 — 구현 전 계약(2026-10-26)
 
 `list_score_revisions`/`read_score_revision`은 main 로컬 StorageJob v1 명령입니다. 요청에 schemaVersion1/projectId(UUID)를 받고 목록은 beforeRevision:null 또는 양의u32, 읽기는 revisionId(UUID)를 추가합니다. 알 수 없는 필드/경로를 거부하며 작업/REC guard·취소/진행을 기존구조로 공유합니다. 저장/연습 상태를 변경하거나 원본파일·이전버전을 덮어쓰지 않습니다.

@@ -27,12 +27,31 @@ export function createDisplayScore(
   trackIndex: number,
   notation: ScoreDisplaySettings['notation'],
 ) {
-  const score = model.JsonConverter.jsObjectToScore(
-    model.JsonConverter.scoreToJsObject(source),
-  );
-  const track = score.tracks[trackIndex];
   const originalTrack = source.tracks[trackIndex];
-  if (!track || !originalTrack) throw new Error('악보 표시 트랙이 없습니다.');
+  if (!originalTrack) throw new Error('악보 표시 트랙이 없습니다.');
+  const serialized = model.JsonConverter.scoreToJsObject(source);
+  if (!(serialized instanceof Map))
+    throw new Error('악보 표시 형식이 다릅니다.');
+  const tracks: unknown = serialized.get('tracks');
+  if (!Array.isArray(tracks) || tracks.length !== source.tracks.length)
+    throw new Error('악보 표시 트랙 형식이 다릅니다.');
+  serialized.set('tracks', [tracks[trackIndex]]);
+  const score = model.JsonConverter.jsObjectToScore(serialized);
+  const track = score.tracks[0];
+  if (!track) throw new Error('악보 표시 트랙이 없습니다.');
+  for (const key of [
+    'perTrackDisplayTuning',
+    'perTrackChordDiagramsOnTop',
+  ] as const) {
+    const value = source.stylesheet[key]?.get(trackIndex);
+    score.stylesheet[key] = value === undefined ? null : new Map([[0, value]]);
+  }
+  score.stylesheet.perTrackMultiBarRest =
+    source.stylesheet.perTrackMultiBarRest === null
+      ? null
+      : new Set(
+          source.stylesheet.perTrackMultiBarRest.has(trackIndex) ? [0] : [],
+        );
   const notes = new Map<model.Note, model.Note>();
   const beats = new Map<model.Beat, model.Beat>();
   for (const [staffIndex, staff] of track.staves.entries()) {
@@ -67,5 +86,5 @@ export function createDisplayScore(
           }
         }
   }
-  return { score, notes, beats };
+  return { score, renderTrackIndex: 0, notes, beats };
 }

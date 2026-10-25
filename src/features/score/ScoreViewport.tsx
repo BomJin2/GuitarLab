@@ -98,7 +98,7 @@ export function ScoreViewport({
       selectNoteRef.current(original);
       scrollerRef.current?.focus({ preventScroll: true });
     });
-    api.renderScore(rendered.score, [trackIndex]);
+    api.renderScore(rendered.score, [rendered.renderTrackIndex]);
     return () => {
       apiRef.current = null;
       renderReady.current = false;

@@ -23,6 +23,10 @@
 - 최종 `pnpm test`: **515개/112파일 성공**,41.77초. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **251개 성공/28개 환경 의존 기본 제외**,19.53초. 기존 보관/메타데이터/녹음·원격 접근 거부도 포함하며 로그 `score-history-front-20261026.log`/`score-history-rust-20261026.log`를 보존합니다.
 - `cargo +1.90.0 check --locked --all-targets --all-features --manifest-path src-tauri/Cargo.toml`/`cargo fmt --check`: **성공**,최소버전11.20초. `pnpm build`: **성공**,Vite49.27초·기존500kB chunk 경고. 최종 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.00초와 `cargo build … --features custom-protocol` **Windows 성공**,11.65초·기존MSVC 링크/테스트 아이콘 안내입니다. 로그 `score-history-{build,bundle,native-build}-20261026.log`를 보존하며 위 검사 중 표시는 이전 시점입니다. 앱은 실행하지 않았습니다.
 
+2026-10-26 확정 후속: main `aa488666a22eef265d8710cf8ba2de93a654816e`의 [Windows40227524015](https://github.com/BomJin2/GuitarLab/actions/runs/40227524015)/job121271964128는 정리 단계까지 **전체 success**입니다. 실제 로그의515프론트/112파일(48.13초), 기본247Rust(41.45초)/확장251Rust(49.51초·각28개 기본 제외), 예제1+1, AI113(1.85초), 도구143(13.295초·제외 없음), MSRV7.71초와 타입/lint/포맷·Vite5.77초를 확인했습니다. 영수증 `score-history-ci-final-20261026.json`을 보존합니다.
+
+같은 소스의 실행 파일41,232,384바이트·SHA `a93faa6b0a04aa81d14609c928810d97fbdd83bd12737fd932ececd7b448e324`를 새 UUID 폴더에 복사했고 runtime3393개/64,095,466바이트를 고정 lock과 모두 대조했습니다. `score-history-candidate-2bf30716-e21a-4127-983e-17468c5a42d3.json`은 미실행 후보이며 generic 포인터/기존 앱은 유지합니다. ZIP `validation-packages/55a00fe2-c61a-44dc-a254-47fc314a59f6/GuitarLab-validation.zip`은3613파일/40,286,466바이트·SHA `0d29ca7faf96ca27d24cf0939edaad074c5cfca99317cf303c2795f80deb5831`입니다. 전체SHA/CRC·같은 바이트 추출·실제PS5.1 종료0/개발경로 제외 독립Python3.12.15 실행 검사를 확인했고 `score-history-package-receipt-97cc4a97-2191-4c11-81c2-f88db890f3f9.json`에 기록했습니다. 동일EXE/ZIP만 Defender4.18.26090.9/정의1.461.194.0으로 치료 없이 검사해 모두0/위협 없음·전후 지문 동일을 확인했습니다. `score-history-defender-e4794f70-5348-4dd1-a2c0-487fd762b1ed.json`을 보존하며 서명은NotSigned, 새OS/다른백신·실제폼은 미실행입니다. 위 패키지/원격 미실행은 이전 시점입니다.
+
 ### 4. 미구현 및 알려진 문제
 
 저장 목록은 최신100개씩/선택 내용은 트랙당100음 표입니다. 과거 버전의 TAB 렌더/재생·현재 작업으로 적용·버전 삭제·자동 복원은 미구현입니다. 원본 파일 누락은 이 기능이 복구하지 않으며 실제 고급 판정 품질/별도 Windows 수용 조건도 유지합니다.
