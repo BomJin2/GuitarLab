@@ -1,5 +1,7 @@
 # 개발 진행 상태
 
+**최종 패키지 완료·다음은 원격 — 2026-10-25**: source6d48613은 원본 테이크 WAV 출력·악보 내보내기 오류 안내 양쪽을 포함합니다.485프론트/243확장Rust·Clippy/MSRV/Vite·Windows 내장/새3613파일ZIP·실제PS5.1/독립Python 두 번까지 성공했습니다. 최종 후보 `export-guidance-candidate-623cd9f7-ba2b-4607-b0cc-5ca8ebc3644b.json`/영수증 `export-guidance-package-receipt-3d3570b2-dd79-423f-b43c-d6a96feafeff.json`이며 세부 지문은 [Phase5](PHASE-05.md)/[Phase4A](PHASE-04A.md)을 따릅니다. 앱/개인 자료·generic 실행 포인터는 유지하고 새 원격 전체 결론은 Git 업로드 뒤 확인합니다. 기본9개/부분5개와 미실행 수용 조건은 그대로입니다.
+
 **최종 Windows 빌드 완료 — 2026-10-25**: 원본 WAV 내보내기와 악보 출력 Error 안내를 함께 포함한485프론트/105파일·타입/lint/Vite/포맷·내장3개·Windows 빌드 성공입니다.40,904,704바이트/SHA `171e1dcba8f5cb60d08d04a4a5703e79948494ac7cc1d57f84e48eb099e7d9d0`이며243Rust/Clippy/MSRV는 직전 native 후속 검사를 따릅니다. 정확한 소스 커밋의 새ZIP/독립PS/Python과 업로드/새 원격 전체 회귀가 다음입니다. 앱 미실행·사용자 자료/실행 포인터 불변을 유지합니다.
 
 **후속 오류 안내 검증 — 2026-10-25**: 기존 JSON/MusicXML 내보내기에서 Error(code)의 상세 안내가 빠지는1개 실패를 재현하고 공통 분기 순서만 수정했습니다. 전체485프론트/105파일·타입/lint/포맷·Vite1분12초 성공이며 최종Windows 내장/독립ZIP·새 원격을 이어 확인합니다. 직전 원본 WAV 출력484개/243Rust·독립패키지까지 완료했고 실제 앱/사용자 자료는 유지합니다. [Phase5](PHASE-05.md)/[Phase4A](PHASE-04A.md) 최신 절을 따릅니다.
@@ -468,9 +470,9 @@
 | 3 | 오디오 장치와 단음 판정 | 완료(단음 PoC) | [PHASE-03.md](PHASE-03.md) |
 | 4 | 프로젝트 저장과 기록 | 완료 | [PHASE-04.md](PHASE-04.md) |
 | 2A | 다중 기타 악보 트랙 선택 | 완료 | [PHASE-02A.md](PHASE-02A.md) |
-| 4A | 입력 녹음과 다시 듣기 | 기본 완료(원본 WAV 내보내기 후속484프론트/243Rust 검증, Windows 패키지/원격은 진행 중·실제 저장 창은 미실행) | [PHASE-04A.md](PHASE-04A.md) |
+| 4A | 입력 녹음과 다시 듣기 | 기본 완료(원본 WAV 후속485프론트/243Rust·Windows/독립ZIP 검증, 새 원격은 후속·실제 저장 창은 미실행) | [PHASE-04A.md](PHASE-04A.md) |
 | 4B | 오버더빙과 로컬 믹스 출력 | 완료 | [PHASE-04B.md](PHASE-04B.md) |
-| 5 | 수동 TAB 편집 | 기본 수용 완료(이동·트랙/저장 화면). 오류 안내 후속485프론트/빌드 성공·최종Windows/원격은 검사 중, 실제 선택 창 미실행 | [PHASE-05.md](PHASE-05.md) |
+| 5 | 수동 TAB 편집 | 기본 수용 완료(이동·트랙/저장 화면). 오류 안내 후속485프론트·Windows/독립ZIP 성공·새 원격은 후속, 실제 선택 창 미실행 | [PHASE-05.md](PHASE-05.md) |
 | 6 | AI 기타 카피와 stem 분리 | 진행 중(두 모델/자체 분석·현재 PC 독립 실행·GitHub Server의 기본 runtime 설치 성공, 모델 포함 별도Win10/11 수용 보류) | [PHASE-06.md](PHASE-06.md) |
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
