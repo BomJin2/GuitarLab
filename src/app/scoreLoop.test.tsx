@@ -105,6 +105,46 @@ it('악보 교체 확인 중 녹음 잠금이 시작되면 늦은 허가도 파�
   engine.dispose();
 });
 
+it('녹음 잠금 중 편집 단축키·버튼이 기록을 보존하고 해제 뒤에만 복구한다', async () => {
+  window.location.hash = '#/copy';
+  const engine = new PlayerEngine();
+  const view = () => (
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>
+  );
+  const rendered = render(view());
+  fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+    dataTransfer: {
+      files: [new File([xml], '자체.musicxml')],
+      items: [],
+      types: ['Files'],
+    },
+  });
+  await screen.findByLabelText('악보 트랙');
+  fireEvent.click(screen.getByText('안내 확인 · 편집 시작'));
+  fireEvent.change(screen.getByLabelText('음표 프렛'), {
+    target: { value: '3' },
+  });
+  fireEvent.click(screen.getByText('음표 수정 적용'));
+  flags.recordingLocked = true;
+  rendered.rerender(view());
+  const panel = screen.getByRole('region', { name: '수동 음표 편집' });
+  expect(screen.getByRole('button', { name: '되돌리기' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  expect(fireEvent.keyDown(panel, { key: 'z', ctrlKey: true })).toBe(true);
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '3');
+  flags.recordingLocked = false;
+  rendered.rerender(view());
+  fireEvent.keyDown(panel, { key: 'z', ctrlKey: true });
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '0');
+  fireEvent.keyDown(panel, { key: 'y', ctrlKey: true });
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '3');
+  engine.dispose();
+});
+
 it('실제 App의 녹음 잠금이 마디 반복 fieldset과 명령까지 전달된다', async () => {
   window.location.hash = '#/copy';
   vi.stubGlobal(

@@ -1,5 +1,7 @@
 # 개발 진행 상태
 
+**현재 작업 — 2026-10-25 편집 단축키 보호**: 반복Ctrl+Z가 실제 편집을 되돌리는1개 실패를 재현한 뒤 IME/반복/Alt·이미 처리된 이벤트·입력영역 보호와 Ctrl+Y Redo를 기존 패널에 연결했습니다. 녹음 잠금도 같은 패널에 전달했고 대상28개·전체494프론트/106파일·타입/lint/포맷·Vite1분27초와 내장4개/Windows 빌드가 성공입니다. 새독립ZIP/원격을 이어 확인하며 이전847296d의 기능/격리 설치 성공은 아래 확정 이력입니다. 개인 자료/사용자 앱·입력/REC·generic 포인터는 유지하고 실제Windows 키/Explorer drag는 미실행입니다. [Phase5](PHASE-05.md)의 최신 절을 따릅니다.
+
 **현재 확정·재개 위치 — 2026-10-25 파일 끌어놓기**: 프로젝트 없는 단일 악보/WAV·MP3 drop·미저장 확인/잠금·다른 화면 보호를 main `847296d5b4d28503eecdac97ba097f1f1d6b14cc`까지 push했습니다. [기능40185819117](https://github.com/BomJin2/GuitarLab/actions/runs/40185819117)/job121146256106는492프론트/106파일·기본240/확장244Rust(각28개 기본 제외)·예제1+1·AI113/도구143·MSRV/정리 **전체 success**입니다. [격리 설치40185819137](https://github.com/BomJin2/GuitarLab/actions/runs/40185819137)/job121146256206도Server release 실제 설치·새DB9/3393runtime·3583ms 시작·정상종료0·제거/AppData·알 수 없는 파일 보존 **success**입니다. 로컬Clippy/Vite/포맷·내장4개/Windows·새3613파일ZIP/전체SHA·CRC/실제PS5.1·독립Python 두 번도 성공이고 지문은 [Phase2](PHASE-02.md)/[Phase8](PHASE-08.md)을 따릅니다. 결과 문서는 중복CI를 피하려고 로컬 커밋에 보존해 다음 실제 변경 push에 포함합니다. 다음은 물리적Explorer drop·남은 독립 고급 정답/특화 가중치·별도Windows10/11 수용 조건이며 프로젝트 자산drop 저장은 미구현입니다. 현재PC 앱/개인 파일·입력/REC/generic 포인터와9기본/5부분은 유지합니다. 아래 진행 중/1874417은 이전 이력입니다.
 
 현재PC의 같은 후보EXE/ZIP Defender 검사도각exit0/탐지 없음·SHA 불변이며 정의1.461.194.0/Authenticode NotSigned를 [Phase8](PHASE-08.md)에 기록했습니다. 자동 삭제/격리는 적용하지 않았고 다른SHA의 원격설치기/다른백신·서명/최종출시 수용으로 확대하지 않습니다.

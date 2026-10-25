@@ -672,6 +672,68 @@ it('카피에서 수정/Undo/Redo한 음정은 연습 목표와 모드 복귀에
   });
   expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
 });
+it('편집 단축키는 반복·조합·수정자/입력 영역을 보존하고 Ctrl Y로 다시 실행한다', async () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '자체 악보 불러오기' }));
+  await screen.findByLabelText('악보 트랙');
+  const panel = screen.getByRole('region', { name: '수동 음표 편집' });
+  expect(fireEvent.keyDown(panel, { key: 'z', ctrlKey: true })).toBe(true);
+  fireEvent.click(
+    screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
+  );
+  for (const fret of ['2', '3']) {
+    fireEvent.change(screen.getByLabelText('음표 프렛'), {
+      target: { value: fret },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '음표 수정 적용' }));
+  }
+  for (const extra of [
+    { repeat: true },
+    { isComposing: true },
+    { altKey: true },
+  ]) {
+    expect(
+      fireEvent.keyDown(panel, { key: 'z', ctrlKey: true, ...extra }),
+    ).toBe(true);
+    expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
+  }
+  const handled = createEvent.keyDown(panel, { key: 'z', ctrlKey: true });
+  handled.preventDefault();
+  fireEvent(panel, handled);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
+  const richText = document.createElement('div');
+  richText.setAttribute('contenteditable', '');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  richText.append(svg);
+  panel.append(richText);
+  expect(fireEvent.keyDown(svg, { key: 'z', ctrlKey: true })).toBe(true);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
+  richText.remove();
+  expect(fireEvent.keyDown(panel, { key: 'z', ctrlKey: true })).toBe(false);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('2');
+  for (const extra of [
+    { metaKey: true },
+    { shiftKey: true },
+    { repeat: true },
+  ]) {
+    expect(
+      fireEvent.keyDown(panel, { key: 'y', ctrlKey: true, ...extra }),
+    ).toBe(true);
+    expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('2');
+  }
+  expect(fireEvent.keyDown(panel, { key: 'y', ctrlKey: true })).toBe(false);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
+  expect(fireEvent.keyDown(panel, { key: 'Z', metaKey: true })).toBe(false);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('2');
+  expect(
+    fireEvent.keyDown(panel, { key: 'Z', metaKey: true, shiftKey: true }),
+  ).toBe(false);
+  expect(screen.getByLabelText('음표 프렛').getAttribute('value')).toBe('3');
+});
 it('구조 편집은 싱크 재설정 확인 후 마디를 추가하고 튜닝/Undo와 비교를 분리한다', async () => {
   render(
     <PlayerProvider>

@@ -1197,6 +1197,12 @@ native cfg(test) 평가만 이 정책을 추가 수용하고 기존 stable-windo
 ## 내부 설치 검증의 빌드 프로필 — 2026-10-21
 
 최적화 산출물 검증을 위해 개발용 prepare_validation_installer.py의 --profile과 Test-ValidationInstaller.ps1의 -BuildProfile에 debug/release 두 값만 허용합니다. 기존 기본값은debug이며 새 계획의 buildProfile과 검사 인자가 일치하지 않으면 설치 전에 거부합니다. 이전 프로필 없는 계획은debug로만 해석합니다. 목표 경로는 해당 고정target/debug 또는target/release에서 계산하고 임의 경로·profile 이름은 받지 않습니다. UUID별제품명/프로세스/AppData·현재 사용자 설치·데이터 보존/원격 권한은 유지하며 제품 IPC/DB/모델 계약은 변경하지 않습니다. release 검증도 서명/최종배포·새Windows 수용을 뜻하지 않습니다.
+## 편집 기록 단축키 입력 보호 — 구현 전 계약(2026-10-25)
+
+- 카피의 기존 수동 편집 패널에서 Ctrl/Meta+Z는 Undo, Ctrl/Meta+Shift+Z 또는 Ctrl+Y는 Redo로 기존 컨트롤러/최대100개 history를 사용합니다. TAB 영역/앱 전역으로 단축키 범위를 넓히지 않습니다.
+- 편집 시작 전·파일 출력/기존 잠금·이전 처리된 이벤트·IME 조합·길게 누른 반복·Alt 조합에서는 실행하지 않습니다. 입력/선택/textarea·role=textbox·contenteditable의 빈값/true/plaintext-only/상속·SVG 자식 여부는 기존 공통 isTextEntryTarget으로 판정하고 해당 입력의 기본 Undo/Redo를 유지합니다.
+- 유효한 명령만 preventDefault하며 기존 렌더/선택·history·원본 보존 경로를 사용합니다. 새 IPC/저장 형식·의존성은 없습니다. Ctrl+Y와 Meta+Y·Ctrl+Shift+Y를 구별하고 재생·REC/네트워크를 시작하지 않습니다.
+
 ## TAB 음표 선택 — 구현 전 계약(2026-10-22)
 
 2026-10-23 사용자 수용/요청 후속: 숫자 클릭/오른쪽 화살표 선택을 Windows에서 확인했습니다. 숫자뿐 아니라 같은 박자 열의 줄/세로선 영역도 선택하도록 공개 beatMouseDown을 사용합니다. 현재 기본 단성 범위에서 beat.notes가 정확히1개일 때만 같은 Note 매핑을 사용하고 쉼표/여러 음의 박자는 선택을 유지합니다. 새 음표 생성/줄 변경·화음 음표 추측은 하지 않습니다. 숫자 전용 noteMouseDown은 중복 연결하지 않아 한 번의 클릭을 두 번 처리하지 않으며 includeNoteBounds의 추가 계산도 필요하지 않습니다. 렌더는 score/track 변경에만 재생성하고 콜백/잠금 상태는 최신 참조를 사용합니다. 아래 noteMouseDown/includeNoteBounds 설명은 숫자 전용 첫 구현 이력이며 이 공개 beat 이벤트로 대체합니다.

@@ -319,7 +319,7 @@ export function ScoreWorkspace({
         <ScoreEditor
           session={session}
           editor={editor}
-          locked={loading || !!project?.busy}
+          locked={playbackLocked || loading || !!project?.busy}
         />
       )}
       {mode === 'copy' && (

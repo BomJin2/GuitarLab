@@ -6,6 +6,7 @@ import { noteDurations } from './normalizedNotation';
 import { ScoreStructureEditor } from './ScoreStructureEditor';
 import { OriginalScoreComparison } from './OriginalScoreComparison';
 import { useScoreExport } from './useScoreExport';
+import { isTextEntryTarget } from '../../shared/keyboard';
 
 export function ScoreEditor({
   session,
@@ -52,16 +53,23 @@ export function ScoreEditor({
       onKeyDown={(event) => {
         if (
           controlsLocked ||
+          !editor.enabled ||
+          event.defaultPrevented ||
+          event.nativeEvent.isComposing ||
+          event.repeat ||
+          event.altKey ||
           (!event.ctrlKey && !event.metaKey) ||
-          event.key.toLowerCase() !== 'z' ||
-          (event.target instanceof HTMLElement &&
-            event.target.closest(
-              'input,textarea,select,[contenteditable="true"]',
-            ))
+          isTextEntryTarget(event.target)
+        )
+          return;
+        const key = event.key.toLowerCase();
+        if (
+          key !== 'z' &&
+          !(key === 'y' && event.ctrlKey && !event.metaKey && !event.shiftKey)
         )
           return;
         event.preventDefault();
-        if (event.shiftKey) editor.redo();
+        if (key === 'y' || event.shiftKey) editor.redo();
         else editor.undo();
       }}
     >
@@ -70,7 +78,8 @@ export function ScoreEditor({
         원본은 보존하고 편집본을 만듭니다. 반복은 펼친 시간으로 편집하며
         주법·원본 표기는 간소화됩니다. 현재6줄 단성만 지원합니다. 마디/템포
         변경은 반주 싱크 재확인이 필요합니다. 파일 출력은 새 JSON/MusicXML만
-        생성합니다.
+        생성합니다. 편집 패널에서 Ctrl+Z로 되돌리고 Ctrl+Y 또는 Ctrl+Shift+Z로
+        다시 실행합니다.
       </p>
       {!editor.enabled ? (
         <button disabled={controlsLocked} onClick={editor.begin}>

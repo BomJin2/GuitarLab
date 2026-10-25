@@ -1,5 +1,35 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 편집 기록 단축키 보호 (2026-10-25)
+
+### 1. 작업 개요
+
+작업일2026-10-25. 수동 편집 패널의 키 반복/IME·입력 영역에서 Undo가 실행되는 실패를 재현해 고치고 Windows Ctrl+Y Redo를 기존 기록에 연결합니다. 현재 대상/전체 프론트 검사는 성공이며 최종내장/Windows·패키지/원격은 후속 결과로 구분합니다. 기본9개/부분5개와 고급 품질·별도Windows 조건은 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 동작/입력·잠금 보호 계약을 기록했습니다. 새IPC/DB·의존성은 없습니다.
+- `ScoreEditor.tsx`: 기존 Ctrl/Meta+Z·Shift+Z를 유지하고 Ctrl+Y를 같은 controller.redo에 연결합니다. enabled/defaultPrevented/isComposing/repeat/Alt 보호와 기존 `shared/keyboard.ts`의 입력 판별기를 재사용합니다. 입력/상속 contenteditable·SVG의 자체 Undo는 가로채지 않습니다. 패널 안내만 보완하고 새UI/디자인은 만들지 않습니다.
+- `ScoreWorkspace.tsx`: 녹음/재생 잠금을 편집 패널의 기존 locked에 전달합니다. 하위 Undo/Redo 도메인의 잠금에 더해 키 이벤트·버튼 상태도 동일하게 보호합니다.
+- `src/app/scoreSession.test.tsx`/`scoreLoop.test.tsx`: 실제 App의 편집·반복/IME/Alt/이미 처리된 이벤트·입력영역/표준입력 보존·Ctrl/Meta Undo/Redo와 Ctrl+Y·잘못된 Y 조합 및 녹음잠금/해제 후 기록 보존을 검사합니다. docs/04·09/21·로드맵/진행표를 갱신합니다.
+
+### 3. 테스트 결과
+
+- 수정 전 새 App 통합 검사 **1실패/22미선택**: 반복 Ctrl+Z가 preventDefault되면서 기존 기록을 되돌리는 문제를 재현했습니다. 수정 후 동일1개 성공(943ms)입니다.
+- 확장 대상 `pnpm exec vitest run src/app/scoreSession.test.tsx src/app/scoreLoop.test.tsx src/shared/keyboard.test.ts`: **28개/3파일 성공**,18.56초. 실제 렌더/파서와 DOM 대역을 사용하며 개인 파일/입력은 사용하지 않았습니다.
+- `pnpm typecheck`/`pnpm lint`: **성공**. `pnpm test`: **494개/106파일 성공**,47.20초. 로그 `src-tauri/target/runtime-validation/editor-shortcuts-front-20261025.log`를 보존합니다.
+- `pnpm format:check`/`pnpm build`: **성공**,Vite1분27초·기존500kB 초과chunk 경고 유지. 로그 `editor-shortcuts-build-20261025.log`를 보존합니다. 내장/Windows·패키지/원격은 현재 검사 중입니다. Rust/Python 전체의 로컬 재검사는 **미실행** — 해당 코드를 변경하지 않았으며 새 원격 결과와 구분합니다. 실제Windows 키 조작·Explorer drop/사용자 기타/새OS는 **미실행** — 이번 수직 슬라이스의 합성 입력 회귀와 구분합니다. Windows 제어 도구는 창 목록 조회만 했고 앱 조작/실제drag를 수행하지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+단축키 범위는 기존 수동 편집 패널입니다. 별도TAB/원본비교/앱전역으로 확대하지 않았고 입력칸의 자체 Undo/Redo는 유지합니다. 고급 주법 점수·특화 두 기타/별도Windows10/11·최종출시 수용은 이 변경으로 해결되지 않습니다.
+
+최종내장 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **4개 성공**,0.01초/컴파일29.49초. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 빌드 성공**,11.78초·기존MSVC 링크 안내. 실행 파일40,905,216바이트·SHA `7ba561eafd308968e326b222fba4c235e639193f03ab2d09659ba83e4f882f26`이며 앱은 실행하지 않았습니다. 로그 `editor-shortcuts-bundle-20261025.log`/`editor-shortcuts-native-build-20261025.log`를 보존합니다. 위 내장/Windows 검사 중은 이전 시점이고 새ZIP/원격은 다음입니다.
+
+### 5. 다음 작업 계획
+
+최종포맷/Vite·내장/Windows와 새 독립ZIP/실제PS5.1·원격 회귀를 확인하고 정확한 결과를 추가합니다. 사용자가 연주할 필요 없는 검증부터 계속하며 기존 앱/개인 자료·실행 포인터는 유지합니다. 이후 남은 고급 품질·모델/별도Windows 수용 조건과 독립적인 기능 보완을 구분해 진행합니다.
+
 ## 후속 — 악보 내보내기 오류 안내 복원 (2026-10-25)
 
 ### 1. 작업 개요
