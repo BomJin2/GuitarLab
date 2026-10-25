@@ -1,5 +1,37 @@
 # Phase 4A — 입력 녹음과 다시 듣기
 
+## 후속 — 테이크 원본 WAV 내보내기 (2026-10-25)
+
+### 1. 작업 개요
+
+완료일2026-10-25(코드/자동 검사, Windows 패키지·원격은 아래 상태 참조). 현재 선택한 READY 테이크의 전체 원본 WAV를 새 파일로 보존합니다. 기존 기본9단계 수용/5부분 상태는 유지하며 실제 앱 저장 창/개인 녹음 수용과 전체 출시 완료는 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 `export_recording` v1을 기록했습니다. 프로젝트/테이크 UUID만 받고 경로·PCM을 프론트로 반환하지 않습니다. 기존 StorageJob·취소/종료 보호·native 새 파일 선택 창을 사용하며 창 전후에 녹음 상태를 확인합니다.
+- `storage/recording_export.rs`: 소유권/보관·READY·기존10분/256MiB 길이/전체SHA·정규 헤더 확인 후 원래 mono float32 바이트를 복사합니다.0.5× 녹음에도 배속/음량·부분 반복/정렬을 적용하거나 반주·시스템/YouTube 출력과 합치지 않습니다. 앱 데이터 안 목적지/기존 파일·손상/누락은 거부합니다.
+- `storage/export_file.rs`: 기존 비덮어쓰기 저장에 진행 콜백 경로만 추가했습니다. 악보/믹스의 원래 함수는 유지합니다. 새 임시 파일 flush/sync→hard-link 게시를 재사용하고 게시 전 취소/진행 실패·동시 목적지 충돌에서 원본/기존 목적지를 보존합니다.
+- `commands/recording_api.rs`/`app.rs`는 명령/엄격한 요청 검사, `takeExport.ts`/`useTakeExport.ts`/`TakeExportPanel.tsx`/`RecordingsPage.tsx`는 서비스·수명/취소·최소 UI를 분리합니다. 중복 시작/이탈 뒤 늦은 성공을 막고 브라우저 제한·누락/복구·metadata 미포함을 안내합니다.
+- native3개/요청1개·프론트8개 회귀와 docs/09·17/로드맵·진행표를 갱신합니다. Python/DB·모델/새 의존성 변경은 없습니다.
+
+### 3. 테스트 결과
+
+- `pnpm typecheck`/`pnpm exec vitest run src/features/recordings/takeExport.test.ts src/features/recordings/TakeExportPanel.test.tsx`: **8개 성공**,2.81초. ID만 전달/정확한6필드·길이·SHA/손상·초기 취소·native 정리 대기·중복/이탈·오류/복구 경고를 검사했습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features recording_export -- --nocapture`: **3개 성공**,0.57초. 자체48kHz/1초 원본/출력 바이트·SHA와0.5× metadata 불변·취소/진행 실패/충돌·내부 목적지/다른 프로젝트/보관·손상/헤더/누락/불완전 상태를 확인했습니다. `… export_take_request -- --nocapture`: **1개 성공**,0.00초(버전/UUID·임의 경로/추가 필드 거부). 게시 직전 동시 목적지 생성 거부도 최종 전체 검사에 포함합니다.
+- `pnpm lint`/`pnpm test`/`pnpm format:check`: **성공**,전체 **484개/105파일**,40.50초. `cargo fmt --check`/확장Clippy: **성공**(13.04초). `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **243성공/28개 기본 제외**,21.15초·컴파일22.41초. `cargo +1.90.0 check --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**,18.12초. 선택 창 뒤 녹음 재확인 연결은 후속 내장 검사에서도 확인합니다.
+- 초기 타입 실패2건은 설치하지 않은 `toBeDisabled` 대신 DOM 속성 검사로 수정했습니다. native 첫 컴파일의 `canceled` import/fixture progress 인자를 연결했습니다. 첫 대상6성공/2실패는 Error를 record로 먼저 처리해 세부 코드 안내가 빠진 문제로, Error 우선 처리 후8개 통과했습니다. 실패를 성공으로 기록하지 않습니다.
+- 로그 `runtime-validation/take-export-frontend-20261025.log`/`take-export-rust-20261025.log`를 보존합니다. Vite/Windows 내장·새ZIP/원격은 현재 검사 단계입니다. 실제 앱 저장 창·개인 WAV/청취·새OS/디스크 채우기/물리 전원 차단은 **미실행** — 자체 임시 파일/실패 주입만 사용했고 기존 앱·사용자 자료는 유지했습니다.
+
+후속 로컬 빌드도 **완료**했습니다. `pnpm build`의 타입 검사/Vite1분26초가 성공했고 기존500kB 초과 chunk 경고는 유지합니다. 파일 선택 후 녹음 재확인 연결과 최종 충돌 원본 검사를 포함한 확장Clippy6.73초·대상native3개0.57초·내장 `bundle_tests`3개/0.00초(컴파일10.52초)도 성공했습니다. 내장 검사 문맥의 icon resource 조회 경고2회는 실제 앱 아이콘 수용과 구분합니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`은 **성공**,3.64초/40,904,704바이트·SHA `2c25a3e6343307068f30f0e455b7894971d7df1d9a5549a0eeedb494947ac7e9`입니다. 기존 MSVC 링크 안내 경고를 유지하고 새 앱은 실행하지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+기존 전체 읽기를 재사용해 native 최대256MiB 버퍼가 필요할 수 있으며 제한 메모리 구간 분석과 구분합니다. 전체 프로세스 최고 메모리는 실측하지 않았습니다. 원본 검사 동안 진행률0이며 출력 바이트로 진행합니다. hard-link가 불가능한 FAT/exFAT 등 목적지는 오류이며 덮어쓰기 폴백이 없습니다. 누락/복구 정보·메모/정렬은 앱에만 남고 잃은 구간은 복원하지 않습니다. MP3·부분 잘라내기·영구 삭제는 추가하지 않았습니다.
+
+### 5. 다음 작업 계획
+
+Vite/Windows 내장 빌드는 완료했으며 다음은 새 독립 ZIP/실제PowerShell·번들Python과 새 원격 전체 회귀 확정입니다. 같은 수동 기타 검사를 반복 요청하지 않습니다. 이후 독립 후속은 기존 악보 내보내기의 Error 응답에서 세부 안내가 빠지는지 재현하는 안정성 검사입니다. 고급 판정의 독립 정답·특화 가중치/별도Windows 수용 제약은 이 기능으로 완료 처리하지 않습니다.
+
 ## 1. 작업 개요
 
 - 작업 시작: 2026-10-15, 사용자 재개 요청.

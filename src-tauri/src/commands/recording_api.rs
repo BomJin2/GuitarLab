@@ -10,12 +10,14 @@ use crate::{
     storage::{
         jobs::{JobSnapshot, StorageJobs},
         project_model::{storage_error, validate_uuid},
-        projects::ProjectStore,
+        projects::{canceled, ProjectStore},
     },
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
+use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 pub async fn analyze_recording_pitches(
@@ -86,6 +88,13 @@ pub struct TakeRequest {
     schema_version: u8,
     project_id: String,
     take_id: String,
+}
+impl TakeRequest {
+    fn validate(&self) -> Result<(), AppError> {
+        version(self.schema_version)?;
+        validate_uuid(&self.project_id)?;
+        validate_uuid(&self.take_id)
+    }
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -198,6 +207,58 @@ pub async fn recover_recording(
     Ok(initial)
 }
 #[tauri::command]
+pub async fn export_recording(
+    app: tauri::AppHandle,
+    request: TakeRequest,
+    store: tauri::State<'_, Arc<ProjectStore>>,
+    jobs: tauri::State<'_, Arc<StorageJobs>>,
+    service: tauri::State<'_, Arc<RecordingService>>,
+) -> Result<JobSnapshot, AppError> {
+    request.validate()?;
+    if service.is_active() {
+        return Err(record_error("RECORDING_BUSY"));
+    }
+    let store = store.inner().clone();
+    let service = service.inner().clone();
+    let job = jobs.start("PICKING")?;
+    let initial = job.snapshot()?;
+    super::storage_api::launch(job, move |job| {
+        canceled(&job.cancel)?;
+        if store.take(&request.project_id, &request.take_id)?.state
+            != crate::recording::model::RecordingState::Ready
+        {
+            return Err(record_error("TAKE_NOT_READY"));
+        }
+        let mut picker = app
+            .dialog()
+            .file()
+            .set_title("녹음 원본 WAV를 새 파일로 저장")
+            .add_filter("WAV", &["wav"])
+            .set_file_name("GuitarLab-take.wav");
+        if let Some(parent) = app.get_webview_window("main") {
+            picker = picker.set_parent(&parent);
+        }
+        let path = picker
+            .blocking_save_file()
+            .ok_or_else(|| AppError::new("CANCELED", "테이크 내보내기를 취소했습니다.", false))?
+            .into_path()
+            .map_err(|_| AppError::invalid())?;
+        canceled(&job.cancel)?;
+        if service.is_active() {
+            return Err(record_error("RECORDING_BUSY"));
+        }
+        let result = store.export_recording(
+            &request.project_id,
+            &request.take_id,
+            &path,
+            &job.cancel,
+            |n, total| job.progress(n, total),
+        )?;
+        serde_json::to_value(result).map_err(|_| storage_error())
+    });
+    Ok(initial)
+}
+#[tauri::command]
 pub async fn get_recording_revision(
     request: TakeRequest,
     store: tauri::State<'_, Arc<ProjectStore>>,
@@ -227,4 +288,30 @@ pub async fn update_recording(
     })
     .await
     .map_err(|_| storage_error())?
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+    #[test]
+    fn export_take_request_refuses_version_paths_unknown_fields_and_bad_ids() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let value = json!({"schemaVersion":1,"projectId":id,"takeId":id});
+        serde_json::from_value::<TakeRequest>(value.clone())
+            .expect("요청")
+            .validate()
+            .expect("계약");
+        for (key, data) in [
+            ("schemaVersion", json!(2)),
+            ("projectId", json!("../project")),
+            ("takeId", json!("C:/private.wav")),
+            ("path", json!("C:/arbitrary.wav")),
+        ] {
+            let mut invalid = value.clone();
+            invalid[key] = data;
+            assert!(serde_json::from_value::<TakeRequest>(invalid)
+                .map(|r| r.validate().is_err())
+                .unwrap_or(true));
+        }
+    }
 }

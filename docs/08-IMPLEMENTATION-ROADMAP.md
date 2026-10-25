@@ -223,6 +223,8 @@ Phase: N / 제목
 2026-10-14 완료: 두 기타 MusicXML 실제 import/각8음·서로 다른 커서/피치·단일 트랙 요청·이전 중지 완료 대기·역할/ID와 이전 revision 보존을 검사했습니다. 최종 verify:app116개 프론트/82개 Rust·장치 열거1개 제외, 번들1개·Windows 제품 빌드 성공. 실제 새 앱에서 Guitar1/2 TAB 전환과 리드/리듬 사용자 태그·선택 Guitar2 저장/재열기 복원을 사용자 확인했습니다. 역할은 사용자 태그이며 오디오 분리 기능을 주장하지 않습니다.
 
 ### Phase 4A — 연주 녹음 및 다시 듣기 (Phase 3/4 이후)
+2026-10-25 원본 WAV 내보내기 후속: 현재 READY 테이크의 전체 원본을 새 파일로만 보존하는 명령/서비스·패널과 무결성/취소·비덮어쓰기 검사를 추가했습니다.484프론트·243확장Rust/Clippy/MSRV 성공이며 Windows 내장/패키지·원격과 실제 앱 저장 창 수용은 검사 상태를 구분합니다. 지문/오류/미실행은 PHASE-04A 최신 절을 따르며 배속·음량/정렬·반주는 적용하지 않습니다.
+
 - [x] InputOnly WAV recorder (CPAL bounded queue+writer), 명시적 REC/Stop, `.part` 복구.
 - [x] 테이크 metadata/storage/migration, 악보·타임라인 동기 리플레이, A/B, 부분 재생.
 - [x] 장치 해제, crash, 디스크 부족, 입력 누락, YouTube 오디오 미캡처 검증.

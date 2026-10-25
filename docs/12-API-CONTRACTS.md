@@ -1,5 +1,13 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 녹음 원본 WAV 내보내기 v1 — 2026-10-25
+
+`export_recording`은 기존 StorageJob으로 `{schemaVersion:1,projectId,takeId}`만 받으며 경로/PCM/이름·임의 실행 인자를 받지 않습니다. 로컬 main의 명시적 버튼에서만 native 새 WAV 저장 창을 열고, 프로젝트 소유권·보관 상태/READY·최대10분/256MiB·정규 헤더/길이/전체 SHA256을 확인합니다. 녹음 중/다른 파일 작업 중에는 거부하며 선택 창/파일 작업의 취소와 진행 상태를 유지합니다. 정상 결과는 `{schemaVersion:1,state:"RECORDING_EXPORTED",projectId,takeId,bytes,sha256}`이고 경로/개인 PCM을 프론트로 반환하지 않습니다. sha256은 원본 테이크와 같고 bytes=58+frames*4입니다.
+
+전체 원본 mono float32 WAV를 그대로 새 파일로 저장합니다. 배속/오프셋·음량 맞춤·음소거/부분 반복/믹스는 적용하지 않으며 반주·시스템/YouTube 출력도 넣지 않습니다. 이름·메모/정렬/누락·복구 정보는 앱 메타데이터에만 남고 WAV로 이전되지 않음을 안내합니다. 경고가 있는 READY 복구본도 원래 바이트 그대로 내보내며 정상 연주/누락 복원으로 표현하지 않습니다. RECOVERABLE_ERROR는 별도 새 READY 복구를 먼저 해야 합니다.
+
+내부 앱 데이터 목적지/기존 파일은 거부하고 같은 목적지 폴더의 새 UUID 임시 파일에 기록·flush/sync 후 기존 비덮어쓰기 publish를 재사용합니다. 게시 전 취소/실패는 새 임시 파일만 정리하고 기존/원본·DB를 유지합니다. 이미 게시한 파일은 늦은 취소로 삭제하지 않습니다. 기존 녹음 읽기의 최대256MiB native 버퍼를 재사용하는 첫 구현이며 제한 메모리 구간 분석과 구분합니다. 새 의존성·Python/DB 변경은 없습니다.
+
 ## 긴 테이크의 제한 메모리 구간 분석 — 2026-10-25
 
 기존 `analyze_recording_pitches` v1/`analyze_recording_pitch_track` v1 요청과 스펙트럼 결과v1/궤적 결과v2 형식은 유지합니다. startMs 범위만0~600000ms로 확장하며 실제 녹음 안에400ms/1000ms 전체가 남아 있어야 합니다. 허용 테이크는 기존 녹음 한도(최대10분/256MiB 중 먼저 도달한 값)의 누락/경고 없는 READY·사용자 INPUT_ONLY입니다. 이전30초/16MiB 분석 전용 제한은 이 후속에서 대체합니다. DSP/판정·저장 버전/원본은 바꾸지 않습니다.

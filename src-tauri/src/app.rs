@@ -201,6 +201,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::recording_api::stop_recording,
             commands::recording_api::list_recordings,
             commands::recording_api::read_recording,
+            commands::recording_api::export_recording,
             commands::recording_api::analyze_recording_pitches,
             commands::recording_api::analyze_recording_pitch_track,
             commands::recording_api::recover_recording,

@@ -8,6 +8,7 @@ import {
 } from './recordings';
 import { TakeReplay } from './TakeReplay';
 import { RecordedPitchesPanel } from './RecordedPitchesPanel';
+import { TakeExportPanel } from './TakeExportPanel';
 import { LatestTask } from '../../shared/latestTask';
 import type { JobSnapshot } from '../library/projects';
 export function RecordingsPage({ project }: { project: ProjectController }) {
@@ -159,6 +160,12 @@ export function RecordingsPage({ project }: { project: ProjectController }) {
           )}
           {selected && (
             <TakeReplay take={selected} peer={peer} playRequest={playRequest} />
+          )}
+          {selected && (
+            <TakeExportPanel
+              key={`${selected.projectId}:${selected.id}:${selected.sha256}`}
+              take={selected}
+            />
           )}
           {selected && (
             <RecordedPitchesPanel

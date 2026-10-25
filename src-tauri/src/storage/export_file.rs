@@ -20,6 +20,15 @@ pub fn save_new_file(
     extension: &str,
     cancel: &AtomicBool,
 ) -> Result<(), AppError> {
+    save_new_file_with_progress(path, bytes, extension, cancel, |_, _| Ok(()))
+}
+pub(crate) fn save_new_file_with_progress(
+    path: &Path,
+    bytes: &[u8],
+    extension: &str,
+    cancel: &AtomicBool,
+    progress: impl Fn(u64, u64) -> Result<(), AppError>,
+) -> Result<(), AppError> {
     canceled(cancel)?;
     if !["wav", "json", "musicxml"].contains(&extension)
         || !path.is_absolute()
@@ -50,11 +59,15 @@ pub fn save_new_file(
         .open(&partial)
         .map_err(|_| export_error("EXPORT_IO"))?;
     let result = (|| {
+        progress(0, bytes.len() as u64)?;
+        let mut completed = 0;
         for chunk in bytes.chunks(65536) {
             canceled(cancel)?;
             output
                 .write_all(chunk)
                 .map_err(|_| export_error("EXPORT_IO"))?;
+            completed += chunk.len() as u64;
+            progress(completed, bytes.len() as u64)?;
         }
         output.flush().map_err(|_| export_error("EXPORT_IO"))?;
         output.sync_all().map_err(|_| export_error("EXPORT_IO"))?;
