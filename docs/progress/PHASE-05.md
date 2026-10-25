@@ -1,5 +1,33 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 악보 내보내기 오류 안내 복원 (2026-10-25)
+
+### 1. 작업 개요
+
+완료일2026-10-25(대상 검사, 전체 검사/최종 패키지는 아래 상태 참조). 원본 WAV 후속 검사에서 찾은 동일한 오류 처리 패턴을 기존 JSON/MusicXML 출력에서 재현했습니다. 저장 방식/원본·문서/IPC 계약은 유지하며 실패 원인별 안내만 복원합니다.
+
+### 2. 구현 및 변경 사항
+
+`scoreExport.ts`의 공통 `scoreExportError`와 유일한 호출자 `useScoreExport.ts`를 확인했습니다. `runStorageJob`이 전달하는 `Error(code)`도 record 검사에 먼저 잡혀 `.code`가 없는 일반 오류 안내로 바뀌었습니다. 같은 함수에서 Error 메시지를 먼저 확인하는 순서만 수정했습니다. native `{code}`·알 수 없는 오류의 기존 일반 안내와 경로 마스킹은 유지합니다. JSON/MusicXML 양쪽 호출에 적용되며 새 명령/데이터·UI 디자인/의존성 변경은 없습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `pnpm exec vitest run src/features/score/scoreExport.test.ts`: **1실패/2성공**,2.14초. `Error('EXPORT_DESTINATION_EXISTS')`에서 새 파일명 안내 대신 일반 문구가 나왔습니다. 실패 로그 `runtime-validation/score-export-error-before-20261025.log`를 보존합니다.
+- 수정 후 같은 명령: **3개 성공**,2.18초. 파일 충돌·작업 중·녹음 중·공간 부족의 Error/native 객체 안내 일치 및 임의 개인 경로 비노출을 확인했습니다. 기존 실제 JSON/MusicXML 재입력/취소·응답 계약 검사도 유지합니다.
+- 전체 타입/lint/테스트/포맷·Vite는 진행 중이며 성공 전 기록하지 않습니다. Rust 소스는 이 오류 안내 후속에서 변경하지 않았고 직전 WAV 출력의243개/Clippy/MSRV·Windows/독립ZIP 성공과 구분합니다. 새 내장 실행 파일·실제 앱 선택 창/디스크 채우기는 **미실행** — 프론트 오류 변환과 테스트 대역 검증이며 사용자 자료/앱은 유지합니다.
+
+후속 `pnpm typecheck`/`pnpm lint`/`pnpm test`/`pnpm format:check`/`pnpm build`도 **성공**했습니다. 전체485개/105파일·29.41초, Vite1분12초/기존 큰 chunk 경고이며 전체 로그 `runtime-validation/score-export-error-after-20261025.log`와 `score-export-error-build-20261025.log`를 보존합니다. 위 진행 중은 당시 이력입니다. 이번 변경은 프론트 오류 매핑뿐이며 원본 WAV 기능과 함께 최종 내장 빌드/원격 결과를 아래에 확정합니다.
+
+최종 내장 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **3개 성공**,0.01초/컴파일11.09초. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 성공**,11.10초/40,904,704바이트/SHA `171e1dcba8f5cb60d08d04a4a5703e79948494ac7cc1d57f84e48eb099e7d9d0`입니다. 원본 WAV 내보내기와 이번 오류 안내가 함께 포함되며 기존 MSVC/검사 문맥 icon 경고2회는 유지합니다. 실제 앱/사용자 데이터는 그대로입니다. 새 독립ZIP/원격은 다음 단계입니다.
+
+### 4. 미구현 및 알려진 문제
+
+파일 시스템의 실제 실패를 없앤 변경이 아니며, 이미 발생한 실패의 복구 방법을 알립니다. 알 수 없는 오류는 원문/개인 경로를 노출하지 않고 기존 일반 안내를 표시합니다. 기존 비덮어쓰기 저장과 원본 보존은 그대로입니다.
+
+### 5. 다음 작업 계획
+
+전체 프론트 회귀/Windows 내장·독립 패키지를 확정하고 원본 WAV 후속과 함께 새 원격 회귀를 확인합니다. 실제 앱/개인 데이터 수용과 구분해 기록하며 고급 판정·특화 분리/별도Windows의 미완료 조건은 유지합니다.
+
 ## 후속 — 선택한 음표의 반주 위치로 이동 (2026-10-24)
 
 ### 1. 작업 개요

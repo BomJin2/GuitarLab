@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
-import { scoreExportApi } from './scoreExport';
+import { scoreExportApi, scoreExportError } from './scoreExport';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
 import { decodeScoreDocument } from '../../entities/scoreValidation';
 import { importScore, normalizeScore } from './alphaTabAdapter';
@@ -9,6 +9,21 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
   isTauri: () => true,
 }));
+
+it('작업 Error와 native 오류 객체는 같은 구체적 복구 안내를 제공하고 경로를 숨긴다', () => {
+  for (const [code, expected] of [
+    ['EXPORT_DESTINATION_EXISTS', '새 파일명을 선택하세요'],
+    ['STORAGE_BUSY', '다른 파일 작업'],
+    ['RECORDING_BUSY', '녹음을 저장한 뒤'],
+    ['DISK_SPACE_LOW', '저장 공간이 부족'],
+  ]) {
+    expect(scoreExportError(new Error(code))).toContain(expected);
+    expect(scoreExportError({ code })).toContain(expected);
+  }
+  expect(scoreExportError(new Error('C:/private/score.json'))).not.toContain(
+    'private',
+  );
+});
 afterEach(() => vi.resetAllMocks());
 function complete(format: string) {
   return {

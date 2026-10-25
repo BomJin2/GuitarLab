@@ -44,11 +44,8 @@ export const scoreExportApi = {
   },
 };
 export function scoreExportError(cause: unknown) {
-  const code = isRecord(cause)
-    ? cause.code
-    : cause instanceof Error
-      ? cause.message
-      : '';
+  const code =
+    cause instanceof Error ? cause.message : isRecord(cause) ? cause.code : '';
   if (code === 'EXPORT_DESTINATION_EXISTS')
     return '기존 파일은 덮어쓰지 않습니다. 새 파일명을 선택하세요.';
   if (code === 'STORAGE_BUSY')
