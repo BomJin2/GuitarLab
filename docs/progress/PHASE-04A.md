@@ -24,6 +24,8 @@
 
 후속 로컬 빌드도 **완료**했습니다. `pnpm build`의 타입 검사/Vite1분26초가 성공했고 기존500kB 초과 chunk 경고는 유지합니다. 파일 선택 후 녹음 재확인 연결과 최종 충돌 원본 검사를 포함한 확장Clippy6.73초·대상native3개0.57초·내장 `bundle_tests`3개/0.00초(컴파일10.52초)도 성공했습니다. 내장 검사 문맥의 icon resource 조회 경고2회는 실제 앱 아이콘 수용과 구분합니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`은 **성공**,3.64초/40,904,704바이트·SHA `2c25a3e6343307068f30f0e455b7894971d7df1d9a5549a0eeedb494947ac7e9`입니다. 기존 MSVC 링크 안내 경고를 유지하고 새 앱은 실행하지 않았습니다.
 
+독립 패키지 검사도 **성공**입니다. source `3fa728cc17054cd8a9a15dd74348eca0d3b1ffe2`/후보 `take-export-candidate-209468e3-98f9-4839-8ac8-d90722f1781f.json`에 새 앱 미실행 상태를 보존했습니다.3393runtime파일/64,095,466바이트와 lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`를 검증했습니다. 새ZIP `validation-packages/8b2437b2-dd60-4662-8759-d20fcd689f52/GuitarLab-validation.zip`은3613파일/40,219,576바이트·SHA `fb502bc793df6a31e37005145120abdf0fc47d890aeb179f6efa7be1315b98e4`이며 전체SHA/CRC·같은 지문 새 추출·실제 Windows PowerShell5.1 `-File Test-ValidationPackage.ps1` exit0/개발 경로 제외 독립Python3.12.15 두 번이 통과했습니다. 영수증 `take-export-package-receipt-cdf4c405-0248-4ad2-8d24-561df8ae5309.json`/로그 `take-export-package-check-0f370562-5641-4951-88e5-6ddb35716772.log`를 유지합니다. 실제 사용자 앱·입력/녹음·generic portable-candidate는 건드리지 않았고 새 원격 회귀는 업로드 후 확인합니다.
+
 ### 4. 미구현 및 알려진 문제
 
 기존 전체 읽기를 재사용해 native 최대256MiB 버퍼가 필요할 수 있으며 제한 메모리 구간 분석과 구분합니다. 전체 프로세스 최고 메모리는 실측하지 않았습니다. 원본 검사 동안 진행률0이며 출력 바이트로 진행합니다. hard-link가 불가능한 FAT/exFAT 등 목적지는 오류이며 덮어쓰기 폴백이 없습니다. 누락/복구 정보·메모/정렬은 앱에만 남고 잃은 구간은 복원하지 않습니다. MP3·부분 잘라내기·영구 삭제는 추가하지 않았습니다.
