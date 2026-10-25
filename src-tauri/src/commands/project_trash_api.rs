@@ -1,6 +1,7 @@
+use super::storage_api::launch_idle as mutate;
 use crate::{
     ipc::AppError,
-    recording::{model::record_error, service::RecordingService},
+    recording::service::RecordingService,
     storage::{
         jobs::{JobSnapshot, StorageJobs},
         project_model::{storage_error, validate_uuid},
@@ -9,7 +10,7 @@ use crate::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -35,20 +36,6 @@ fn version(value: u8) -> Result<(), AppError> {
         return Err(AppError::invalid());
     }
     Ok(())
-}
-fn mutate(
-    jobs: &StorageJobs,
-    recording: &Arc<RecordingService>,
-    work: impl FnOnce(&AtomicBool) -> Result<Value, AppError> + Send + 'static,
-) -> Result<JobSnapshot, AppError> {
-    if recording.is_active() {
-        return Err(record_error("RECORDING_BUSY"));
-    }
-    let job = jobs.start("RUNNING")?;
-    let initial = job.snapshot()?;
-    let recording = recording.clone();
-    super::storage_api::launch(job, move |job| recording.while_idle(|| work(&job.cancel)));
-    Ok(initial)
 }
 #[tauri::command]
 pub async fn list_trashed_projects(

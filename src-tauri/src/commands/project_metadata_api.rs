@@ -1,6 +1,6 @@
 use crate::{
     ipc::AppError,
-    recording::{model::record_error, service::RecordingService},
+    recording::service::RecordingService,
     storage::{
         jobs::{JobSnapshot, StorageJobs},
         project_metadata::ProjectMetadata,
@@ -38,25 +38,16 @@ pub async fn update_project_metadata(
     recording: tauri::State<'_, Arc<RecordingService>>,
 ) -> Result<JobSnapshot, AppError> {
     request.validate()?;
-    if recording.is_active() {
-        return Err(record_error("RECORDING_BUSY"));
-    }
-    let job = jobs.start("RUNNING")?;
-    let initial = job.snapshot()?;
     let store = store.inner().clone();
-    let recording = recording.inner().clone();
-    super::storage_api::launch(job, move |job| {
-        recording.while_idle(|| {
-            let project = store.update_metadata(
-                &request.project_id,
-                request.expected,
-                request.changes,
-                &job.cancel,
-            )?;
-            Ok(json!({"schemaVersion":1,"project":project}))
-        })
-    });
-    Ok(initial)
+    super::storage_api::launch_idle(&jobs, &recording, move |cancel| {
+        let project = store.update_metadata(
+            &request.project_id,
+            request.expected,
+            request.changes,
+            cancel,
+        )?;
+        Ok(json!({"schemaVersion":1,"project":project}))
+    })
 }
 
 #[cfg(test)]

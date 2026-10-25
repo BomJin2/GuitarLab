@@ -1,5 +1,36 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 저장 악보 버전 읽기 전용 조회 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 기존 불변 revision의 목록과 선택 내용을 읽는 기능을 구현해 대상/전체 검사·Windows 빌드를 완료했습니다. 새 독립 패키지/원격 회귀와 실제 Windows 폼 수용은 아래에서 구분합니다. 현재 편집본을 적용/복원하는 기능은 포함하지 않으며 기본9개/부분5개 상태를 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 v1 목록/조회·취소/진행·소유권·100개 페이지 계약을 기록했습니다. `storage/score_history.rs`는 read transaction으로 head/목록을 함께 읽고 `projects.rs`의 기존 unsigned SQL 변환을 공유합니다. 저장 JSON은 기존 revision()의 크기/SHA/소유권 검증을 재사용합니다.
+- `commands/score_history_api.rs`와 app/commands/storage 등록·원격 IPC 거부 회귀를 추가합니다. `storage_api::launch_idle`은 기존 trash/metadata의 같은 녹음·StorageJob 보호를 추출해 실제 세 호출 영역에서 공유하며 보호 의미를 바꾸지 않습니다.
+- `scoreHistory.ts`는 엄격한 응답/페이지·소유권 검증, `useScoreHistory.ts`는 취소 종료 대기·늦은 응답 폐기·이전 결과 보존을 담당합니다. `ScoreHistoryPanel.tsx`는 명시적 목록/내용 읽기·저장 트랙/최대100음 표, `ProjectStatus.tsx`는 패널 열기만 연결합니다. 현재 프로젝트 컨트롤러/세션/PlayerEngine을 조회 서비스에 의존시키지 않습니다.
+- 새 migration/의존성/Python·원본 재연결/음원 읽기·head 변경/새 revision 생성은 없습니다. docs/02·04·07·08·09/진행표를 갱신합니다.
+
+### 3. 테스트 결과
+
+- 대상 `pnpm exec vitest run src/features/library/scoreHistory.test.ts src/features/library/useScoreHistory.test.tsx src/features/library/ScoreHistoryPanel.test.tsx`: **6개/3파일 성공**,2.60초. 목록/응답·취소/실패 보존·전환/이탈·100음 UI를 확인했습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features score_history -- --nocapture`: **3개 성공**,2.65초/컴파일11.47초. 임시101개 revision·원본 누락/손상/다른 소유권·취소/보관/커서·DB 불변을 확인했습니다.
+- `pnpm typecheck`/`pnpm lint`/`pnpm format:check`: **성공**. 확장Clippy도 **성공**,17.47초. 전체프론트/확장Rust·MSRV/최종Vite/내장/Windows는 현재 검증 중입니다.
+- 발생 오류/해결: unsigned SQL helper의 소속을 잘못 참조한 컴파일 오류는 기존 projects 모듈 helper를 형제 모듈에 공개해 재사용했습니다. 테스트의 잘못된 자산 테이블명은 실제 project_assets.relative_path로 수정했습니다. TypeScript의 좁혀진 unknown 속성을 콜백에서 재사용한 오류는 검증 후 지역 상수로 보존했고, 선택 트랙의 undefined 보호를 추가했습니다. 지원하지 않는 toReversed와 설정하지 않은 DOM matcher는 기존 타깃의 복사/reverse·DOM 속성 확인으로 교체했습니다. 새 라이브러리는 설치하지 않았습니다.
+- 실제 사용자 앱/개인 프로젝트 조작·Windows 폼 수용·새 독립ZIP/원격은 **미실행** — 앱과 사용자 데이터를 유지하며 자동 검증 후 정확한 소스의 산출물로 구분할 예정입니다. Python은 변경하지 않아 로컬 전체 재검사는 **미실행**이며 원격 회귀 결과와 구분합니다.
+- 최종 `pnpm test`: **515개/112파일 성공**,41.77초. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features`: **251개 성공/28개 환경 의존 기본 제외**,19.53초. 기존 보관/메타데이터/녹음·원격 접근 거부도 포함하며 로그 `score-history-front-20261026.log`/`score-history-rust-20261026.log`를 보존합니다.
+- `cargo +1.90.0 check --locked --all-targets --all-features --manifest-path src-tauri/Cargo.toml`/`cargo fmt --check`: **성공**,최소버전11.20초. `pnpm build`: **성공**,Vite49.27초·기존500kB chunk 경고. 최종 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.00초와 `cargo build … --features custom-protocol` **Windows 성공**,11.65초·기존MSVC 링크/테스트 아이콘 안내입니다. 로그 `score-history-{build,bundle,native-build}-20261026.log`를 보존하며 위 검사 중 표시는 이전 시점입니다. 앱은 실행하지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+저장 목록은 최신100개씩/선택 내용은 트랙당100음 표입니다. 과거 버전의 TAB 렌더/재생·현재 작업으로 적용·버전 삭제·자동 복원은 미구현입니다. 원본 파일 누락은 이 기능이 복구하지 않으며 실제 고급 판정 품질/별도 Windows 수용 조건도 유지합니다.
+
+### 5. 다음 작업 계획
+
+전체 회귀와 Windows 빌드·정확한 소스의 새 검증 ZIP/원격 결과를 마무리한 뒤 독립적으로 진행 가능한 로드맵 후속 기능을 순차 구현합니다. 이전 버전 적용을 추가할 때는 미저장 보호와 현재 세션/Undo·원본 비파괴 계약을 먼저 정의하며 이번 읽기 기능을 자동 적용으로 바꾸지 않습니다.
+
 ## 후속 — 편집 기록 단축키 보호 (2026-10-25)
 
 ### 1. 작업 개요

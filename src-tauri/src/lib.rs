@@ -102,6 +102,8 @@ mod bundle_tests {
                 "plugin:dialog|message",
                 "open_project",
                 "update_project_metadata",
+                "list_score_revisions",
+                "read_score_revision",
                 "enable_close_guard",
                 "resolve_close_request",
                 "list_trashed_projects",

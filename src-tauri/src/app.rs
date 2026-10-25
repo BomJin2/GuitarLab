@@ -176,6 +176,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::stop_practice_attempt,
             commands::storage_api::create_project,
             commands::project_metadata_api::update_project_metadata,
+            commands::score_history_api::list_score_revisions,
+            commands::score_history_api::read_score_revision,
             commands::backing_api::get_project_backing,
             commands::backing_api::save_backing_selection,
             commands::youtube_sync_api::get_youtube_sync,

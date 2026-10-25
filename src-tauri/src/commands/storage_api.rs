@@ -1,5 +1,6 @@
 use crate::{
     ipc::AppError,
+    recording::{model::record_error, service::RecordingService},
     storage::{
         jobs::{JobSnapshot, StorageJob, StorageJobs},
         project_model::{
@@ -11,7 +12,10 @@ use crate::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
+};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
@@ -125,6 +129,20 @@ fn pick(app: &tauri::AppHandle, kind: AssetKind) -> Result<PathBuf, AppError> {
         .ok_or_else(|| AppError::new("CANCELED", "파일 선택을 취소했습니다.", false))?
         .into_path()
         .map_err(|_| AppError::invalid())
+}
+pub(super) fn launch_idle(
+    jobs: &StorageJobs,
+    recording: &Arc<RecordingService>,
+    work: impl FnOnce(&AtomicBool) -> Result<Value, AppError> + Send + 'static,
+) -> Result<JobSnapshot, AppError> {
+    if recording.is_active() {
+        return Err(record_error("RECORDING_BUSY"));
+    }
+    let job = jobs.start("RUNNING")?;
+    let initial = job.snapshot()?;
+    let recording = recording.clone();
+    launch(job, move |job| recording.while_idle(|| work(&job.cancel)));
+    Ok(initial)
 }
 #[tauri::command]
 pub async fn create_project(

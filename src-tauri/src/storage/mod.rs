@@ -24,6 +24,7 @@ mod recording_window;
 pub mod recordings;
 #[cfg(test)]
 pub(crate) mod recordings_tests;
+pub mod score_history;
 pub mod youtube_sync;
 #[cfg(test)]
 mod youtube_sync_tests;

@@ -53,7 +53,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 pub(crate) fn hash(bytes: &[u8]) -> String {
     hex(Sha256::digest(bytes).as_ref())
 }
-fn unsigned_column(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
+pub(super) fn unsigned_column(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
     let value: i64 = row.get(index)?;
     u64::try_from(value).map_err(|_| rusqlite::Error::IntegralValueOutOfRange(index, value))
 }

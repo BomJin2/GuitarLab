@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { ProjectController } from './useProjects';
+import { ScoreHistoryPanel } from './ScoreHistoryPanel';
 export function ProjectStatus({ project }: { project: ProjectController }) {
   const [storage, setStorage] = useState<'MANAGED' | 'REFERENCE'>('MANAGED');
+  const [showHistory, setShowHistory] = useState(false);
   return (
     <section className="panel project-status" aria-label="프로젝트 저장">
       {project.details ? (
@@ -55,6 +57,14 @@ export function ProjectStatus({ project }: { project: ProjectController }) {
             <button disabled={project.busy} onClick={() => void project.save()}>
               프로젝트 저장
             </button>
+            {project.native && (
+              <button
+                aria-expanded={showHistory}
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                저장 악보 버전 {showHistory ? '닫기' : '보기'}
+              </button>
+            )}
             <button
               disabled={project.busy}
               onClick={() => {
@@ -65,6 +75,13 @@ export function ProjectStatus({ project }: { project: ProjectController }) {
               프로젝트 다시 열기
             </button>
           </div>
+          {project.native && showHistory && (
+            <ScoreHistoryPanel
+              key={project.details.project.id}
+              projectId={project.details.project.id}
+              disabled={project.busy}
+            />
+          )}
           {project.details.assets.length > 0 && (
             <ul>
               {project.details.assets.map((asset) => (

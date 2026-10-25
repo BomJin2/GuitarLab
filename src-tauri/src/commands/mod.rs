@@ -22,6 +22,7 @@ pub mod project_metadata_api;
 pub mod project_trash_api;
 pub mod recording_api;
 pub mod score_api;
+pub mod score_history_api;
 pub mod youtube_api;
 
 #[tauri::command]
