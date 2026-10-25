@@ -1,5 +1,9 @@
 # 13. Windows 개발 환경 · 실행 · 패키징
 
+## Windows HTML5 파일 drop 설정 — 2026-10-25
+
+설치된 Tauri2.12.3/tauri-utils2.10.1의 WindowConfig와 [공식 설정 문서](https://v2.tauri.app/reference/config/#windowconfig)를 대조했습니다. Windows HTML5 drop은 내부 WebView2 drop 핸들러 비활성화가 필요하므로 제품 `tauri.conf.json`과 배열을 덮어쓰는 `tauri.validation.conf.json`의 main에 `dragDropEnabled:false`를 함께 지정합니다. CSP/remote·YouTube 별도 창/파일 command 권한은 확장하지 않습니다. AppShell 파일 기본 이동 차단과 전용 영역을 함께 빌드하고 두 설정을 실제 Tauri 타입으로 검사합니다. 물리적 Explorer drop/새OS 수용은 별도이며 progress/PHASE-02를 따릅니다.
+
 ## 동일 소스의 검증 도구 재빌드 — 2026-10-24
 
 자동 보호 후속: 현재 ZIP 작성기는 아래 빌드 도구의 `build-info`를 shell 없이5초 한도로 실행하고 컴파일 시 내장한 runtime lock의 원문 SHA가 현재 소스와 일치하는지 먼저 확인합니다. 구형 도구/다른 지문·손상 응답이면 새 ZIP 출력 폴더를 만들지 않습니다. 이 메타데이터 조회는 Python/앱·입력/모델 설치를 시작하지 않습니다. 기존 ZIP을 폐기하거나 검증 규칙을 완화하지 말고 같은 소스로 재빌드하세요. 전체 리소스/독립 Python 검사는 별도로 계속 필요합니다.

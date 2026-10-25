@@ -4,12 +4,15 @@ import {
   render,
   screen,
   fireEvent,
+  createEvent,
+  cleanup,
   waitFor,
 } from '@testing-library/react';
 import xml from '../../public/fixtures/standard.musicxml?raw';
 import dualXml from '../../public/fixtures/dual-guitar.musicxml?raw';
 import jsonScore from '../../fixtures/manual-score-v1.json?raw';
 import { App } from './App';
+import { PlayerEngine } from '../features/player/PlayerEngine';
 import { PlayerProvider } from '../features/player/PlayerContext';
 import type { ComponentProps } from 'react';
 import type { ScoreViewport } from '../features/score/ScoreViewport';
@@ -53,11 +56,159 @@ beforeEach(() => {
     vi.fn(async () => ({ ok: true, blob: async () => new Blob([xml]) })),
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 function navigate(route: string) {
   window.location.hash = `#/${route}`;
   fireEvent(window, new HashChangeEvent('hashchange'));
 }
+
+function dropFile(file: File) {
+  fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+    dataTransfer: { files: [file], items: [], types: ['Files'] },
+  });
+}
+it('끌어놓은 MusicXML·JSON은 같은 가져오기 경로로 열고 WAV는 자동 재생하지 않는다', async () => {
+  const OriginalURL = URL;
+  vi.stubGlobal(
+    'URL',
+    class extends OriginalURL {
+      static createObjectURL = vi.fn(() => 'blob:drop-fixture');
+      static revokeObjectURL = vi.fn();
+    },
+  );
+  const audio = vi.spyOn(PlayerEngine.prototype, 'load');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  dropFile(new File([xml], '자체.musicxml'));
+  await screen.findByLabelText('악보 트랙');
+  expect(
+    screen.getByLabelText('실제 TAB 악보').getAttribute('data-first-fret'),
+  ).toBe('0');
+  dropFile(new File([jsonScore], '자체.JSON'));
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText('실제 TAB 악보').getAttribute('data-first-fret'),
+    ).toBe('3'),
+  );
+  const file = new File(['RIFF....WAVE'], '자체.wav');
+  dropFile(file);
+  await waitFor(() => expect(audio).toHaveBeenCalledWith(file));
+  expect(play).not.toHaveBeenCalled();
+  expect(
+    screen.getByLabelText('실제 TAB 악보').getAttribute('data-first-fret'),
+  ).toBe('3');
+});
+
+it('여러 파일·폴더·URL·빈/초과/다른 형식 drop은 읽기·교체 전에 거부한다', () => {
+  const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  const file = new File([xml], '자체.musicxml');
+  const large = new File([xml], '초과.musicxml');
+  Object.defineProperty(large, 'size', { value: 8 * 1024 * 1024 + 1 });
+  const zone = screen.getByLabelText('로컬 파일 끌어놓기');
+  for (const transfer of [
+    { files: [file, file], items: [] },
+    {
+      files: [file],
+      items: [
+        { kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) },
+      ],
+    },
+    { files: [], items: [{ kind: 'string' }] },
+    { files: [new File([], '빈.musicxml')], items: [] },
+    { files: [large], items: [] },
+    { files: [new File(['keep'], '다른.exe')], items: [] },
+  ]) {
+    const event = createEvent.drop(zone, {
+      cancelable: true,
+      dataTransfer: { ...transfer, types: ['Files'] },
+    });
+    fireEvent(zone, event);
+    expect(event.defaultPrevented).toBe(true);
+  }
+  expect(read).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('악보 트랙')).toBeNull();
+  expect(window.location.hash).toBe('#/copy');
+});
+
+it('drop 악보 교체는 미저장 확인 취소/오류·중복/취소 뒤 늦은 허가에서도 편집을 유지한다', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const confirm = vi.fn().mockResolvedValue(false);
+  vi.stubGlobal('confirm', confirm);
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  dropFile(new File([xml], '자체.musicxml'));
+  await screen.findByLabelText('악보 트랙');
+  fireEvent.click(screen.getByText('안내 확인 · 편집 시작'));
+  fireEvent.change(screen.getByLabelText('음표 프렛'), {
+    target: { value: '3' },
+  });
+  fireEvent.click(screen.getByText('음표 수정 적용'));
+  const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
+  const replacement = new File([dualXml], '교체.musicxml');
+  dropFile(replacement);
+  await screen.findByText(/기존 악보와 편집을 유지했습니다/);
+  expect(read).not.toHaveBeenCalled();
+  confirm.mockRejectedValueOnce(new Error('private/path'));
+  dropFile(replacement);
+  await screen.findByText(/악보 교체 확인을 열지 못했습니다/);
+  expect(read).not.toHaveBeenCalled();
+  let finish: (value: boolean) => void = () => {
+    throw new Error('대기 초기화');
+  };
+  confirm.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  confirm.mockClear();
+  dropFile(replacement);
+  dropFile(replacement);
+  expect(confirm).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: '취소' }));
+  await act(async () => finish(true));
+  expect(read).not.toHaveBeenCalled();
+  expect(
+    screen.getByLabelText('실제 TAB 악보').getAttribute('data-first-fret'),
+  ).toBe('3');
+});
+
+it('다른 화면에 놓은 파일은 앱 문서로 이동하지 않고 다른 작업을 시작하지 않는다', () => {
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  navigate('library');
+  const heading = screen.getByRole('main');
+  const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
+  const event = createEvent.drop(heading, {
+    cancelable: true,
+    dataTransfer: {
+      files: [new File([xml], '자체.musicxml')],
+      types: ['Files'],
+    },
+  });
+  fireEvent(heading, event);
+  expect(event.defaultPrevented).toBe(true);
+  expect(window.location.hash).toBe('#/library');
+  expect(read).not.toHaveBeenCalled();
+});
 it('트랙 위아래 이동은 선택/음표를 유지하고 Undo/Redo·독립 원본 비교 순서를 연결한다', async () => {
   render(
     <PlayerProvider>

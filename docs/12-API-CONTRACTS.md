@@ -1,5 +1,13 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 프로젝트 없는 작업 공간의 로컬 파일 끌어놓기 — 2026-10-25
+
+새 IPC/경로 권한/DB 형식을 추가하지 않습니다. 프로젝트를 열지 않은 카피·연습·연주의 전용 영역에서 브라우저 File 한 개만 받아 기존 `importLocalMedia`에 연결합니다. GP/MusicXML/GuitarLab JSON 악보8MiB, WAV/MP3 음원256MiB 한도·헤더/압축 경계·취소/오류 정책을 파일 선택과 공유합니다. 여러 파일/폴더·URL/문자열·빈/초과 파일은 거부하고 파일 내용/URL을 네트워크로 보내지 않습니다. URL 플레이어/AI 설치·입력/REC·자동 저장을 시작하지 않습니다.
+
+악보 교체는 기존 미저장 확인이 허가한 경우에만 읽고 적용합니다. 확인 취소/실패·읽기 실패/취소·이탈/진행 중 중복 drop은 현재 악보/원본·재생을 유지합니다. 녹음/채점·프로젝트 파일 작업 중에는 받지 않습니다. 열린 프로젝트의 native 파일 선택/관리용 복사·참조 정책을 우회하지 않고 해당 전용 drop 영역을 제공하지 않습니다. AppShell은 모든 화면의 파일 drop 기본 이동을 차단해 파일을 놓아 현재 앱 문서가 교체되지 않게 합니다. 일반 텍스트 입력/드래그는 유지합니다.
+
+Windows HTML5 drop을 위해 제품/격리 설치의 main 창만 `dragDropEnabled:false`로 설정하며 CSP/remote 권한/외부 YouTube 창은 확장하지 않습니다. 브라우저 자동 검사·native 설정/빌드·실제 Explorer 드래그 수용은 구분합니다.
+
 ## 녹음 원본 WAV 내보내기 v1 — 2026-10-25
 
 `export_recording`은 기존 StorageJob으로 `{schemaVersion:1,projectId,takeId}`만 받으며 경로/PCM/이름·임의 실행 인자를 받지 않습니다. 로컬 main의 명시적 버튼에서만 native 새 WAV 저장 창을 열고, 프로젝트 소유권·보관 상태/READY·최대10분/256MiB·정규 헤더/길이/전체 SHA256을 확인합니다. 녹음 중/다른 파일 작업 중에는 거부하며 선택 창/파일 작업의 취소와 진행 상태를 유지합니다. 정상 결과는 `{schemaVersion:1,state:"RECORDING_EXPORTED",projectId,takeId,bytes,sha256}`이고 경로/개인 PCM을 프론트로 반환하지 않습니다. sha256은 원본 테이크와 같고 bytes=58+frames*4입니다.

@@ -5,7 +5,7 @@
   "identifier": "com.guitarlab.app",
   "build": { "beforeDevCommand": "pnpm dev", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "pnpm build", "frontendDist": "../dist" },
   "app": {
-    "windows": [{ "label": "main", "title": "GuitarLab", "width": 1440, "height": 900, "minWidth": 1100, "minHeight": 680 }],
+    "windows": [{ "label": "main", "title": "GuitarLab", "width": 1440, "height": 900, "minWidth": 1100, "minHeight": 680, "dragDropEnabled": false }],
     "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost; frame-src https://www.youtube.com http://127.0.0.1:*" }
   },
   "bundle": { "active": false, "icon": ["icons/icon.ico"] }

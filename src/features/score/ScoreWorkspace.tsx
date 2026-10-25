@@ -4,10 +4,12 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent,
   type Dispatch,
   type SetStateAction,
 } from 'react';
 import { importLocalMedia } from './localMediaImport';
+import { droppedLocalMedia, mediaDropError } from './mediaDrop';
 import { scoreArchiveErrorMessage } from './scoreArchive';
 import { blankScoreFile } from './blankScore';
 import type { ScoreSession } from './scoreSession';
@@ -84,6 +86,10 @@ export function ScoreWorkspace({
   const importing = useRef(false);
   const activeSession = useRef(session);
   activeSession.current = session;
+  const importBlocked =
+    playbackLocked || practice.armed || !!project?.busy || !!project?.details;
+  const latestImportBlocked = useRef(importBlocked);
+  latestImportBlocked.current = importBlocked;
   useEffect(() => {
     const current = task.current;
     return () => current.cancel();
@@ -118,7 +124,7 @@ export function ScoreWorkspace({
     kind: 'score' | 'audio',
     getFile: (signal: AbortSignal) => Promise<File>,
   ) {
-    if (importing.current || project?.busy) return;
+    if (importing.current || latestImportBlocked.current) return;
     importing.current = true;
     const source = activeSession.current;
     setLoading(true);
@@ -139,9 +145,11 @@ export function ScoreWorkspace({
         )
           return null;
       }
+      if (signal.aborted || latestImportBlocked.current) return null;
       const file = await getFile(signal);
       const imported = await importLocalMedia(kind, file, signal);
-      return kind === 'score' && activeSession.current !== source
+      return latestImportBlocked.current ||
+        (kind === 'score' && activeSession.current !== source)
         ? null
         : imported;
     });
@@ -179,6 +187,29 @@ export function ScoreWorkspace({
       event.target.value = '';
       if (file) void load(kind, async () => file);
     };
+  function dropMedia(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (
+      playbackLocked ||
+      practice.armed ||
+      project?.busy ||
+      importing.current ||
+      loading ||
+      state.status === 'loading'
+    ) {
+      setNotice(
+        '녹음·채점·파일 처리를 마친 뒤 파일을 놓아주세요. 현재 작업을 유지했습니다.',
+      );
+      return;
+    }
+    try {
+      const { kind, file } = droppedLocalMedia(event.dataTransfer);
+      void load(kind, async () => file);
+    } catch (cause) {
+      setError(mediaDropError(cause));
+    }
+  }
   const fixture = (kind: 'score' | 'audio') =>
     void load(kind, async (signal) => {
       const name = kind === 'score' ? 'standard.musicxml' : 'sine.wav';
@@ -207,10 +238,27 @@ export function ScoreWorkspace({
       </p>
       {project?.native && <ProjectStatus project={project} />}
       {!project?.details && (
+        <section
+          className="panel"
+          aria-label="로컬 파일 끌어놓기"
+          onDrop={dropMedia}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect =
+              importBlocked || loading || state.status === 'loading'
+                ? 'none'
+                : 'copy';
+          }}
+        >
+          악보 또는 WAV/MP3 파일 한 개를 여기에 놓아 불러오세요. 파일 선택
+          버튼도 사용할 수 있습니다.
+        </section>
+      )}
+      {!project?.details && (
         <div className="toolbar">
           {mode === 'copy' && (
             <button
-              disabled={loading || project?.busy}
+              disabled={loading || importBlocked}
               onClick={() => void load('score', async () => blankScoreFile())}
             >
               빈 악보 만들기
@@ -222,7 +270,7 @@ export function ScoreWorkspace({
               aria-label="악보 선택"
               type="file"
               accept=".gp,.gp3,.gp4,.gp5,.gpx,.xml,.musicxml,.json"
-              disabled={project?.busy}
+              disabled={loading || importBlocked}
               onChange={choose('score')}
             />
           </label>
@@ -232,14 +280,20 @@ export function ScoreWorkspace({
               aria-label="음원 선택"
               type="file"
               accept=".wav,.mp3"
-              disabled={project?.busy}
+              disabled={loading || importBlocked}
               onChange={choose('audio')}
             />
           </label>
-          <button disabled={project?.busy} onClick={() => fixture('score')}>
+          <button
+            disabled={loading || importBlocked}
+            onClick={() => fixture('score')}
+          >
             자체 악보 불러오기
           </button>
-          <button disabled={project?.busy} onClick={() => fixture('audio')}>
+          <button
+            disabled={loading || importBlocked}
+            onClick={() => fixture('audio')}
+          >
             합성 음원 불러오기
           </button>
         </div>

@@ -30,6 +30,22 @@ pub fn run() {
 #[cfg(all(test, feature = "custom-protocol"))]
 mod bundle_tests {
     #[test]
+    fn main_windows_allow_html_file_drop_without_changing_remote_permissions() {
+        for raw in [
+            include_str!("../tauri.conf.json"),
+            include_str!("../tauri.validation.conf.json"),
+        ] {
+            let config: tauri::Config = serde_json::from_str(raw).expect("제품/설치 설정");
+            let main = config
+                .app
+                .windows
+                .iter()
+                .find(|window| window.label == "main")
+                .expect("main 창");
+            assert!(!main.drag_drop_enabled);
+        }
+    }
+    #[test]
     fn local_main_can_receive_recording_notice_without_emit_or_remote_access() {
         let mut context: tauri::Context<tauri::Wry> = tauri::generate_context!();
         let authority = context.runtime_authority_mut();

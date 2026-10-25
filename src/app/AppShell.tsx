@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { isWorkspace, labels, type Route } from './routes';
 import { TransportBar } from '../features/player/TransportBar';
+import { preventDroppedFileNavigation } from '../shared/fileDrop';
 export function AppShell({
   route,
   children,
@@ -22,6 +23,8 @@ export function AppShell({
   return (
     <div
       className="app-shell"
+      onDropCapture={preventDroppedFileNavigation}
+      onDragOverCapture={preventDroppedFileNavigation}
       onClickCapture={(event) => {
         if (
           recordingLocked &&

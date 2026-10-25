@@ -46,6 +46,21 @@ export function importScoreSession(
 }
 
 export type LocalMediaKind = 'score' | 'audio';
+
+export function localMediaKind(name: string): LocalMediaKind | null {
+  if (/\.(json|musicxml|xml|gp|gp3|gp4|gp5|gpx)$/i.test(name)) return 'score';
+  if (/\.(wav|mp3)$/i.test(name)) return 'audio';
+  return null;
+}
+export function validateLocalMediaFile(kind: LocalMediaKind, file: File) {
+  if (
+    localMediaKind(file.name) !== kind ||
+    !Number.isSafeInteger(file.size) ||
+    file.size <= 0 ||
+    file.size > (kind === 'score' ? 8 : 256) * 1024 * 1024
+  )
+    throw new Error(kind === 'score' ? 'invalid-score' : 'invalid-audio');
+}
 type ImportedLocalMedia =
   | { kind: 'score'; session: ScoreSession }
   | { kind: 'audio'; file: File };
@@ -55,13 +70,8 @@ export async function importLocalMedia(
   file: File,
   signal: AbortSignal,
 ): Promise<ImportedLocalMedia> {
+  validateLocalMediaFile(kind, file);
   if (kind === 'score') {
-    if (
-      !/\.(json|musicxml|xml|gp|gp3|gp4|gp5|gpx)$/i.test(file.name) ||
-      !file.size ||
-      file.size > 8 * 1024 * 1024
-    )
-      throw new Error('invalid-score');
     const bytes = await readBlob(file, signal);
     signal.throwIfAborted();
     return {
@@ -69,12 +79,6 @@ export async function importLocalMedia(
       session: importScoreSession(bytes, file.name),
     };
   }
-  if (
-    !/\.(wav|mp3)$/i.test(file.name) ||
-    !file.size ||
-    file.size > 256 * 1024 * 1024
-  )
-    throw new Error('invalid-audio');
   const header = await readBlob(file.slice(0, 12), signal);
   const text = new TextDecoder().decode(header);
   if (

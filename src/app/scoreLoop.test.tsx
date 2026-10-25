@@ -29,6 +29,82 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('녹음 잠금 중 프로그램식 drop도 읽지 않고 잠금을 풀면 같은 경로로 가져온다', async () => {
+  window.location.hash = '#/copy';
+  const engine = new PlayerEngine();
+  const view = () => (
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>
+  );
+  flags.recordingLocked = true;
+  const rendered = render(view());
+  const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
+  const drop = () =>
+    fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+      dataTransfer: {
+        files: [new File([xml], '자체.musicxml')],
+        items: [],
+        types: ['Files'],
+      },
+    });
+  drop();
+  expect(read).not.toHaveBeenCalled();
+  expect(screen.getByText(/녹음·채점·파일 처리를 마친 뒤/)).toBeTruthy();
+  flags.recordingLocked = false;
+  rendered.rerender(view());
+  drop();
+  await screen.findByLabelText('악보 트랙');
+  expect(read).toHaveBeenCalledOnce();
+  engine.dispose();
+});
+
+it('악보 교체 확인 중 녹음 잠금이 시작되면 늦은 허가도 파일을 읽거나 적용하지 않는다', async () => {
+  window.location.hash = '#/copy';
+  const engine = new PlayerEngine();
+  const view = () => (
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>
+  );
+  const rendered = render(view());
+  const drop = () =>
+    fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+      dataTransfer: {
+        files: [new File([xml], '자체.musicxml')],
+        items: [],
+        types: ['Files'],
+      },
+    });
+  drop();
+  await screen.findByLabelText('악보 트랙');
+  fireEvent.click(screen.getByText('안내 확인 · 편집 시작'));
+  fireEvent.change(screen.getByLabelText('음표 프렛'), {
+    target: { value: '3' },
+  });
+  fireEvent.click(screen.getByText('음표 수정 적용'));
+  let finish: (value: boolean) => void = () => {
+    throw new Error('대기 초기화');
+  };
+  vi.stubGlobal(
+    'confirm',
+    vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
+  drop();
+  flags.recordingLocked = true;
+  rendered.rerender(view());
+  await act(async () => finish(true));
+  expect(read).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('음표 프렛')).toHaveProperty('value', '3');
+  engine.dispose();
+});
+
 it('실제 App의 녹음 잠금이 마디 반복 fieldset과 명령까지 전달된다', async () => {
   window.location.hash = '#/copy';
   vi.stubGlobal(

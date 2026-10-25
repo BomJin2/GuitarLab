@@ -51,10 +51,16 @@ it('확장자·빈 파일·용량 초과는 내용을 읽기 전에 거부한다
   ] as const) {
     const large = new File(['fixture'], name);
     Object.defineProperty(large, 'size', { value: limit * 1024 * 1024 + 1 });
+    const invalidSizes = [-1, NaN, Infinity, 0.5].map((size) => {
+      const file = new File(['fixture'], name);
+      Object.defineProperty(file, 'size', { value: size });
+      return file;
+    });
     for (const file of [
       new File(['fixture'], '다른.txt'),
       new File([], name),
       large,
+      ...invalidSizes,
     ])
       await expect(
         importLocalMedia(kind, file, new AbortController().signal),

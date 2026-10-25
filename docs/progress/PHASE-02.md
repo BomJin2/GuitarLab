@@ -1,5 +1,37 @@
 # Phase 02 — 악보 import와 재생 동기화
 
+## 후속 — 프로젝트 없는 로컬 파일 끌어놓기 (2026-10-25)
+
+### 1. 작업 개요
+
+완료일2026-10-25(코드/전체 자동 검사, 최종Windows·패키지/원격은 아래 참조). F-01의 파일 drop을 프로젝트 없는 작업 공간에 추가했습니다. 기존 파일 선택/자산 관리·편집과 기본9개/부분5개 상태는 유지하며 Explorer/새OS 수용·프로젝트 drag/drop 저장 완료와 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 File 한 개/확인·거부·잠금 계약을 기록했습니다. 새 IPC/경로 권한·DB·의존성은 없습니다.
+- `localMediaImport.ts`의 기존 확장자/크기 검증을 공유 함수로 옮기고 비정수/음수 크기를 읽기 전에 거부합니다. `mediaDrop.ts`는 단일 File/폴더·URL 거부와 기존 가져오기를 연결합니다. 헤더/파서·압축/취소·원본은 재사용합니다.
+- `ScoreWorkspace.tsx`: 최소 영역/복사·거부 커서와 기존 미저장 확인/취소/상태 표시. 최신 프로젝트·녹음/채점 잠금을 읽기 전/적용 전 확인하고 파일 버튼도 잠금을 표시합니다. 자동 재생은 하지 않습니다.
+- `shared/fileDrop.ts`/`AppShell.tsx`는 앱 모든 화면에서 파일 drop 기본 문서 이동만 막고 텍스트 드래그는 유지합니다. 제품/격리 설치 main 설정과 native 검사1개를 추가했습니다. 설치된 Tauri2.12.3/tauri-utils2.10.1 및 [공식 WindowConfig](https://v2.tauri.app/reference/config/#windowconfig)를 대조했고 CSP/원격·YouTube 권한은 불변입니다.
+- 실제 App·파서/PlayerEngine·잠금/편집 통합 회귀와 docs/00·02·04·09·13/로드맵·진행/사용 안내를 갱신합니다. 새 CSS/시각 디자인·DSP/점수·Python/모델은 변경하지 않았습니다.
+
+### 3. 테스트 결과
+
+- `pnpm typecheck`: **성공**. `pnpm exec vitest run src/app/scoreSession.test.tsx src/app/scoreLoop.test.tsx src/shared/fileDrop.test.ts src/features/score/localMediaImport.test.ts`: 최종 **30개/4파일 성공**,17.23초. 파서/파일 전달·자동 재생 없음/잘못된 입력의 읽기 차단·기존 편집·늦은 확인/녹음 잠금 보존을 포함합니다. 최종 메타데이터 경계·예상 진단 정리 후 재확인했고 `file-drop-target-final-20261025.log`를 유지합니다.
+- `pnpm lint`/`pnpm test`/`pnpm format:check`/`pnpm build`: **성공**,전체 **492개/106파일**,33.28초·Vite1분22초/기존 큰 chunk 경고. `runtime-validation/file-drop-frontend-20261025.log`/`file-drop-build-20261025.log`를 보존합니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features main_windows_allow_html -- --nocapture`: **1개 성공**,0.00초·컴파일19.82초. `cargo fmt --check`/확장Clippy: **성공**,20.07초. 전체 확장Rust **244성공/28개 기본 제외**,18.39초. `cargo +1.90.0 check … --all-targets --all-features`: **성공**,17.05초. 로그 `file-drop-rust-20261025.log`를 보존합니다.
+- 초기 대상1실패/26성공·unhandled1개는 테스트의 Library heading 가정과 JSDOM blob URL API 미제공이었습니다. main 영역 조회·URL 대역으로 수정했고 이후 cleanup보다 URL 복원이 빨라 생긴 revoke 오류도 테스트 cleanup 순서로 고쳤습니다. 파일 검증을 완화하지 않았습니다. 의도적인 교체 확인 실패의 고정 CLOSE_GUARD_FAILED는 예상 진단입니다.
+- 최종Windows/새ZIP·원격 기능/격리 설치는 다음 검사 단계이며 선기록하지 않습니다. 실제 Explorer 드래그·사용자 앱 교체/개인 파일·별도Win10/11은 **미실행** — 현재 DOM 대역/자체 fixture·타입/설정 검사이며 개인 자료/입력·REC는 유지합니다.
+
+최종 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **내장4개 성공**,0.00초/컴파일11.79초. 제품/설치 main 설정과 기존 로컬/원격 권한·YouTube 정책 검사를 포함하며 기본 icon resource 조회 경고2회는 실제 창 아이콘 수용과 구분합니다. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 내장 빌드 성공**,11.65초/40,905,216바이트·SHA `0db3809348b6b8800a37cc06c60711d5e09adc0bd6d9f163951da50dbf21bf45`. 기존 MSVC 링크 안내는 유지하고 사용자 앱은 재실행하지 않았습니다. 다음은 정확한 소스의 새ZIP/실제PS/Python 및 두 원격 검사입니다.
+
+### 4. 미구현 및 알려진 문제
+
+열린 프로젝트의 관리용 복사/참조에는 drop을 연결하지 않았고 기존 프로젝트 파일 선택을 사용합니다. 폴더/다중·URL/FLAC/OGG 등 확인하지 않은 형식을 받지 않으며 기존 악보8MiB/음원256MiB·압축32MiB 한도를 유지합니다. 영상/시스템 캡처·고급 판정/AI 품질을 확장한 기능이 아닙니다.
+
+### 5. 다음 작업 계획
+
+내장/Windows 실행 파일·새 독립ZIP/실제PowerShell/Python과 원격 기능·격리 설치를 확인합니다. 물리적 Explorer drop은 빌드/서버 시작 성공으로 대체하지 않습니다. 자동 입력/REC·사용자 자료 가져오기를 하지 않고 남은 고급 품질·특화 가중치/별도Windows 조건을 유지합니다.
+
 ## 후속 — 마디 단위 반복 선택 (2026-10-23)
 
 최종 원격 확정: 소스b582828의 [Windows 실행39927076556](https://github.com/BomJin2/GuitarLab/actions/runs/39927076556), job120325984836의 모든 단계/사후 정리는 success입니다.423개/102파일·타입/lint/빌드/포맷·Rust 기본228/확장231개(각 환경 의존26개 제외)·Python AI113개/2.90초/개발 도구66개·Rust1.90 전체 컴파일까지 확인했습니다. 아래 CI 진행/미확인은 해당 시점 이력입니다. 이 결과는 이후 트랙 삭제 소스의 CI 결과가 아닙니다.
