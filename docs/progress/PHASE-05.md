@@ -22,13 +22,15 @@
 
 최종 독립 패키지도 **성공**입니다. source `6d48613830f816fc62e5ab7a04c9afbf2dbb3d02`/후보 `export-guidance-candidate-623cd9f7-ba2b-4607-b0cc-5ca8ebc3644b.json`은 원본 WAV 내보내기와 오류 안내 양쪽을 포함하며 새 앱 미실행 상태입니다. 고정3393runtime파일/64,095,466바이트·lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`를 대조했습니다. ZIP `validation-packages/ae843931-d014-41e2-9637-a82847138045/GuitarLab-validation.zip`은 **3613파일/40,219,404바이트·SHA `47871bfcfba10c8adb87191907058349ba11b8428b494a4bdf59b71f0a562ceb`**입니다. `package_validation.py`/`verify_archive`의 전체SHA·CRC/목록·동일 지문 바이트의 새 추출과 실제 Windows PS5.1 `-File Test-ValidationPackage.ps1` exit0·개발 경로 제외 Python3.12.15 두 번이 성공했습니다. 영수증 `export-guidance-package-receipt-3d3570b2-dd79-423f-b43c-d6a96feafeff.json`/로그 `export-guidance-package-check-e742eade-85d6-4e52-9aad-a46a2f4bbd74.log`를 보존하며 generic portable-candidate/이전 후보는 바꾸지 않았습니다. 실제 앱/개인 파일은 미실행·새 원격은 업로드 후 확인합니다.
 
+최종 Git/원격 검사도 **성공**입니다. 두 출력 후속/패키지 기록을 main `1874417d7f97f8775a6629868931213f91864c9d`까지 push했고 [Windows40183110904](https://github.com/BomJin2/GuitarLab/actions/runs/40183110904)/job121138145977는 **전체 success**입니다.485프론트/105파일·기본240개69.75초/확장243개59.45초(각28개 기본 제외)·예제1+1·AI113개18.78초·도구143개22.701초(제외 없음)·Clippy/MSRV1.90(9.90초)/사후 정리까지 확인했습니다. 결과 확정/빠른 시작 후속 문서는 로컬 커밋에 보존하고 다음 실제 변경 push에 함께 포함합니다. 앱/개인 자료·generic 실행 포인터는 변경하지 않았습니다.
+
 ### 4. 미구현 및 알려진 문제
 
 파일 시스템의 실제 실패를 없앤 변경이 아니며, 이미 발생한 실패의 복구 방법을 알립니다. 알 수 없는 오류는 원문/개인 경로를 노출하지 않고 기존 일반 안내를 표시합니다. 기존 비덮어쓰기 저장과 원본 보존은 그대로입니다.
 
 ### 5. 다음 작업 계획
 
-전체 프론트 회귀/Windows 내장·독립 패키지는 완료했으며 원본 WAV 후속과 함께 Git 업로드/새 원격 회귀를 확인합니다. 실제 앱/개인 데이터 수용과 구분해 기록하며 고급 판정·특화 분리/별도Windows의 미완료 조건은 유지합니다.
+전체 프론트 회귀/Windows 내장·독립 패키지·Git 업로드/새 원격 전체 회귀까지 완료했습니다. 두 출력 슬라이스는 구현·검증·문서화를 마쳤지만 실제 앱/개인 데이터 수용과 구분하며 고급 판정의 독립 정답/허위 감점률·특화 분리 가중치/별도Windows의 미완료 조건은 유지합니다. 확인되지 않은 품질을 완료로 바꾸거나 기존 관측 자료만 재튜닝하지 않습니다.
 
 ## 후속 — 선택한 음표의 반주 위치로 이동 (2026-10-24)
 
