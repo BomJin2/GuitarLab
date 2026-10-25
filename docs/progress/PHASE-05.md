@@ -30,6 +30,16 @@
 
 최종포맷/Vite·내장/Windows와 새 독립ZIP/실제PS5.1·원격 회귀를 확인하고 정확한 결과를 추가합니다. 사용자가 연주할 필요 없는 검증부터 계속하며 기존 앱/개인 자료·실행 포인터는 유지합니다. 이후 남은 고급 품질·모델/별도Windows 수용 조건과 독립적인 기능 보완을 구분해 진행합니다.
 
+### 독립 패키지 완료·원격 검사 중
+
+source `6a505640b65bef4e3f2bae219274b610a8138ce4`를 main에 push했고 [Windows40188520521](https://github.com/BomJin2/GuitarLab/actions/runs/40188520521)/job121154334361는 현재 앱 기본 회귀 진행 중입니다. 이전847296d의 원격 성공을 이 수정의 성공으로 표시하지 않습니다.
+
+새 후보 `editor-shortcuts-candidate-f82eb168-32e3-4ee4-9129-01f5529684fd.json`은 앱 미실행이며 generic 포인터는 그대로입니다. 고정3393runtime/64,095,466바이트·lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d` 확인 뒤 새ZIP `validation-packages/aad97234-f1d2-46ea-bc7d-b50bd634e4cf/GuitarLab-validation.zip` **3613파일/40,220,723바이트·SHA `54fed4ae0d23ca816486b64d9fbc9441d76937aa75818845ea74b410920ada3f`**를 만들었습니다. 전체SHA/CRC·같은 지문 바이트의 새 폴더 추출과 실제PS5.1 `-File Test-ValidationPackage.ps1` **exit0**, 개발PATH 제외/모델 없는 Python3.12.15 두 번이 성공했습니다. 영수증 `editor-shortcuts-package-receipt-bbcbc9cc-4219-45cd-9243-362e96ebc236.json`/로그 `editor-shortcuts-package-check-03ec2fdc-997f-49e9-854a-5b0636cfaf96.log`는 `src-tauri/target/runtime-validation/` 아래에 보존합니다. 새Defender/실제Windows 키·Explorer/사용자 자료/별도OS는 미실행입니다. 이어 Phase8의 선언 용량 경계 회귀를 별도로 점검합니다.
+
+### 원격 최종 확정 — 2026-10-26 확인
+
+source6a50564의 [Windows40188520521](https://github.com/BomJin2/GuitarLab/actions/runs/40188520521)/job121154334361는 **전체 success**입니다.494프론트/106파일·기본240Rust/90.35초·확장244Rust/136.82초(각28개 기본 제외)·예제1+1·AI113/3.41초·개발 도구143/22.583초(제외 없음)·타입/lint/빌드/포맷/Clippy·Rust1.90 전체 컴파일10.78초와 사후 정리까지 확인했습니다. 위 진행 중은 이전 시점입니다. 이 결과는 이후 MusicXML 용량 보호의500개 소스를 검증한 결과가 아니며 새 수용은 PHASE-08에서 분리합니다. 실제Windows 키/Explorer·별도Windows/최종출시의 미실행 범위는 유지합니다.
+
 ## 후속 — 악보 내보내기 오류 안내 복원 (2026-10-25)
 
 ### 1. 작업 개요

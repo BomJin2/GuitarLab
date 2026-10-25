@@ -8,6 +8,7 @@ import {
   validateEditable,
   prepareEditingDocument,
   renderOriginalScore,
+  scoreXmlLimitMessage,
 } from './normalizedNotation';
 import {
   commitEdit,
@@ -89,9 +90,11 @@ export function useScoreEditing(
       action();
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : '편집을 적용하지 못했습니다. 이전 악보를 유지했습니다.',
+        cause instanceof Error && cause.message === 'SCORE_XML_LIMIT'
+          ? scoreXmlLimitMessage
+          : cause instanceof Error
+            ? cause.message
+            : '편집을 적용하지 못했습니다. 이전 악보를 유지했습니다.',
       );
     }
   }

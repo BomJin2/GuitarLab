@@ -1,5 +1,38 @@
 # Phase8 — 품질·릴리스
 
+## 대형 정규화 악보 회귀와 생성 용량 보호 — 2026-10-25
+
+### 1. 작업 개요
+
+작업 시작2026-10-25/로컬 검증 완료2026-10-26. 단축키 수정의 원격 대기 중 긴 곡/대형 악보 수용 조건을 자체데이터로 점검했습니다. 허용된1·128트랙/256마디·2000음 왕복은 통과했으나 큰 박자 조합에서 기존8MiB보다 큰 파생문자열을 제한 없이 먼저 생성하는1개 실패를 재현했습니다. 생성 중 용량 보호/기존편집 보존과 전체프론트·Windows 검증은 완료했고 패키지/원격은 아래 결과로 구분합니다. 전체Phase8/별도Windows 수용과 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 출력8MiB/누적UTF-8·실패/원본보존 계약을 기록했습니다. docs/04·09와 로드맵/진행표를 갱신합니다.
+- `normalizedNotation.ts`: 기존 출력과 순서를 유지하며 헤더/part-list·part·마디/종료 태그 조각을 실제UTF-8 바이트 예산 안에서만 보관합니다. 초과 조각은 push/전체join/alphaTab 파싱 전에 SCORE_XML_LIMIT로 거부하고 고정 한국어 안내를 공유합니다. 개별마디/문서 객체와 전체프로세스 메모리까지8MiB로 보장하지 않습니다.
+- `useScoreEditing.ts`/`scoreExport.ts`: 같은 초과를 트랙/마디 축소 안내로 전달합니다. 기존 apply의 렌더 선검증을 유지해 실패 시 문서/history·선택/저장revision·원본을 바꾸지 않고 JSON/XML 출력은 파일 선택/IPC 전에 거부합니다. 새IPC/DB·라이브러리/출력 형식은 없습니다.
+- `src/test/scoreCapacityFixture.ts`: 저작권 문제가 없는 기존 자체악보를 토대로1·128트랙/256마디/2000음과32/1 조합을 만드는 재사용 검사 데이터입니다. `scoreCapacity.test.ts`/`scoreExport.test.ts`/`useScoreEditing.test.tsx`에서 정상왕복/초과/불변·Undo/브리지 미호출과 안내를 검사합니다.
+
+### 3. 테스트 결과
+
+- 수정 전 최대4/4 정상범위2개 성공, 확장3개 성공(1.014초).1트랙 XML444,150바이트/파서왕복121.062ms,128트랙 XML7,567,955바이트/파서왕복792.916ms를 한 번 관측했습니다. fixture 준비/직렬화는 각각28.288/52.056ms입니다. 고정환경 단회 관측이며 p95/일반PC·화면SVG 성능이 아닙니다.
+- 이후 큰박자128트랙/32/1의 예산 초과 거부는 **1실패/3미선택**, 기존 serializer가 오류 없이 반환해 실패를 재현했습니다. 새 누적예산으로 수정한 뒤 편집/구조·출력/용량 관련4파일 **25개 성공**,4.31초. 최종 shared fixture/오류안내·실제hook 연결 뒤3파일 **24개 성공**,4.37초입니다.
+- 최종 Undo 보존 강화 뒤 `pnpm exec vitest run src/features/score/useScoreEditing.test.tsx -t '큰 파생 악보'`: **1개 성공/15미선택**,106ms. 추가된 fixture/검사와 타입/lint/포맷·전체프론트는 현재 검사 중입니다. 로그 `score-capacity-20261025.log`/`score-capacity-full-20261025.log`는 `src-tauri/target/runtime-validation/` 아래에 보존합니다.
+- 이후 `pnpm typecheck`/`pnpm lint`/`pnpm format:check`와 `pnpm test`: **500개/107파일 성공**,48.92초. 로그 `score-capacity-full-20261025.log`로 확인했고 위 전체검사 중은 이전 시점입니다. 다음 Vite/내장·Windows 명령은 자동 승인 검토의 사용량 한도로 **미실행**이었으며 안전성 거절이 아니었습니다.2026-10-26 사용자 재개 요청 뒤 동일 승인 절차를 통과해 재실행 중입니다. 기존 UI/개인 데이터는 유지합니다.
+- Windows 빌드·새ZIP/원격과 실제 화면SVG/프로세스RSS·Windows 키/Explorer·개인 파일/새OS는 **미실행** — 이 후속의 검사 결과와 앞선 단축키 source6a50564의 패키지/원격을 구분합니다. 사용자 앱/개인 자료/입력·REC/generic 포인터는 유지했습니다.
+
+### 4. 미구현 및 알려진 문제
+
+32/1 등 많은 쉼표가 생기는 조합은 마디/트랙 개수 각각이 허용값이어도 파생출력8MiB 초과로 거부될 수 있습니다. 문서를 자동 삭제/분할하거나 실제 지원을 보장하지 않습니다. 전체파서/렌더러의CPU/RSS 상한·압축CRC/진위·별도Windows/최종배포·고급 품질 보류는 유지합니다.
+
+### 2026-10-26 최종 로컬 빌드
+
+재개 후 `pnpm build` **성공**,Vite58.44초/기존 큰chunk 경고 유지. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture` **4개 성공**,0.01초/컴파일35.02초이며 `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol` **Windows 빌드 성공**,16.22초/기존MSVC 링크 안내입니다. 실행 파일40,905,216바이트·SHA `80bf84d605ec1118c3ce2ca0e607774221f3a3b7ee6e68b65aabd734a181a097`. 로그 `score-capacity-build-20261026.log`/`score-capacity-bundle-20261026.log`/`score-capacity-native-build-20261026.log`를 보존했습니다. 위 Windows 미실행은 전날 이력이고 실제 앱/개인 자료 조작·별도Windows/새ZIP/원격은 아직 미실행입니다. 전체Rust/Python의 로컬 재검사는 미실행 — 소스를 바꾸지 않았고 새 원격 회귀로 확인합니다.
+
+### 5. 다음 작업 계획
+
+이 후속의 전체검사/Vite·내장/Windows/새독립ZIP/원격을 확인하고 최종 결과를 기록합니다. 이미진행 중인6a50564 원격부터 실제결론을 확인한 뒤 새변경을push해 이전검사를 취소하지 않습니다. 향후 실제 화면렌더/별도OS·고급 참조 검증을 합성파서 시간으로 대신하지 않습니다.
+
 ## 파일 끌어놓기 후속의 원격 기능·격리 설치 확정 — 2026-10-25
 
 ### 1. 작업 개요

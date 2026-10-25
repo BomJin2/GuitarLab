@@ -4,12 +4,34 @@ import { useState, type ReactNode } from 'react';
 import { useScoreEditing } from './useScoreEditing';
 import type { ScoreSession } from './scoreSession';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
+import { scoreCapacityFixture } from '../../test/scoreCapacityFixture';
 import { Context } from '../player/playerContextValue';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { draftPreview } from '../transcription/transcription';
 import { transcriptionFixture } from '../../test/transcriptionFixture';
 import { prepareEditingDocument } from './normalizedNotation';
 import { getActiveTrackIndex, selectScoreTrack } from './trackSelection';
+
+it('큰 파생 악보의 적용 실패는 문서·Undo·원본/저장 버전을 보존하고 용량 원인을 안내한다', () => {
+  const { result, engine, initial } = harness();
+  act(() => result.current.editor.begin());
+  act(() => result.current.editor.structure({ kind: 'ADD_GUITAR_TRACK' }));
+  const before = result.current.session;
+  let applied = true;
+  act(() => {
+    applied = result.current.editor.replace(scoreCapacityFixture(128, 32, 1));
+  });
+  expect(applied).toBe(false);
+  expect(result.current.session).toBe(before);
+  expect(result.current.session?.originalBytes).toBe(initial.originalBytes);
+  expect(result.current.session?.savedRevision).toBe(initial.savedRevision);
+  expect(result.current.editor.enabled).toBe(true);
+  expect(result.current.editor.canUndo).toBe(true);
+  expect(result.current.editor.error).toContain('트랙 또는 마디 수를 줄이세요');
+  act(() => result.current.editor.undo());
+  expect(result.current.session?.document).toBe(initial.document);
+  engine.dispose();
+});
 
 it('트랙 이동과 Undo/Redo가 같은 선택 ID·음표·원본/저장 버전을 유지하고 잠금은 이동을 막는다', () => {
   const { result, engine, initial, rerender } = harness();

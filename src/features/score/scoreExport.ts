@@ -3,7 +3,11 @@ import type { ScoreDocument } from '../../entities/score';
 import { decodeScoreDocument } from '../../entities/scoreValidation';
 import { isRecord, isSafeUnsigned } from '../../shared/validation';
 import { runStorageJob, type JobSnapshot } from '../library/projects';
-import { renderNormalized, toNormalizedMusicXml } from './normalizedNotation';
+import {
+  renderNormalized,
+  toNormalizedMusicXml,
+  scoreXmlLimitMessage,
+} from './normalizedNotation';
 
 export type ScoreExportFormat = 'JSON' | 'MUSICXML';
 export const scoreExportApi = {
@@ -46,6 +50,7 @@ export const scoreExportApi = {
 export function scoreExportError(cause: unknown) {
   const code =
     cause instanceof Error ? cause.message : isRecord(cause) ? cause.code : '';
+  if (code === 'SCORE_XML_LIMIT') return scoreXmlLimitMessage;
   if (code === 'EXPORT_DESTINATION_EXISTS')
     return '기존 파일은 덮어쓰지 않습니다. 새 파일명을 선택하세요.';
   if (code === 'STORAGE_BUSY')

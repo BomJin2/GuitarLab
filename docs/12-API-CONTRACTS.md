@@ -1197,6 +1197,10 @@ native cfg(test) 평가만 이 정책을 추가 수용하고 기존 stable-windo
 ## 내부 설치 검증의 빌드 프로필 — 2026-10-21
 
 최적화 산출물 검증을 위해 개발용 prepare_validation_installer.py의 --profile과 Test-ValidationInstaller.ps1의 -BuildProfile에 debug/release 두 값만 허용합니다. 기존 기본값은debug이며 새 계획의 buildProfile과 검사 인자가 일치하지 않으면 설치 전에 거부합니다. 이전 프로필 없는 계획은debug로만 해석합니다. 목표 경로는 해당 고정target/debug 또는target/release에서 계산하고 임의 경로·profile 이름은 받지 않습니다. UUID별제품명/프로세스/AppData·현재 사용자 설치·데이터 보존/원격 권한은 유지하며 제품 IPC/DB/모델 계약은 변경하지 않습니다. release 검증도 서명/최종배포·새Windows 수용을 뜻하지 않습니다.
+## 정규화 MusicXML 생성 용량 보호 — 구현 전 계약(2026-10-25)
+
+기존 편집의256마디/전체2000음·최대128트랙은 유지하지만 모든 박자/트랙 조합이 출력8MiB 안에 들어간다고 보장하지 않습니다. toNormalizedMusicXml은 문서/음표를 먼저 검증하고 헤더·part-list/각 마디·끝 태그의 실제UTF-8 바이트를 같은8MiB 예산으로 누적합니다. 초과 조각은 결과에 추가/전체 join·alphaTab 파싱·저장 선택/IPC 전에 SCORE_XML_LIMIT로 거부합니다. UTF-16 문자열 길이로 대신하지 않습니다. 실패는 편집 컨트롤러와 파일 출력에서 트랙/마디 수를 줄이는 한국어 안내로 전달하고 기존문서/history·원본/이전 출력 파일은 유지합니다. 새IPC/DB·형식/의존성 없이 유효한 기존출력 바이트 순서는 유지합니다. 큰 조합의 거부/원본 보존과 허용된1·128트랙/256마디·2000음 실제파서 왕복을 검사하며 계산 관측과 SVG/실제Windows 지연을 구분합니다.
+
 ## 편집 기록 단축키 입력 보호 — 구현 전 계약(2026-10-25)
 
 - 카피의 기존 수동 편집 패널에서 Ctrl/Meta+Z는 Undo, Ctrl/Meta+Shift+Z 또는 Ctrl+Y는 Redo로 기존 컨트롤러/최대100개 history를 사용합니다. TAB 영역/앱 전역으로 단축키 범위를 넓히지 않습니다.

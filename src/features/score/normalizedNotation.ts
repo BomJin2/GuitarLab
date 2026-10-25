@@ -33,6 +33,8 @@ const unsupported = () =>
   new Error(
     '현재 편집은 PPQ960·6줄 운지가 있는 기본 단성 악보만 지원합니다. 미지원 주법·화음·타이·중첩·마디 중간 템포·특수 음가는 원본 보기/재생을 사용하세요.',
   );
+export const scoreXmlLimitMessage =
+  '편집본 MusicXML이 8MiB를 초과합니다. 트랙 또는 마디 수를 줄이세요. 기존 악보와 원본은 유지했습니다.';
 
 export function prepareEditingDocument(session: ScoreSession): ScoreDocument {
   if (session.document.renderSource === 'NORMALIZED') return session.document;
@@ -154,42 +156,52 @@ function rests(duration: number) {
 }
 export function toNormalizedMusicXml(document: ScoreDocument): string {
   const bars = validateEditable(document);
-  const parts = document.tracks
-    .map((track, index) => {
-      const notes = [...track.notes].sort((a, b) => a.startTick - b.startTick);
-      let noteIndex = 0;
-      const measures = bars
-        .map((bar, barIndex) => {
-          let cursor = bar.start;
-          let body = '';
-          while ((notes[noteIndex]?.startTick ?? Infinity) < bar.end) {
-            const note = notes[noteIndex++];
-            if (!note) throw unsupported();
-            body +=
-              rests(note.startTick - cursor) +
-              notation(note.durationTicks, note);
-            cursor = note.startTick + note.durationTicks;
-          }
-          const tempo = document.tempoMap.find((t) => t.tick === bar.start);
-          return `<measure number="${barIndex + 1}"><attributes><divisions>960</divisions><time><beats>${bar.numerator}</beats><beat-type>${bar.denominator}</beat-type></time>${
-            barIndex === 0
-              ? `<clef><sign>TAB</sign><line>5</line></clef><staff-details><staff-lines>6</staff-lines>${[
-                  ...track.tuningMidi,
-                ]
-                  .reverse()
-                  .map(
-                    (m, i) =>
-                      `<staff-tuning line="${i + 1}">${pitch(m, 'tuning-')}</staff-tuning>`,
-                  )
-                  .join('')}</staff-details>`
-              : ''
-          }</attributes>${tempo ? `<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo.bpm}</per-minute></metronome></direction-type><sound tempo="${tempo.bpm}"/></direction>` : ''}${body}${rests(bar.end - cursor)}</measure>`;
-        })
-        .join('');
-      return `<part id="P${index + 1}">${measures}</part>`;
-    })
-    .join('');
-  return `<?xml version="1.0" encoding="utf-8"?><score-partwise version="4.0"><work><work-title>${escapeXml(document.title)}</work-title></work><part-list>${document.tracks.map((t, i) => `<score-part id="P${i + 1}"><part-name>${escapeXml(t.name)}</part-name><score-instrument id="I${i + 1}"><instrument-name>Guitar</instrument-name></score-instrument><midi-instrument id="I${i + 1}"><midi-channel>${(i % 8) + 1}</midi-channel><midi-program>25</midi-program></midi-instrument></score-part>`).join('')}</part-list>${parts}</score-partwise>`;
+  const fragments: string[] = [];
+  const encoder = new TextEncoder();
+  let bytes = 0;
+  function append(xml: string) {
+    bytes += encoder.encode(xml).length;
+    if (bytes > 8 * 1024 * 1024) throw new Error('SCORE_XML_LIMIT');
+    fragments.push(xml);
+  }
+  append(
+    `<?xml version="1.0" encoding="utf-8"?><score-partwise version="4.0"><work><work-title>${escapeXml(document.title)}</work-title></work><part-list>${document.tracks.map((t, i) => `<score-part id="P${i + 1}"><part-name>${escapeXml(t.name)}</part-name><score-instrument id="I${i + 1}"><instrument-name>Guitar</instrument-name></score-instrument><midi-instrument id="I${i + 1}"><midi-channel>${(i % 8) + 1}</midi-channel><midi-program>25</midi-program></midi-instrument></score-part>`).join('')}</part-list>`,
+  );
+  document.tracks.forEach((track, index) => {
+    append(`<part id="P${index + 1}">`);
+    const notes = [...track.notes].sort((a, b) => a.startTick - b.startTick);
+    let noteIndex = 0;
+    bars.forEach((bar, barIndex) => {
+      let cursor = bar.start;
+      let body = '';
+      while ((notes[noteIndex]?.startTick ?? Infinity) < bar.end) {
+        const note = notes[noteIndex++];
+        if (!note) throw unsupported();
+        body +=
+          rests(note.startTick - cursor) + notation(note.durationTicks, note);
+        cursor = note.startTick + note.durationTicks;
+      }
+      const tempo = document.tempoMap.find((t) => t.tick === bar.start);
+      append(
+        `<measure number="${barIndex + 1}"><attributes><divisions>960</divisions><time><beats>${bar.numerator}</beats><beat-type>${bar.denominator}</beat-type></time>${
+          barIndex === 0
+            ? `<clef><sign>TAB</sign><line>5</line></clef><staff-details><staff-lines>6</staff-lines>${[
+                ...track.tuningMidi,
+              ]
+                .reverse()
+                .map(
+                  (m, i) =>
+                    `<staff-tuning line="${i + 1}">${pitch(m, 'tuning-')}</staff-tuning>`,
+                )
+                .join('')}</staff-details>`
+            : ''
+        }</attributes>${tempo ? `<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo.bpm}</per-minute></metronome></direction-type><sound tempo="${tempo.bpm}"/></direction>` : ''}${body}${rests(bar.end - cursor)}</measure>`,
+      );
+    });
+    append('</part>');
+  });
+  append('</score-partwise>');
+  return fragments.join('');
 }
 function events(document: ScoreDocument) {
   return document.tracks.map((t) =>
