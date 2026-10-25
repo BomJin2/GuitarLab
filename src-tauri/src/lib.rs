@@ -101,6 +101,7 @@ mod bundle_tests {
             for command in [
                 "plugin:dialog|message",
                 "open_project",
+                "update_project_metadata",
                 "enable_close_guard",
                 "resolve_close_request",
                 "list_trashed_projects",

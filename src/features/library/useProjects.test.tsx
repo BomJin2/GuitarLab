@@ -6,6 +6,7 @@ import { PlayerEngine } from '../player/PlayerEngine';
 import { Context } from '../player/playerContextValue';
 import { projectApi, type ProjectSummary } from './projects';
 import { useProjects } from './useProjects';
+import { projectMetadataApi } from './projectMetadata';
 import { useScoreAutosave } from './useScoreAutosave';
 import { projectTrashApi, type TrashedProject } from './projectTrash';
 import { projectFixture } from '../../test/projectFixture';
@@ -35,6 +36,10 @@ vi.mock('./projects', async (original) => ({
     createBlankScore: vi.fn(),
   },
 }));
+vi.mock('./projectMetadata', async (original) => ({
+  ...(await original<typeof import('./projectMetadata')>()),
+  projectMetadataApi: { update: vi.fn() },
+}));
 vi.mock('./projectTrash', async (original) => ({
   ...(await original<typeof import('./projectTrash')>()),
   projectTrashApi: {
@@ -59,6 +64,121 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+it('정보 수정은 미저장 세션/재생·경로를 유지하고 목록과 현재 제목만 바꾼다', async () => {
+  const details = projectFixture();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  const source = scoreEditingFixture();
+  act(() => result.current.setSession(source));
+  const before = engine.getSnapshot();
+  const updated = {
+    ...details.project,
+    title: '새 제목',
+    artist: '연주자',
+    updatedAtMs: details.project.updatedAtMs + 1,
+  };
+  vi.mocked(projectMetadataApi.update).mockResolvedValue(updated);
+  vi.mocked(projectApi.list).mockResolvedValue([updated]);
+  await act(async () =>
+    result.current.project.updateMetadata(' 새 제목 ', ' 연주자 '),
+  );
+  expect(result.current.session).toBe(source);
+  expect(engine.getSnapshot()).toBe(before);
+  expect(result.current.project.details?.project).toEqual(updated);
+  expect(result.current.project.details?.revision).toBeNull();
+  expect(result.current.project.projects[0]).toEqual(updated);
+  expect(result.current.project.notice).toContain(
+    '프로젝트 정보를 저장했습니다',
+  );
+  expect(result.current.project.scoreSaved).toBe(false);
+  engine.dispose();
+});
+it('정보 수정 취소는 실제 종료까지 중복 변경을 막고 실패 뒤 입력·세션을 유지한다', async () => {
+  const details = projectFixture();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  const source = scoreEditingFixture();
+  act(() => result.current.setSession(source));
+  const pending = deferred<void>();
+  let signal: AbortSignal | undefined;
+  vi.mocked(projectMetadataApi.update).mockImplementation(
+    async (_current, _changes, current) => {
+      signal = current;
+      await pending.promise;
+      throw new DOMException('취소', 'AbortError');
+    },
+  );
+  let updating: Promise<void> | undefined;
+  act(() => {
+    updating = result.current.project.updateMetadata('수정', '');
+  });
+  act(() => result.current.project.cancel());
+  expect(signal?.aborted).toBe(true);
+  expect(result.current.project.busy).toBe(true);
+  await act(async () => result.current.project.updateMetadata('중복', ''));
+  expect(projectMetadataApi.update).toHaveBeenCalledOnce();
+  await act(async () => {
+    pending.resolve();
+    await updating;
+  });
+  expect(result.current.project.busy).toBe(false);
+  expect(result.current.project.details?.project).toEqual(details.project);
+  expect(result.current.session).toBe(source);
+  vi.mocked(projectMetadataApi.update).mockRejectedValue(
+    new Error('PROJECT_METADATA_CONFLICT'),
+  );
+  await act(async () => result.current.project.updateMetadata('수정', ''));
+  expect(result.current.project.error).toContain('정보가 바뀌었습니다');
+  expect(result.current.session).toBe(source);
+  engine.dispose();
+});
+it('정보 수정의 취소가 커밋 뒤 도착하면 완료된 요약을 반영하고 저장 취소로 가장하지 않는다', async () => {
+  const details = projectFixture();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  const updated = {
+    ...details.project,
+    title: '완료된 수정',
+    updatedAtMs: details.project.updatedAtMs + 1,
+  };
+  const pending = deferred<typeof updated>();
+  vi.mocked(projectMetadataApi.update).mockReturnValue(pending.promise);
+  vi.mocked(projectApi.list).mockResolvedValue([updated]);
+  let updating: Promise<void> | undefined;
+  act(() => {
+    updating = result.current.project.updateMetadata(
+      '완료된 수정',
+      details.project.artist ?? '',
+    );
+  });
+  act(() => result.current.project.cancel());
+  expect(result.current.project.busy).toBe(true);
+  await act(async () => {
+    pending.resolve(updated);
+    await updating;
+  });
+  expect(result.current.project.details?.project).toEqual(updated);
+  expect(result.current.project.notice).toContain(
+    '프로젝트 정보를 저장했습니다',
+  );
+  expect(result.current.project.busy).toBe(false);
+  engine.dispose();
+});
 it('용량 확인 취소는 실제 종료까지 복원을 막고 미저장 편집을 유지한다', async () => {
   const entry = {
     project: projectFixture().project,

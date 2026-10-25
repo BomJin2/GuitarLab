@@ -33,6 +33,7 @@ function controller(): ProjectController {
     refresh: vi.fn(),
     open: vi.fn(),
     create: vi.fn(),
+    updateMetadata: vi.fn(),
     importAsset: vi.fn(),
     createBlankScore: vi.fn(),
     relink: vi.fn(),

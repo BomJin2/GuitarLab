@@ -15,6 +15,11 @@ import { LibraryPage } from './LibraryPage';
 import { useProjects } from './useProjects';
 import { projectApi } from './projects';
 import { projectTrashApi } from './projectTrash';
+import { projectMetadataApi } from './projectMetadata';
+vi.mock('./projectMetadata', async (original) => ({
+  ...(await original<typeof import('./projectMetadata')>()),
+  projectMetadataApi: { update: vi.fn() },
+}));
 
 vi.mock('./projects', async (original) => ({
   ...(await original<typeof import('./projects')>()),
@@ -45,6 +50,54 @@ function Workspace() {
   const project = useProjects(session, setSession, () => true);
   return <LibraryPage project={project} />;
 }
+it('열린 프로젝트의 정보만 명시적으로 수정하며 실패 뒤 폼과 기존 제목을 유지한다', async () => {
+  const details = projectFixture();
+  vi.mocked(projectApi.list).mockResolvedValue([details.project]);
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  vi.mocked(projectMetadataApi.update).mockRejectedValue(
+    new Error('PROJECT_METADATA_CONFLICT'),
+  );
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: `프로젝트 열기 · ${details.project.title}`,
+    }),
+  );
+  const title = await screen.findByLabelText('수정할 프로젝트 제목');
+  fireEvent.change(title, { target: { value: '연습곡' } });
+  fireEvent.change(screen.getByLabelText('수정할 프로젝트 아티스트'), {
+    target: { value: '기타 연주자' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '프로젝트 정보 저장' }));
+  await screen.findByText(/프로젝트 정보가 바뀌었습니다/);
+  expect(title).toHaveProperty('value', '연습곡');
+  expect(
+    screen.getByRole('heading', { name: details.project.title }),
+  ).toBeTruthy();
+  const updated = {
+    ...details.project,
+    title: '연습곡',
+    artist: '기타 연주자',
+    updatedAtMs: details.project.updatedAtMs + 1,
+  };
+  vi.mocked(projectMetadataApi.update).mockResolvedValue(updated);
+  vi.mocked(projectApi.list).mockResolvedValue([updated]);
+  fireEvent.click(screen.getByRole('button', { name: '프로젝트 정보 저장' }));
+  await screen.findByText(/프로젝트 정보를 저장했습니다/);
+  expect(screen.getByRole('heading', { name: '연습곡' })).toBeTruthy();
+  expect(screen.getByLabelText('수정할 프로젝트 아티스트')).toHaveProperty(
+    'value',
+    '기타 연주자',
+  );
+});
 it('보관 용량은 명시적 요청 후 표시하고 확인 중 복원을 막으며 원본을 열지 않는다', async () => {
   const entry = {
     project: projectFixture().project,

@@ -462,6 +462,12 @@ export function projectError(error: unknown) {
         ? error.message
         : '';
   switch (code) {
+    case 'PROJECT_METADATA_INVALID':
+      return '제목과 아티스트는 제어문자 없는 200자 이하로 입력하세요. 아티스트는 비워둘 수 있습니다.';
+    case 'PROJECT_METADATA_CONFLICT':
+      return '프로젝트 정보가 바뀌었습니다. 목록을 새로고침하고 프로젝트를 다시 연 뒤 수정하세요. 기존 편집은 유지합니다.';
+    case 'RECORDING_BUSY':
+      return '녹음을 저장한 뒤 프로젝트 작업을 진행하세요.';
     case 'PROJECT_IN_TRASH':
       return '휴지통에 보관된 프로젝트입니다. 라이브러리에서 복원한 뒤 여세요.';
     case 'PROJECT_TRASH_CHANGED':
@@ -469,7 +475,7 @@ export function projectError(error: unknown) {
     case 'PROJECT_USAGE_UNAVAILABLE':
       return '용량을 안전하게 확인하지 못했습니다. 링크·파일 수·폴더 깊이와 접근 권한을 확인하세요. 원본은 변경하지 않았습니다.';
     case 'PROJECT_IN_USE':
-      return '프로젝트의 연습·녹음을 마친 뒤 보관하세요.';
+      return '프로젝트의 연습·녹음을 마친 뒤 다시 시도하세요.';
     case 'PROJECT_TRASH_LIMIT':
       return '휴지통 보관 한도 1000개에 도달했습니다. 기존 항목을 복원할 수 있으며 영구 삭제는 아직 지원하지 않습니다.';
     case 'REVISION_CONFLICT':

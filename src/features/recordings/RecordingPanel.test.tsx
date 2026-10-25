@@ -74,6 +74,7 @@ it('정렬 REC의 비활성 사유를 표시하고 재생·동기화 후 실제 
     refresh: vi.fn(),
     open: vi.fn(),
     create: vi.fn(),
+    updateMetadata: vi.fn(),
     importAsset: vi.fn(),
     createBlankScore: vi.fn(),
     relink: vi.fn(),

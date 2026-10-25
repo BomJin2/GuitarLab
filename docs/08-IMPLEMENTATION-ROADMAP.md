@@ -56,6 +56,8 @@
 
 ## Phase 4 — 프로젝트 저장과 기록
 
+2026-10-26 정보 수정 후속: 라이브러리에서 열린 프로젝트의 제목/선택 아티스트만 기존정보 대조·SQLite transaction/녹음·연습 잠금/취소를 거쳐 수정합니다. 악보/녹음/점수·원본/세션은 유지하고 서비스/컨트롤러·최소폼을 분리했습니다. 대상프론트39개/native4개·확장Clippy/MSRV가 성공이며 전체검사/Windows·새패키지/원격은 진행 상태를 따릅니다. 다음은 독립적인 로컬 라이브러리 검색입니다. PHASE-04 최신 절을 확인합니다.
+
 - [x] SQLite migrations, 프로젝트/asset/score revisions.
 - [x] practice session/attempt/event 저장, 결과 화면/히트맵.
 - [x] 앱 재실행/누락 원본 재연결/안전 저장.

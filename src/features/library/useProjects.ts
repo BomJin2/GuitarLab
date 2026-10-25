@@ -13,6 +13,10 @@ import { usePlayer } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
 import { getActiveTrackIndex } from '../score/trackSelection';
 import {
+  normalizeProjectMetadata,
+  projectMetadataApi,
+} from './projectMetadata';
+import {
   projectTrashApi,
   type TrashedProject,
   type TrashUsage,
@@ -132,7 +136,7 @@ export function useProjects(
     if (mutation.current.controller) {
       mutation.current.controller.abort();
       setNotice(
-        '휴지통 작업 취소를 요청했습니다. 실제 작업이 끝날 때까지 기다립니다. 완료된 작업은 유지됩니다.',
+        '프로젝트 작업 취소를 요청했습니다. 실제 작업이 끝날 때까지 기다립니다. 완료된 작업은 유지됩니다.',
       );
       return;
     }
@@ -305,6 +309,37 @@ export function useProjects(
         );
         window.location.hash = `#/${mode}`;
       },
+    );
+  }
+  async function updateMetadata(title: string, artist: string) {
+    if (!details) return;
+    const source = details;
+    await mutateProject(
+      async (signal, progress) => {
+        const updated = await projectMetadataApi.update(
+          source.project,
+          normalizeProjectMetadata(title, artist),
+          signal,
+          progress,
+        );
+        if (!mounted.current) return;
+        setDetails((current) =>
+          current?.project.id === source.project.id
+            ? { ...current, project: updated }
+            : current,
+        );
+        listEpoch.current++;
+        setListBusy(false);
+        setProjects((previous) =>
+          [updated, ...previous.filter((p) => p.id !== updated.id)].sort(
+            (a, b) => b.updatedAtMs - a.updatedAtMs || a.id.localeCompare(b.id),
+          ),
+        );
+        setNotice(
+          '프로젝트 정보를 저장했습니다. 악보·녹음·연습 기록은 유지했습니다.',
+        );
+      },
+      { refreshTrashAfter: false },
     );
   }
   async function importAsset(
@@ -526,11 +561,12 @@ export function useProjects(
         setTrashListBusy(false);
     }
   }
-  async function mutateTrash(
+  async function mutateProject(
     work: (
       signal: AbortSignal,
       progress: (job: JobSnapshot) => void,
     ) => Promise<void>,
+    options: { refreshTrashAfter?: boolean } = {},
   ) {
     if (!native || inFlight.current || confirming.current) return;
     inFlight.current = true;
@@ -548,7 +584,9 @@ export function useProjects(
     } catch (cause) {
       if (mounted.current && current === operation.current) {
         if (cause instanceof DOMException && cause.name === 'AbortError')
-          setNotice('휴지통 작업을 취소했습니다. 이전 상태를 유지합니다.');
+          setNotice(
+            '프로젝트 작업을 취소했습니다. 이미 완료된 저장은 유지됩니다.',
+          );
         else setError(projectError(cause));
       }
     } finally {
@@ -559,14 +597,14 @@ export function useProjects(
         setBusy(false);
         setJob(null);
         void refresh();
-        void refreshTrash();
+        if (options.refreshTrashAfter !== false) void refreshTrash();
       }
     }
   }
   async function trashProject(item: ProjectSummary) {
     const current = details?.project.id === item.id;
     if (current && !(await canReplace())) return;
-    await mutateTrash(async (signal, progress) => {
+    await mutateProject(async (signal, progress) => {
       const entry = await projectTrashApi.trash(item, signal, progress);
       if (!mounted.current) return;
       if (current) {
@@ -583,7 +621,7 @@ export function useProjects(
     });
   }
   async function restoreProject(entry: TrashedProject) {
-    await mutateTrash(async (signal, progress) => {
+    await mutateProject(async (signal, progress) => {
       const restored = await projectTrashApi.restore(entry, signal, progress);
       if (!mounted.current) return;
       setTrashedProjects((previous) =>
@@ -594,7 +632,7 @@ export function useProjects(
   }
   async function inspectTrashUsage(entry: TrashedProject) {
     setTrashUsage(null);
-    await mutateTrash(async (signal, progress) => {
+    await mutateProject(async (signal, progress) => {
       const usage = await projectTrashApi.usage(entry, signal, progress);
       if (mounted.current) {
         setTrashUsage(usage);
@@ -657,6 +695,7 @@ export function useProjects(
     refresh,
     open,
     create,
+    updateMetadata,
     importAsset,
     createBlankScore,
     relink,

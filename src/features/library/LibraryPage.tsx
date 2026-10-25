@@ -4,6 +4,7 @@ import type { ProjectController } from './useProjects';
 import type { ProjectMode } from './projects';
 import { ProjectStatus } from './ProjectStatus';
 import { ProjectTrashPanel } from './ProjectTrashPanel';
+import { ProjectMetadataPanel } from './ProjectMetadataPanel';
 
 export function LibraryPage({ project }: { project: ProjectController }) {
   const [title, setTitle] = useState('');
@@ -87,6 +88,17 @@ export function LibraryPage({ project }: { project: ProjectController }) {
         </p>
       )}
       <ProjectStatus project={project} />
+      {project.details && (
+        <ProjectMetadataPanel
+          key={JSON.stringify([
+            project.details.project.id,
+            project.details.project.title,
+            project.details.project.artist,
+          ])}
+          project={project}
+          current={project.details.project}
+        />
+      )}
       {project.projects.length === 0 ? (
         <EmptyState
           title="첫 프로젝트를 기다리고 있어요"

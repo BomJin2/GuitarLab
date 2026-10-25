@@ -1,5 +1,40 @@
 # Phase 04 — 프로젝트 저장과 연습 기록
 
+## 후속 — 프로젝트 제목·아티스트 수정 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. F-01의 프로젝트 정보에 명시적 수정 경로를 추가합니다. 기존 Phase4 기본수용을 재구현하지 않고 제목/아티스트만 악보·원본·녹음·연습기록과 독립적으로 갱신합니다. 구현/대상 검증은 완료했고 전체검사/빌드·패키지/원격은 아래 결과를 따릅니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 docs/12에 기존정보 비교/200 Unicode 코드포인트·제어문자/취소/원본보존·로컬명령 계약을 기록했습니다. DB9와 기존 project/assets/revisions·Python 계약은 유지합니다.
+- `storage/project_metadata.rs`: 단일writer/immediate transaction에서 현재 제목·아티스트를 expected와 대조하고 보관/연습/녹음 상태를 검사합니다. 변경값을 다듬어 제목·아티스트·기존보다 큰 수정시각만 저장하고 동일값은 원래 요약을 반환합니다. 충돌/취소/DB실패/안전정수 상한에서는 이전 행을 유지합니다.
+- `commands/project_metadata_api.rs`/등록·remote 권한 회귀: 엄격한 v1 요청과 기존StorageJob·RecordingService.while_idle를 재사용합니다. 다른 native 작업/REC와 직렬화하며 임의경로/알 수 없는 필드는 받지 않습니다.
+- `features/library/projectMetadata.ts`: 입력 정규화·요청/응답 검증과 실제 취소종료 대기. 다른ID/mode/revision·다른 변경값의 응답을 거부합니다. `useProjects.ts`는 기존 보관 mutation 수명을 일반화해 현재세션/재생/화면을 유지하고 요약/목록만 갱신합니다. 늦은 취소 뒤 실제 저장완료는 성공으로 반영합니다.
+- `ProjectMetadataPanel.tsx`/`LibraryPage.tsx`: 열린 프로젝트의 제목·아티스트 폼과 명시적 저장만 추가합니다. 공통 panel/fieldset/기존상태를 사용하고 실패 시 폼 초안을 보존합니다. 원래 악보 제목/파일명·녹음/점수는 이름 수정 대상이 아닙니다.
+- 자체 SQLite·프론트 서비스/hook/실제App 라이브러리 회귀와 controller 모의 두 곳을 갱신했습니다. `project_trash_tests.rows`의 기존 행 대조를 테스트끼리 재사용하며 정리 대상은 자체UUID 임시폴더뿐입니다.
+
+### 3. 테스트 결과
+
+- `cargo test … project_metadata -- --nocapture`: **4개 성공**,0.40초/컴파일37.41초. 전체 다른 테이블/다른 프로젝트 행·revision/자산/원본 바이트·재열기/아티스트 비우기/동일값/충돌/취소·DB실패/보관·활성연습/시각상한을 확인했습니다.
+- 첫컴파일에서 존재하지 않는 Result.is_err_or와 rusqlite0.40.2의 u64 ToSql 미지원으로 실패했고 기존is_ok_and·검증한i64 변환으로 해결했습니다. 확장Clippy의 테스트모듈 배치 경고는 모듈을 파일 끝으로 이동해 해결했습니다. `cargo clippy … --all-targets --all-features -- -D warnings` **성공**,9.87초·`cargo +1.90.0 check … --all-targets --all-features` **성공**,17.55초.
+- 프론트 대상 최초29개 성공/서비스suite1오류는 모의isTauri 누락이었고 모의를 보완했습니다. TypeScript의 배열분해 undefined 오류는 검사 입력을 리터럴tuple로 한정해 해결했습니다. 최종 `pnpm exec vitest run src/features/library/projectMetadata.test.ts src/features/library/useProjects.test.tsx src/features/library/LibraryPage.test.tsx src/features/library/projects.test.ts`: **39개/4파일 성공**,3.31초. 늦은취소/오류·세션/재생 보존·폼/실제목록을 포함합니다.
+- 전체프론트/확장Rust·최종 타입/lint/포맷·Vite/Windows·독립ZIP/원격은 현재 검사 중입니다. 실제Windows 폼조작/개인프로젝트 변경·기타입력/새OS는 **미실행** — 자체 자료의 계약/연결 검사와 구분하고 사용자 앱/데이터를 유지합니다.
+- 이후 `pnpm test` **506개/108파일 성공**,45.28초와 `cargo test … --all-features` **248개 성공/28개 환경 의존 기본 제외**,19.36초를 확인했습니다. 로그 `project-metadata-front-20261026.log`/`project-metadata-rust-20261026.log`를 보존합니다. 린트가 금지한 제어문자 범위정규식은 기존 공통패턴인 Unicode Cc로 바꿨고 관련32개/3파일을3.19초에 재확인했습니다. 최종타입은 성공이며 lint/포맷·Windows/패키지·원격은 별도 결과로 기록합니다.
+
+### 4. 미구현 및 알려진 문제
+
+자동 병합·프로젝트 내부 악보 제목/원본 파일명 수정은 제공하지 않습니다. 충돌 시 최신목록/프로젝트를 다시 읽은 뒤 수정해야 하며 기존 미저장 확인을 우회하지 않습니다. 별도Windows10/11·고급 주법/특화모델·전체출시 수용은 이 기능으로 대체하지 않습니다.
+
+### 5. 다음 작업 계획
+
+현재 전체검사/빌드 결과와 문서를 확정하고 다음 독립 F-01 기능인 라이브러리 검색을 이어갑니다. 검색은 로컬 요약만 사용하고 새 I/O/전송·목록/세션 변경을 만들지 않는 범위부터 진행합니다. 사용자 승인을 다시 요청하거나 이전 기능을 불필요하게 재작성하지 않습니다.
+
+### 정보 수정 로컬 빌드 확정
+
+`pnpm build` **성공**,Vite49.09초/기존큰chunk 경고. 최종내장 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.00초와 `cargo build … --features custom-protocol` **Windows 빌드 성공**,12.04초/기존MSVC 안내를 확인했습니다. 해당로그는 `project-metadata-build-20261026.log`/`project-metadata-bundle-20261026.log`/`project-metadata-native-build-20261026.log`입니다. 전체506프론트·248확장Rust/Clippy/MSRV와 최종타입/lint 성공을 포함합니다. 한 차례포맷 실패는 새서비스를Prettier로 정리해 재검사 중이며 기능을 완화하지 않았습니다. 실제Windows 폼/사용자프로젝트·새ZIP/원격은 후속으로 유지하고 바로 검색슬라이스를 진행합니다.
+
 ## 1. 작업 개요
 
 - 시작일·완료일:2026-10-14. **완료(Phase 4 수용 조건)**.

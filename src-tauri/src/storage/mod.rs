@@ -10,6 +10,7 @@ pub mod imported_stems;
 mod imported_stems_tests;
 pub mod jobs;
 pub mod practice_records;
+pub mod project_metadata;
 pub mod project_model;
 pub mod project_trash;
 #[cfg(test)]

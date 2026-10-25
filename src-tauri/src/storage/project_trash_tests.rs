@@ -8,7 +8,7 @@ use rusqlite::{params, types::Value, Connection};
 use std::{collections::BTreeMap, fs, sync::atomic::AtomicBool};
 use uuid::Uuid;
 
-fn rows(db: &Connection) -> BTreeMap<String, Vec<Vec<Value>>> {
+pub(crate) fn rows(db: &Connection) -> BTreeMap<String, Vec<Vec<Value>>> {
     let names = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name<>'project_trash' ORDER BY name").expect("테이블")
         .query_map([], |row| row.get::<_, String>(0)).expect("목록").collect::<rusqlite::Result<Vec<_>>>().expect("이름");
     names

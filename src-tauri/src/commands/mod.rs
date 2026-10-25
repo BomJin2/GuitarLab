@@ -18,6 +18,7 @@ pub mod cache_cleanup_api;
 pub mod close_api;
 pub mod diagnostics_api;
 pub mod mixer_api;
+pub mod project_metadata_api;
 pub mod project_trash_api;
 pub mod recording_api;
 pub mod score_api;
