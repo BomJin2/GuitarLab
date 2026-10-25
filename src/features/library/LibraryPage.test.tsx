@@ -50,6 +50,53 @@ function Workspace() {
   const project = useProjects(session, setSession, () => true);
   return <LibraryPage project={project} />;
 }
+it('로컬 검색과 지우기는 제목/아티스트를 거르고 프로젝트를 열거나 다시 읽지 않는다', async () => {
+  const first = {
+    ...projectFixture().project,
+    title: 'Ｇｕｉｔａｒ 연습',
+    artist: '연주자',
+  };
+  const second = {
+    ...first,
+    id: '00000000-0000-4000-8000-000000000099',
+    title: '두 번째 곡',
+    artist: null,
+  };
+  const projects = [first, second];
+  const before = JSON.stringify(projects);
+  vi.mocked(projectApi.list).mockResolvedValue(projects);
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  await screen.findByRole('heading', { name: first.title });
+  fireEvent.change(screen.getByLabelText('프로젝트 검색'), {
+    target: { value: 'guitar 연주자' },
+  });
+  expect(screen.getByRole('heading', { name: first.title })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: second.title })).toBeNull();
+  expect(screen.getByText('검색 결과 1/2개')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('프로젝트 검색'), {
+    target: { value: '없는 프로젝트' },
+  });
+  expect(
+    screen.getByRole('heading', { name: '검색 결과가 없습니다' }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole('heading', { name: '첫 프로젝트를 기다리고 있어요' }),
+  ).toBeNull();
+  fireEvent.change(screen.getByLabelText('프로젝트 검색'), {
+    target: { value: '가'.repeat(201) },
+  });
+  expect(screen.getByText('검색어는 200자 이하로 입력하세요.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '검색 지우기' }));
+  expect(screen.getByRole('heading', { name: first.title })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: second.title })).toBeTruthy();
+  expect(projectApi.list).toHaveBeenCalledOnce();
+  expect(projectApi.open).not.toHaveBeenCalled();
+  expect(JSON.stringify(projects)).toBe(before);
+});
 it('열린 프로젝트의 정보만 명시적으로 수정하며 실패 뒤 폼과 기존 제목을 유지한다', async () => {
   const details = projectFixture();
   vi.mocked(projectApi.list).mockResolvedValue([details.project]);

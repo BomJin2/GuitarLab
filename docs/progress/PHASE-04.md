@@ -1,5 +1,36 @@
 # Phase 04 — 프로젝트 저장과 연습 기록
 
+## 후속 — 로컬 라이브러리 검색 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 정보 수정 슬라이스의 로컬빌드/포맷을 통과한 뒤 기존 F-01 라이브러리의 로컬 검색을 구현했습니다. 제목/아티스트 요약만 사용하고 원본파일/DB·현재세션을 변경하지 않습니다. 대상검사는 완료했으며 전체검사/빌드·원격은 아래 결과로 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- docs/12에 입력200 Unicode 코드포인트/정규화·단어·빈검색·원본보존과 새IPC 없음의 계약을 먼저 기록했습니다.
+- `projectSearch.ts`: NFKC/소문자·공백단어의 모든일치로 기존순서의 원래요약 참조만 반환합니다. 아티스트null/빈검색·길이초과를 구분하고 사용자문자를 정규식/SQL로 실행하지 않습니다.
+- `LibraryPage.tsx`: 공통toolbar의 제목/아티스트 검색·지우기·개수와 0개원본/검색없음/검색어길이 오류를 구분합니다. UI초안과 검색함수를 분리했고 현재프로젝트/정보수정 폼·기존열기/보관 기능을 유지합니다. 새네트워크/파일읽기/자동열기·라이브러리·CSS는 없습니다.
+- `projectSearch.test.ts`/`LibraryPage.test.tsx`: 한글조합·전각/대소문자·교차필드·여러단어/특수문자·200자경계/null·순서/입력불변과 실제필터/빈상태/지우기·API호출 없음/원래목록 복귀를 검사합니다.
+
+### 3. 테스트 결과
+
+`pnpm exec vitest run src/features/library/projectSearch.test.ts src/features/library/LibraryPage.test.tsx`: **7개/2파일 성공**,3.22초. 전체프론트/타입/lint/포맷은 현재검사 중이며 Vite/최종Windows·패키지/원격과 실제Windows 검색폼은 아직 **미실행**입니다. 사용자가 연주하거나 실제프로젝트를 변경할 필요 없이 자체요약으로 검사했고 사용자 앱/자료·입력/REC는 유지했습니다.
+
+이후 `pnpm test` **509개/109파일 성공**,34.71초와 `pnpm typecheck`/`pnpm lint`/`pnpm format:check` **성공**을 확인했습니다. 로그 `library-search-front-20261026.log`를 보존합니다. 다음은 현재진행 중인Vite/내장·Windows이며 이결과가 새원격/실제Windows 폼수용은 아닙니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 읽은 일반 프로젝트 최대1000개만 검색합니다. 파일내용/휴지통·서버 검색/정규식·검색어 영구저장/초성검색은 이번범위가 아닙니다. 새목록이 읽히면 같은검색어를 다시 적용하며 다른화면/재실행은 기본빈검색으로 돌아갑니다. 고급 품질/별도Windows·전체출시 수용은 별도로 유지합니다.
+
+### 5. 다음 작업 계획
+
+전체검사/빌드·문서화를 확정한 뒤 기존 F-06에 정의된 이전악보 버전보존의 조회 경로를 이어갑니다. 우선 현재악보/저장head를 바꾸지 않는 목록/읽기부터 구현하고 자동복원·원본덮어쓰기는 하지 않습니다. 최종 통합후보/원격은 각소스의 실제결과로 구분합니다.
+
+### 검색 로컬 빌드 확정
+
+최종 `pnpm build` **성공**,Vite47.04초/기존큰chunk 경고. 내장4개 **성공**,0.01초와 Windows빌드 **성공**,11.54초입니다. 로그 `library-search-build-20261026.log`/`library-search-bundle-20261026.log`/`library-search-native-build-20261026.log`를 보존합니다.509프론트/타입/lint/포맷과 앞선변경 없는248확장Rust·Clippy/MSRV를 구분하며 이번검색은Rust/Python을 변경하지 않았습니다. 두관리기능의 새통합ZIP/원격·실제Windows 폼/새OS는 미실행으로 유지합니다. 문서/로컬검증 후 바로 읽기전용 버전조회로 진행합니다.
+
 ## 후속 — 프로젝트 제목·아티스트 수정 (2026-10-26)
 
 ### 1. 작업 개요
@@ -33,7 +64,7 @@
 
 ### 정보 수정 로컬 빌드 확정
 
-`pnpm build` **성공**,Vite49.09초/기존큰chunk 경고. 최종내장 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.00초와 `cargo build … --features custom-protocol` **Windows 빌드 성공**,12.04초/기존MSVC 안내를 확인했습니다. 해당로그는 `project-metadata-build-20261026.log`/`project-metadata-bundle-20261026.log`/`project-metadata-native-build-20261026.log`입니다. 전체506프론트·248확장Rust/Clippy/MSRV와 최종타입/lint 성공을 포함합니다. 한 차례포맷 실패는 새서비스를Prettier로 정리해 재검사 중이며 기능을 완화하지 않았습니다. 실제Windows 폼/사용자프로젝트·새ZIP/원격은 후속으로 유지하고 바로 검색슬라이스를 진행합니다.
+`pnpm build` **성공**,Vite49.09초/기존큰chunk 경고. 최종내장 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.00초와 `cargo build … --features custom-protocol` **Windows 빌드 성공**,12.04초/기존MSVC 안내를 확인했습니다. 해당로그는 `project-metadata-build-20261026.log`/`project-metadata-bundle-20261026.log`/`project-metadata-native-build-20261026.log`입니다. 전체506프론트·248확장Rust/Clippy/MSRV와 최종타입/lint 성공을 포함합니다. 한 차례포맷 실패는 새서비스를Prettier로 정리해 최종포맷 성공으로 해결했으며 기능을 완화하지 않았습니다. 실제Windows 폼/사용자프로젝트·새ZIP/원격은 후속으로 유지하고 바로 검색슬라이스를 진행합니다.
 
 ## 1. 작업 개요
 

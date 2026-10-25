@@ -1,15 +1,21 @@
 import { EmptyState } from '../../components/ui/EmptyState';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ProjectController } from './useProjects';
 import type { ProjectMode } from './projects';
 import { ProjectStatus } from './ProjectStatus';
 import { ProjectTrashPanel } from './ProjectTrashPanel';
 import { ProjectMetadataPanel } from './ProjectMetadataPanel';
+import { filterProjects } from './projectSearch';
 
 export function LibraryPage({ project }: { project: ProjectController }) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [mode, setMode] = useState<ProjectMode>('practice');
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(
+    () => filterProjects(project.projects, query),
+    [project.projects, query],
+  );
   return (
     <>
       <div className="mb-8 flex items-center justify-between">
@@ -99,14 +105,43 @@ export function LibraryPage({ project }: { project: ProjectController }) {
           current={project.details.project}
         />
       )}
+      <div className="toolbar">
+        <label>
+          프로젝트 검색{' '}
+          <input
+            type="search"
+            aria-label="프로젝트 검색"
+            placeholder="제목 또는 아티스트"
+            maxLength={400}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <button disabled={query.length === 0} onClick={() => setQuery('')}>
+          검색 지우기
+        </button>
+        {filtered !== null && (
+          <span role="status">
+            검색 결과 {filtered.length}/{project.projects.length}개
+          </span>
+        )}
+      </div>
+      {filtered === null && (
+        <p role="alert">검색어는 200자 이하로 입력하세요.</p>
+      )}
       {project.projects.length === 0 ? (
         <EmptyState
           title="첫 프로젝트를 기다리고 있어요"
           description="데스크톱 앱에서 제목을 입력해 프로젝트를 만든 뒤 악보와 음원을 연결하세요."
         />
+      ) : filtered === null ? null : filtered.length === 0 ? (
+        <EmptyState
+          title="검색 결과가 없습니다"
+          description="제목·아티스트의 다른 단어로 검색하거나 검색 지우기를 누르세요."
+        />
       ) : (
         <div className="project-list">
-          {project.projects.map((item) => (
+          {filtered.map((item) => (
             <article className="panel" key={item.id}>
               <h2>{item.title}</h2>
               <p>
