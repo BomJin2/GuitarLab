@@ -1,5 +1,31 @@
 # Phase8 — 품질·릴리스
 
+## 저장 이력 TAB 독립 패키지·원격 확정 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26.95359c47cfbe50d2e555a967ea2ee4d4d1ceb09b의 저장 이력 TAB·새 파일 출력 후속을 원격 회귀와 독립 배포 검사로 확인했습니다. 해당 검사는 완료이며 별도 Windows10/11·실제 사용자 앱/파일 선택·서명 수용은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+제품/런타임 소스를 바꾸지 않고 Git 깨끗함/정확한 커밋을 확인한 뒤 기존 runtime3393파일의 전체 고정 해시와 새 EXE로 UUID 후보·ZIP을 생성했습니다. 검사/영수증은 ignored `src-tauri/target/runtime-validation` 아래에만 보존합니다. 일반 portable-candidate나 기존 설치기/사용자 앱·자료는 교체하지 않았습니다.
+
+### 3. 테스트 결과
+
+- [Windows40289117144](https://github.com/BomJin2/GuitarLab/actions/runs/40289117144)/job121459740900 **전체 success**. 실제526프론트·249/253Rust(제외28개)·AI113/개발 도구143·예제1+1·MSRV/정리 성공을 로그로 확인했습니다.
+- `revision-history-package-20261026.py` **성공**. EXE41,233,920바이트/SHA `9743ac81e8c24ecd5ca395e5e99a1a1a8f1690477597dc32455f2f49c473199b`, ZIP3613파일/40,288,872바이트/SHA `947811adfc718ab655e1c2c0774ef77235fdb0a0166ecc9d7bca20b92d2ee6d1`입니다. 전체CRC/목록·SHA/새 추출 동일성·기본PowerShell5.1/독립Python3.12.15 두 번 **성공**, VERIFIED_NOT_LAUNCHED입니다.
+- ZIP 경로는 `validation-packages/e60d2aa2-450a-4ba1-b9c9-9351d8bbfef1/GuitarLab-validation.zip`, 후보는 `revision-history-candidate-25e38c82-0e73-46a8-a7de-825b8e82aabc.json`, 영수증은 `revision-history-package-receipt-20282a0c-ae17-457c-867a-b5ecf06963b9.json`입니다. 고정 runtime lock SHA `191c1e801af4226a83ef2a3956a929470e7badc0a9c069766c10b74fb164aa2d`와3393파일/64,095,466바이트를 확인했습니다.
+- `scan-revision-history-candidate-20261026.ps1`의 EXE/ZIP 지정 검사 **각 exit0/위협 미검출/전후 SHA 동일**. Defender4.18.26090.9·정의1.461.202.0, remediation 비활성·설정 변경 없음입니다. `revision-history-defender-4a292685-434f-4429-b6ec-5d72dc8095f8.json`에 NotSigned·검사 범위를 기록했습니다.
+- 실제 앱 실행/사용자 데이터·장치/REC·별도 Windows10/11·다른 백신/서명·최종 설치기 수용은 **미실행** — 자체 패키지만 검사했으며 현재 PC 결과를 별도 OS 수용으로 확대하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 검사 산출물은95359c4 코드이며 이후 원본 기반 TAB 확장은 포함하지 않습니다. 무서명 개발 후보이고 외부 OS/장기 실제 Tauri·입력 성능/출시 전체 완료를 보장하지 않습니다.
+
+### 5. 다음 작업 계획
+
+원본 기반 저장 버전의 읽기 전용 TAB 후속은 PHASE-05에서 별도 검증합니다. 새 변경의 빌드/커밋·원격을 현재 패키지와 구분하고 미수용 외부 조건은 진행표에 유지합니다.
+
 ## 진행표와 남은 수용 조건 정리 — 2026-10-26
 
 ### 1. 작업 개요

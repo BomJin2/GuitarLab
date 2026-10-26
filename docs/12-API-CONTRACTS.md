@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 원본 기반 저장 버전의 읽기 전용 TAB — 2026-10-26
+
+renderSource가 없는 RevisionDocument도 Windows 앱에서 명시적으로 ‘저장 TAB 보기’를 누르면 조회한 projectId/scoreAssetId만 기존 read_project_asset v1로 읽습니다. 등록 자산의 소유권·경로·크기·SHA 검사와 기존 renderStoredScore/압축 경계 검증을 재사용합니다. 임의 경로/현재 편집본/목록 선택만으로 읽지 않으며 원본이 없거나 달라지면 표를 유지하고 실패를 알립니다. 원본 기반 TAB는 저장 시 연결된 원본의 표시이며 현재 악보 복원/재생이나 정밀 싱크를 실행하지 않습니다. 원본 기반 새 파일 출력은 계속 비활성입니다.
+
+projectApi.read의 선택적 waitForCancellation은 기존 StorageJob의 취소 완료 대기를 전달하며 wire/DB/오류코드는 그대로입니다. 미리보기 닫기·문맥 이탈은 읽기를 취소하고 늦은 결과를 버립니다. 읽는 동안 목록/조회/출력의 중복 동작을 막고 닫기로 취소한 경우 실제 종료까지 잠금을 유지합니다. 진행 상태는 실제 JobSnapshot을 표시합니다. 정규화 문서는 기존 메모리 경로를 유지하며 원본 읽기/네트워크/AI·입력/REC를 시작하지 않습니다. 실제 파싱은 동기식이므로 읽기 취소와 달리 파싱 중 즉시 취소를 보장하지 않습니다.
+
 ## 저장 편집본의 읽기 전용 TAB — 2026-10-26
 
 조회한 NORMALIZED RevisionDocument에서 사용자가 ‘저장 TAB 보기’를 누른 경우에만 기존 renderNormalized의 검증/의미 왕복으로 독립 alphaTab Score/lookup을 준비합니다. 원본 asset/현재 ScoreSession·PlayerEngine/Undo·head를 읽거나 변경하지 않습니다. 목록 선택만으로 준비하지 않으며 새 조회 문맥에서는 닫힌 상태로 돌아갑니다. 원본 기반 버전은 미지원 사유를 표시하고 지원 범위/용량·왕복 실패는 음표 표를 유지합니다.

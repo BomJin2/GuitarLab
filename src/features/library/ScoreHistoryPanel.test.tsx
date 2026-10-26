@@ -12,7 +12,7 @@ import { scoreHistoryApi } from './scoreHistory';
 import { ScoreHistoryPanel } from './ScoreHistoryPanel';
 import { scoreExportApi } from '../score/scoreExport';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
-import type { RevisionDocument } from './projects';
+import { projectApi, type RevisionDocument } from './projects';
 import type { ScoreViewport } from '../score/ScoreViewport';
 vi.mock('../score/ScoreViewport', () => ({
   ScoreViewport: ({
@@ -134,6 +134,82 @@ it('명시적 TAB 준비와 저장 트랙 선택만 독립 렌더에 전달하�
     />,
   );
   expect(screen.queryByLabelText('과거 TAB 프렛')).toBeNull();
+});
+
+it('원본 읽기 진행·닫기 취소 중에는 조회/출력을 잠그고 원본 오류에도 표를 유지한다', async () => {
+  vi.spyOn(projectApi, 'available').mockReturnValue(true);
+  const revision = projectFixture().revision;
+  if (!revision) throw new Error('자체 악보 누락');
+  const session = scoreEditingFixture();
+  revision.score = session.document;
+  const first = revision.score.tracks[0];
+  if (!first) throw new Error('자체 트랙 누락');
+  revision.score.tracks.push({
+    ...first,
+    id: 'missing-original-track',
+    name: '원본에 없는 트랙',
+  });
+  revision.workspace.activeTrackIndex = 1;
+  let complete: (() => void) | undefined;
+  const read = vi
+    .spyOn(projectApi, 'read')
+    .mockImplementationOnce(async (_projectId, _assetId, _signal, progress) => {
+      progress({
+        schemaVersion: 1,
+        jobId: revision.revisionId,
+        state: 'RUNNING',
+        completedBytes: 20,
+        totalBytes: 100,
+        result: null,
+        errorCode: null,
+      });
+      return new Promise((resolve) => {
+        complete = () =>
+          resolve({
+            name: 'standard.musicxml',
+            data: Uint8Array.from(session.originalBytes).buffer,
+          });
+      });
+    });
+  await readPreview(revision);
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 보기' }));
+  expect(screen.getByText(/저장 원본 읽는 중 · 20\/100바이트/)).toBeTruthy();
+  expect(
+    screen
+      .getByRole('button', { name: '저장 내용 조회' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 닫기' }));
+  expect(read.mock.calls[0]?.[2].aborted).toBe(true);
+  expect(screen.getByText(/원본 읽기 취소 처리 중/)).toBeTruthy();
+  expect(
+    screen
+      .getByRole('button', { name: '저장 TAB 보기' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  await act(async () => complete?.());
+  expect(screen.queryByLabelText('과거 TAB 프렛')).toBeNull();
+  read.mockRejectedValueOnce(new Error('FILE_NOT_FOUND'));
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 보기' }));
+  await screen.findByText(/원본 파일이 없습니다/);
+  expect(screen.getByRole('table')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 닫기' }));
+  read.mockResolvedValueOnce({
+    name: 'standard.musicxml',
+    data: Uint8Array.from(session.originalBytes).buffer,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 보기' }));
+  await screen.findByText(/원본에서 저장된 트랙을 찾을 수 없습니다/);
+  expect(screen.queryByLabelText('과거 TAB 프렛')).toBeNull();
+  fireEvent.change(screen.getByLabelText('저장된 트랙'), {
+    target: { value: '0' },
+  });
+  expect(screen.getByLabelText('과거 TAB 프렛').textContent).toBe('0');
+  expect(
+    screen
+      .getByRole('button', { name: '조회 버전을 새 JSON으로 내보내기' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
 });
 
 it('조회한 정규화 버전 전체만 출력하며 다른 버전 선택·중복·실패 후에도 조회와 원본을 보존한다', async () => {

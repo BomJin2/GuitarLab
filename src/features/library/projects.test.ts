@@ -14,6 +14,42 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
 }));
 beforeEach(() => vi.clearAllMocks());
+it('원본 미리보기 읽기는 취소의 실제 종료까지 기다리고 binary를 소비하지 않는다', async () => {
+  const base = {
+    schemaVersion: 1,
+    jobId: projectFixtureId,
+    state: 'RUNNING',
+    completedBytes: 1,
+    totalBytes: 5,
+    result: null,
+    errorCode: null,
+  };
+  let polls = 0;
+  vi.mocked(invoke).mockImplementation(async (command) =>
+    command === 'get_storage_job'
+      ? { ...base, state: ++polls === 1 ? 'CANCELING' : 'CANCELED' }
+      : base,
+  );
+  const controller = new AbortController();
+  await expect(
+    projectApi.read(
+      projectFixtureId,
+      '00000000-0000-4000-8000-000000000002',
+      controller.signal,
+      () => controller.abort(),
+      { waitForCancellation: true },
+    ),
+  ).rejects.toMatchObject({ name: 'AbortError' });
+  expect(polls).toBe(2);
+  expect(invoke).toHaveBeenCalledWith('cancel_storage_job', {
+    request: { schemaVersion: 1, jobId: projectFixtureId },
+  });
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.some(([command]) => command === 'take_storage_bytes'),
+  ).toBe(false);
+});
 it('빈 악보 생성은 버전·프로젝트를 전달하고 다른 프로젝트/형식/저장 방식·누락 응답을 거부한다', async () => {
   const fixture = projectFixture();
   const asset = { ...fixture.assets[0], storage: 'MANAGED', available: true };

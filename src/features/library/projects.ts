@@ -425,6 +425,7 @@ export const projectApi = {
     assetId: string,
     signal: AbortSignal,
     progress: (v: JobSnapshot) => void,
+    options: { waitForCancellation?: boolean } = {},
   ) {
     let jobId = '';
     const v = envelope(
@@ -436,6 +437,7 @@ export const projectApi = {
           jobId = snapshot.jobId;
           progress(snapshot);
         },
+        options,
       ),
     );
     if (

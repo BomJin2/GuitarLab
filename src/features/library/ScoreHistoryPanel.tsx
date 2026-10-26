@@ -9,12 +9,13 @@ const emptyPreview = {};
 
 function RevisionPreview({
   revision,
+  preview,
   disabled,
 }: {
   revision: RevisionDocument;
+  preview: ReturnType<typeof useRevisionScorePreview>;
   disabled: boolean;
 }) {
-  const preview = useRevisionScorePreview(revision);
   const [trackIndex, setTrackIndex] = useState(
     revision.workspace.activeTrackIndex,
   );
@@ -44,12 +45,26 @@ function RevisionPreview({
       <button
         disabled={!preview.eligible || (!preview.open && disabled)}
         aria-expanded={preview.open}
-        onClick={preview.open ? preview.hide : preview.show}
+        onClick={() => {
+          if (preview.open) preview.hide();
+          else void preview.show();
+        }}
       >
         저장 TAB {preview.open ? '닫기' : '보기'}
       </button>
       {!preview.eligible && (
-        <p>원본 파일 기반 버전은 저장 TAB 미리보기를 지원하지 않습니다.</p>
+        <p>
+          원본 파일 기반 TAB는 Windows 앱에서 등록 원본을 확인한 뒤 볼 수
+          있습니다.
+        </p>
+      )}
+      {preview.busy && (
+        <p role="status">
+          {preview.open ? '저장 원본 읽는 중' : '원본 읽기 취소 처리 중'}
+          {preview.job
+            ? ` · ${preview.job.completedBytes}/${preview.job.totalBytes}바이트`
+            : ''}
+        </p>
       )}
       {preview.open && (
         <section aria-label="저장 TAB 미리보기">
@@ -58,7 +73,15 @@ function RevisionPreview({
             않습니다.
           </p>
           {preview.error && <p role="alert">{preview.error}</p>}
-          {preview.value && (
+          {revision.score.renderSource !== 'NORMALIZED' && (
+            <p>이 버전에 연결된 등록 원본을 표시합니다.</p>
+          )}
+          {preview.value && !preview.value.score.tracks[trackIndex] && (
+            <p role="alert">
+              원본에서 저장된 트랙을 찾을 수 없습니다. 아래 표는 유지합니다.
+            </p>
+          )}
+          {preview.value && preview.value.score.tracks[trackIndex] && (
             <ScoreViewport
               score={preview.value.score}
               lookup={preview.value.playbackLookup}
@@ -104,12 +127,13 @@ export function ScoreHistoryPanel({
   disabled: boolean;
 }) {
   const history = useScoreHistory(projectId);
+  const preview = useRevisionScorePreview(history.preview);
   const exporting = useScoreExport(history.preview ?? emptyPreview);
   const [selected, setSelected] = useState('');
   const entries = history.page?.entries ?? [];
   const entry =
     entries.find((item) => item.revisionId === selected) ?? entries[0];
-  const locked = disabled || history.busy || exporting.busy;
+  const locked = disabled || history.busy || exporting.busy || preview.busy;
   const exportLocked =
     locked ||
     !exporting.native ||
@@ -175,6 +199,7 @@ export function ScoreHistoryPanel({
           <RevisionPreview
             key={history.preview.revisionId}
             revision={history.preview}
+            preview={preview}
             disabled={locked}
           />
           <section aria-label="조회 버전 내보내기">
