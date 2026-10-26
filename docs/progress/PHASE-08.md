@@ -16,9 +16,9 @@
 
 후속: YAML 대상 Prettier 검사도 성공했습니다. main `fc6628c1bfe11b11f871374fcd6e477ff0c5558f`에 업로드한 뒤 [기능40252073543](https://github.com/BomJin2/GuitarLab/actions/runs/40252073543)/[격리 설치40252073597](https://github.com/BomJin2/GuitarLab/actions/runs/40252073597)가 실제 시작됐습니다. 아직 결론 대기 중이며 위 미실행은 이전 시점입니다. 연결 도구의 commit 실행 조회는 PR 이벤트만 대상으로 하므로 push 실행ID는 공개GitHub API로 확인하고, 이후 job/단계/로그는 연결 도구로 읽습니다. 자체 실험 탭·서버1429/1430/1431은 명령줄/포트 소유권을 재확인해 정리했습니다.
 
-### 4. 미구현 및 알려진 문제
-
 최종 확정: main `fc6628c1bfe11b11f871374fcd6e477ff0c5558f`의 [기능40252073543](https://github.com/BomJin2/GuitarLab/actions/runs/40252073543)/job121345964108와 [격리 설치40252073597](https://github.com/BomJin2/GuitarLab/actions/runs/40252073597)/job121345964176 모두 **success**입니다. 기능 검사는519프론트/112파일(51.01초), 기본247Rust(52.16초)/확장251Rust(60.28초·각28개 기본 제외), 예제1+1·AI113(2.02초)/도구143(15.993초)·MSRV/정리까지 통과했습니다. Server의 독립 release 설치는3393개 runtime 검증·시작 대기3075ms·정상 종료0·제거 등록 해제와 앱 데이터/알 수 없는 파일 보존을 확인했습니다. `installer-watch-ci-final-20261026.json`에 지문/정확한 커밋/격리 identifier를 보존했습니다. 모델 포함/깨끗한 Windows10/11 검증은 false이며 사용자 PC 검사를 대신하지 않습니다. 위 대기는 이전 이력이며 제품 코드는6393f5f와 같아 그 후보/ZIP 지문을 그대로 참조합니다.
+
+### 4. 미구현 및 알려진 문제
 
 연결된 GitHub 도구에는 새 workflow_dispatch 실행이 없고 로컬 GitHub CLI도 없어 수동 새 실행으로 대신하지 않았습니다. 필요한 빌드 입력의 자동 감시를 수정해 같은 문제의 재발을 막습니다. 실제 Windows10/11 사용자 PC/모델 포함 오프라인·서명/다른백신·고급 판정 수용은 이 CI로 완료 처리하지 않습니다.
 

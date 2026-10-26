@@ -21,9 +21,13 @@
 - 첫 확장 명령에 존재하지 않는 judgement-runtime feature를 지정해 실행 전 실패했습니다. Cargo.toml/CI의 실제 --all-features로 수정했고 실패 로그 `input-full-scale-invalid-feature-20261026.log`를 보존합니다. 이 실패를 검사 성공으로 세지 않습니다.
 - 실제 입력 장치/사용자 앱·개인 자료/REC: **미실행** — 자체 신호와 임시 상태만 사용합니다.
 
-### 4. 미구현 및 알려진 문제
+독립 후보 확정: main `e44318603b4f43b0e4c3ef2521e5f86d2dc3eb1b`의 EXE41,233,408바이트·SHA `ba282dc0ff02a5d557522aeb29a37b8bb9426e5e5d4421ca243e7adb2e01a757`와 runtime3393파일/64,095,466바이트를 새 UUID 폴더에 보존했습니다(`input-full-scale-candidate-b4843979-4b93-4c36-a73c-c77c7017bd7e.json`). ZIP `validation-packages/26b5ce90-9b86-47b9-b947-52fbc9b300c9/GuitarLab-validation.zip`은3613파일/40,287,939바이트·SHA `8f54d26df8327644674c9f0994ab5e6a180c1ae87904845b2654a1fb3f7f03d5`입니다. 전체SHA/CRC·동일 바이트 추출/실제PS5.1 종료0/개발PATH를 뺀Python3.12.15 검사가 성공했습니다(`input-full-scale-package-receipt-883bc150-a9e9-448d-a26b-e6a8293ea2a7.json`). 같은EXE/ZIP만 Defender 치료 없이 검사해 모두0/지문 동일이고 NotSigned입니다(`input-full-scale-defender-06758da7-7459-4f2b-8674-82a587f7610c.json`). [Windows40255344804](https://github.com/BomJin2/GuitarLab/actions/runs/40255344804)는 진행 중이며 앱 실행/실제 장치·새OS 검증은 미실행입니다. generic 실행 포인터와 사용자 앱/자료는 변경하지 않았습니다.
 
 최종 로컬 결과: 확장 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features` **253개 성공/28개 기본 제외**,18.90초입니다(`input-full-scale-rust-20261026.log`). 확장 all-targets Clippy **성공**,19.25초·`cargo +1.90.0 check … --all-targets --all-features` **성공**,16.28초입니다. `pnpm build` **성공**,Vite1분42초·기존chunk 안내(`input-full-scale-build-20261026.log`), 최종 내장 `bundle_tests`/Windows custom-protocol 빌드도 **성공**,Windows12.10초·기존MSVC 링크 안내입니다(`input-full-scale-{bundle,native-build}-20261026.log`). 앱은 실행하지 않았습니다. 위 진행 중은 이전 이력이며 정확한 소스 Git/원격을 다음으로 확인합니다.
+
+원격 확정: main `e44318603b4f43b0e4c3ef2521e5f86d2dc3eb1b`의 [Windows40255344804](https://github.com/BomJin2/GuitarLab/actions/runs/40255344804)/job121355885192는 정리까지 **전체 success**입니다.521프론트/112파일, 기본249Rust(44.78초)/확장253Rust(82.89초·각28개 기본 제외), 예제1+1·AI113(2.39초)/도구143(13.757초)·MSRV12.70초를 확인했습니다. `input-full-scale-ci-final-20261026.json`에 정확한 소스/실행을 보존하며 위 원격 대기는 이전 이력입니다.
+
+### 4. 미구현 및 알려진 문제
 
 이 값은 클리핑 발생 시간/지속 시간이나 아날로그 왜곡 판정이 아닙니다. 분석 큐에 도착하지 못한 프레임은 제외하고 정수 입력의 양의 최대값이1 미만일 수도 있어 모든 포화를 검출하지 않습니다. 입력을 다시 시작하면 누적값은 초기화되며 이전 native는 해당 표시를 제공하지 않습니다. 기존 채점 임계값/녹음 PCM·장치 선택/기본 모니터 꺼짐 정책을 유지합니다.
 

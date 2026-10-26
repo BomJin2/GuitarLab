@@ -260,7 +260,7 @@ it('모델 누락 오류를 표시하고 프로젝트 음원이 없으면 실행
     screen.getByRole('button', { name: '프로젝트 WAV를 AI 카피' }),
   );
   expect((await screen.findByRole('alert')).textContent).toContain(
-    '별도 Basic Pitch 개발 환경이 없습니다',
+    'AI 모델 설치 관리에서 설치 / 재검증하세요',
   );
   view.rerender(<AiDraftPanel session={session} />);
   expect(

@@ -1,5 +1,33 @@
 # Phase 6 — AI 기타 카피 및 stem 분리
 
+## 후속 — 실제 설치 기능에 맞춘 안내 정리 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 파일 확인 패널에 이미 구현된 앱 내 설치기를 ‘미구현’으로 안내하고 모델 누락을 수동 개발 환경으로만 설명하던 오래된 문구를 수정합니다. 설치·추론 실행 기능과 별도 Windows10/11 수용 미완료는 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+먼저 docs/12에 오류코드/DTO·실행 정책 불변과 설명 경계를 기록했습니다. `ModelInstallationPanel.tsx`는 파일 확인이 추론 검증이 아님을 유지하며 실제 ‘AI 모델 설치 관리’를 안내합니다. release의 개발 환경 폴백 제한과 충돌하는 일반 설명은 활성 환경 우선 확인으로 바꿨습니다. `modelInstallation.ts`는 Basic Pitch의138~140MiB/1GiB와 Demucs675~676MiB/4GiB 안내를 기존 고정 cp310/cp312 다운로드 패널에 맞춥니다. `runtime.ts`/`transcription.ts`의 AI_MODEL_MISSING은 로컬 환경/필수 패키지와 설치 / 재검증 경로를 안내하고 기존 UI 오류 검사의 기대 문구를 갱신합니다. 모델/음원·런타임/설치·다운로드 실행과 의존성·저장 형식은 변경하지 않습니다.
+
+### 3. 테스트 결과
+
+- 파일 확인/설치·재검증/초안 오류·취소/수명과 모델 계약 대상 `pnpm exec vitest run …ModelInstallationPanel.test.tsx …modelInstallation.test.ts …ModelSetupPanel.test.tsx …AiDraftPanel.test.tsx …runtime.test.ts`: **16개/5파일 성공**,4.02초.
+- `pnpm typecheck`/`pnpm lint`: **성공**. 초기 대상 Prettier는 JSX 줄바꿈1개로 실패했고 해당 파일만 `prettier --write`로 수정했습니다. 전체 포맷·프론트/웹·내장/Windows·새 소스 원격은 **진행 중**, 실제 결과를 이어 기록합니다.
+- Rust/Python 전체 로컬 재검사는 **미실행** — 해당 엔진 변경이 없으며 직전 입력 진단253Rust·Clippy/MSRV 및509ee96의AI113/도구143 원격 결과와 구분합니다. 실제 앱 조작/새 모델 설치·분석/다운로드는 **미실행**, 현재 사용자 환경을 유지합니다.
+
+최종 Windows 결과: `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공** 및 `cargo build … --features custom-protocol` **성공**,13.43초·기존MSVC 링크 안내입니다(`model-install-guidance-{bundle,native-build}-20261026.log`). 이번 안내의 실제 앱/모델 재설치·새 독립ZIP은 미실행이며 e443186의 피크 진단 ZIP 지문과 혼용하지 않습니다. 위 Windows 대기는 이전 이력이고 정확한 소스 Git/원격을 이어 확인합니다.
+
+최종 프론트/웹 결과: `pnpm format:check` **성공**·`pnpm test` **521개/112파일 성공**,37.15초(`model-install-guidance-front-20261026.log`), `pnpm build` **성공**,Vite1분57초·기존chunk 안내입니다(`model-install-guidance-build-20261026.log`). 기존 고정 manifest/캐시 계약의 Basic Pitch cp310은41개/144,366,287바이트·cp312는42개/146,364,006바이트이므로138~140MiB가 두 경로에 맞는 안내입니다. 가중치 추가를 포함한 Demucs 캐시675~676MiB와 설치 여유1/4GiB는 기존 계약을 유지했습니다. 위 검사 대기는 이전 이력이며 Windows/원격 결과는 이어 확인합니다.
+
+### 4. 미구현 및 알려진 문제
+
+이 문구 수정은 별도 Windows10/11 모델 포함 오프라인 실행·가중치 재배포 허가·AI 정확도 수용 완료를 뜻하지 않습니다. 파일 무결성 확인은 실제 추론 품질 검증과 계속 구분합니다.
+
+### 5. 다음 작업 계획
+
+전체 포맷/프론트·웹/Windows와 정확한 소스의 원격 회귀를 확인합니다. 이전 입력 최대값 진단의 새 독립ZIP/PS5.1·Defender 영수증과 원격을 별도 기록하며 기존 기본9개/부분5개와 외부 수용 조건을 유지합니다.
+
 ## release 독립 검증 ZIP 및 외부 환경 보류 — 2026-10-19
 
 ### 작업 개요

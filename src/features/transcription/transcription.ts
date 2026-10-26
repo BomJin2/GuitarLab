@@ -268,7 +268,8 @@ export const transcriptionApi = {
 export function transcriptionError(cause: unknown) {
   const code = cause instanceof Error ? cause.message : '';
   const messages: Record<string, string> = {
-    AI_MODEL_MISSING: '승인 설치한 별도 Basic Pitch 개발 환경이 없습니다.',
+    AI_MODEL_MISSING:
+      '사용할 수 있는 Basic Pitch 로컬 환경이 없습니다. 환경 설정의 AI 모델 설치 관리에서 설치 / 재검증하세요.',
     AI_MODEL_VERSION: '모델 환경의 패키지 버전이 고정 계획과 다릅니다.',
     AI_MODEL_INTEGRITY:
       '모델 무결성 검사가 실패했습니다. 손상 모델은 실행하지 않았습니다.',

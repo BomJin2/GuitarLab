@@ -72,7 +72,7 @@ export function aiRuntimeError(cause: unknown) {
     AI_WORKER_FAILED:
       'AI 작업 프로세스가 실패했습니다. 모델은 다운로드하지 않았습니다.',
     AI_MODEL_MISSING:
-      '선택 모델의 개발 환경 또는 필수 패키지가 없습니다. 자동 설치하지 않았습니다.',
+      '선택 모델의 로컬 환경 또는 필수 패키지가 없습니다. 자동 설치하지 않았습니다.',
     AI_MODEL_VERSION:
       '선택 모델의 Python 또는 패키지 버전이 고정 설치 계획과 다릅니다.',
     AI_MODEL_INTEGRITY:
