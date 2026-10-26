@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   scoreHistoryApi,
   type ScoreRevisionEntry,
@@ -19,9 +19,11 @@ export function useScoreHistory(projectId: string) {
   const [notice, setNotice] = useState<string | null>(null);
   const active = useRef<AbortController | null>(null);
   const mounted = useRef(false);
-  const owner = useRef(projectId);
-  owner.current = projectId;
-  useEffect(() => {
+  // 같은 프로젝트로 돌아와도 이전 화면의 명령은 재사용하지 않습니다.
+  const context = useMemo(() => ({ projectId }), [projectId]);
+  const owner = useRef(context);
+  useLayoutEffect(() => {
+    owner.current = context;
     mounted.current = true;
     setPage(null);
     setPreview(null);
@@ -34,7 +36,7 @@ export function useScoreHistory(projectId: string) {
       active.current?.abort();
       active.current = null;
     };
-  }, [projectId]);
+  }, [context]);
   async function run<T>(
     work: (
       signal: AbortSignal,
@@ -42,12 +44,12 @@ export function useScoreHistory(projectId: string) {
     ) => Promise<T>,
     apply: (value: T) => void,
   ) {
-    if (active.current) return;
+    if (!mounted.current || owner.current !== context || active.current) return;
     const controller = new AbortController();
     active.current = controller;
     const current = () =>
       mounted.current &&
-      owner.current === projectId &&
+      owner.current === context &&
       active.current === controller;
     setBusy(true);
     setCanceling(false);
@@ -72,8 +74,8 @@ export function useScoreHistory(projectId: string) {
     }
   }
   return {
-    page,
-    preview,
+    page: page?.projectId === projectId ? page : null,
+    preview: preview?.projectId === projectId ? preview : null,
     busy,
     canceling,
     error,
@@ -94,7 +96,8 @@ export function useScoreHistory(projectId: string) {
         setPreview,
       ),
     cancel: () => {
-      if (!active.current) return;
+      if (!mounted.current || owner.current !== context || !active.current)
+        return;
       setCanceling(true);
       active.current.abort();
     },
