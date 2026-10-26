@@ -1,5 +1,11 @@
 # 개발 진행 상태
 
+**현재 재개 — 2026-10-26 공개 자산 출력 경로**: Vite 절대outDir의 root 중복 오류를 재현하고 공통 경로 한 곳을 resolve로 바꿨습니다. 대상3개/전체519프론트·타입/lint/포맷·상대 제품 Vite1분12초/별도절대 production-2/3·내장4개/Windows5.78초가 성공했고 [Phase8](PHASE-08.md)에 기록했습니다. Git/새 패키지·원격을 이어 진행합니다. 직전main05f1866/[Windows40248387433](https://github.com/BomJin2/GuitarLab/actions/runs/40248387433)는517프론트·247/251Rust·AI113/도구143·MSRV/정리 **전체success**,새3613파일ZIP/PS5.1·동일EXE/ZIP Defender도 성공입니다. 파싱 worker는 Map 실제지연 악화/JSON 전체3배·중간34M문자 비용으로 제품에 연결하지 않고 근거를 보존했습니다. 사용자 앱/자료·입력/REC/generic 포인터·9기본/5부분 상태는 유지하며 아래 검사 중은 이전 이력입니다.
+
+**현재 작업 — 2026-10-26 빌드 출력 경로 수정/worker 검증**: 별도 production 빌드에서 publicAssetsPlugin이 절대 outDir 앞에 root를 다시 붙이는 오류를 재현했습니다. 기존 허용목록 복사는 유지하고 Node resolve 한 곳으로 고쳐 상대/절대 출력·원본/비허용 파일 보존3개·타입/lint를 통과했습니다. 전체519프론트/정상 제품 빌드를 이어 확인합니다. 별도 최적화 worker 실험은 의미/원본이 같았으나 Map 수신의 heartbeat 지연324.6→364.7ms로 개선되지 않아 **제품 미적용**입니다. `score-import-map-probe-20261026.json`에 기각 근거를 보존했고 JSON 전송 방식은 별도 실험 예정입니다. 직전05f1866은새ZIP/PS5.1·EXE/ZIP Defender 모두 성공이며 원격 결과는 확인 중입니다. 상세는 [Phase8](PHASE-08.md), 사용자 앱/개인 자료·입력/REC/generic 포인터/9기본·5부분은 유지합니다.
+
+**다음 검증 진행 — 2026-10-26 최초 악보 파싱**: 직렬화 후속은 main `05f1866b0bb9980a254b2b636a7c4a7091f62980`까지 업로드했고 새3613파일ZIP/전체SHA·CRC·실제PS5.1/독립Python이 성공했습니다. [Windows40248387433](https://github.com/BomJin2/GuitarLab/actions/runs/40248387433)는 진행 중이며 새EXE/ZIP Defender도 검사 중입니다. 이어 `score-import-probe-20261026`의 별도 worker 실험에서256마디/128트랙/2000음 의미 동등성·원본 바이트 보존을 확인했습니다. 개발환경 메인 작업344.9→152.2ms였지만 첫 전체1063.2ms로 늘어 아직 제품에 연결하지 않았고 별도 최적화 번들 검증을 진행합니다. 현재 제품 소스/사용자 앱·개인 자료/입력·REC/generic 포인터와9기본/5부분은 유지합니다. [Phase8](PHASE-08.md) 최신절과 현장영수증을 기준으로 다음 세션에서도 이 위치부터 이어갑니다.
+
 **현재 재개 — 2026-10-26 선택 트랙 직렬화 검증 완료**: 후속의 전체517프론트/112파일·대상13개/부모/메타데이터 보존·타입/lint/포맷·Vite51.01초·내장4개/Windows13.43초와 실제SVG8회·마지막트랙 클릭이 성공했습니다.128트랙3쌍의 표시복사 중앙값97.5→1.9ms·전체837.0→670.1ms이며 최초파싱/RSS/GC/다른OS 수용은 구분합니다. 직전main59e12d9의 [Windows40229010879](https://github.com/BomJin2/GuitarLab/actions/runs/40229010879)/job121276515568는517프론트·247/251Rust·AI113/도구143·MSRV/정리 **전체success**,새3613파일ZIP/실제PS5.1도 성공했습니다. 이전 자동승인 사용량 한도는 같은 승인 절차로 해소했고 새 후속의 Git/독립패키지/백신·원격을 진행합니다. [Phase8](PHASE-08.md) 최신절을 따릅니다. 사용자 앱/자료·입력/REC/generic 포인터와9기본/5부분 상태를 유지하며 다음 독립 과제는 최초 악보 파싱의 worker 분리 검증입니다.
 
 **진행 중 — 2026-10-26 선택 트랙 직렬화 후속**: 첫 렌더 개선은 main `59e12d9db7f73debd6d457aeba34522df295113d`로 업로드했고 새3613파일ZIP/실제PS5.1 검사가 성공했습니다. [Windows40229010879](https://github.com/BomJin2/GuitarLab/actions/runs/40229010879)/job121276515568는 진행 중이며 아직 결론을 기록하지 않습니다. 실제128번째 트랙 프렛7 클릭→원본128/MIDI71 연결도 확인했습니다. 이어 남은 전체 중간Map 직렬화를 읽기 전용 임시Score/선택트랙의 공개 JsonConverter 왕복으로 줄이는 작은 후속을 구현해 원래 Track.score/index 보존·대상13개/타입/lint를 통과했습니다. 별도 probe-v4에서 정확한59e12d9 비교·최종전체 검사를 진행 중이며 상세는 [Phase8](PHASE-08.md)을 따릅니다. 현재 앱/사용자 자료·입력/REC/generic 포인터와9기본/5부분은 유지합니다.
@@ -507,7 +513,7 @@
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
 | 7 | 고급 판정 | 진행 중(긴 녹음 구간 분석476프론트/239확장Rust·Windows/독립ZIP·실제PS5.1/원격 전체 검증. 박자·장식음·골페 보호·배음 교정 기각/pYIN 미채택. 독립 정답/주법·고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
-| 8 | 품질과 릴리스 | 진행 중(선택 트랙 직렬화517프론트·Windows/실제SVG8회·클릭 성공, 새ZIP/원격 후속. 직전59e12d9의 새ZIP·247/251Rust·AI113/도구143·MSRV 원격 전체 성공. 최초파싱/RSS·실제Tauri/키/Explorer·데이터교체/영구삭제·서명/별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
+| 8 | 품질과 릴리스 | 진행 중(공개자산 경로 수정519프론트·상대/절대 Vite·Windows 성공, 새ZIP/원격 후속. 직전05f1866의 실제SVG/클릭·새ZIP/Defender·247/251Rust·AI113/도구143·MSRV 원격 전체 성공. worker미채택/최초파싱·RSS·실제Tauri/키/Explorer·데이터교체/영구삭제·서명/별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
 
 ## 현재 작업 위치
 

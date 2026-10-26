@@ -1,5 +1,5 @@
 import { copyFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 // public 안에 사용자가 저장한 녹음/악보가 있어도 제품 번들에는 지정 자산만 복사합니다.
 export const publicAssetNames = [
@@ -35,7 +35,7 @@ export function publicAssetsPlugin() {
       if (!config) throw new Error('공개 자산 빌드 설정이 없습니다.');
       await copyPublicAssets(
         config.publicDir,
-        join(config.root, config.build.outDir),
+        resolve(config.root, config.build.outDir),
       );
     },
   };

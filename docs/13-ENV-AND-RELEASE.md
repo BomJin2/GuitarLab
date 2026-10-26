@@ -1,5 +1,9 @@
 # 13. Windows 개발 환경 · 실행 · 패키징
 
+## 별도 Vite 출력 폴더 — 2026-10-26
+
+공개 자산 복사 플러그인은 Vite가 확정한 root/outDir를 Node resolve로 결합합니다. 기본 상대 dist와 절대 경로의 검증 폴더를 모두 지원하며, 지정한 fixture/font/soundfont 허용목록만 복사하는 규칙은 유지합니다. 기존 join은 절대 Windows 드라이브 경로 앞에 root를 중복해 잘못된 경로를 만들었고 상대/절대 경로의 실제 복사 회귀로 재현·수정했습니다. 새 사용자 파일 수집/폴더 삭제·앱 데이터 변경은 없습니다. 결과/원격·별도 worker 실험은 progress/PHASE-08 최신 절을 따릅니다.
+
 ## Windows HTML5 파일 drop 설정 — 2026-10-25
 
 설치된 Tauri2.12.3/tauri-utils2.10.1의 WindowConfig와 [공식 설정 문서](https://v2.tauri.app/reference/config/#windowconfig)를 대조했습니다. Windows HTML5 drop은 내부 WebView2 drop 핸들러 비활성화가 필요하므로 제품 `tauri.conf.json`과 배열을 덮어쓰는 `tauri.validation.conf.json`의 main에 `dragDropEnabled:false`를 함께 지정합니다. CSP/remote·YouTube 별도 창/파일 command 권한은 확장하지 않습니다. AppShell 파일 기본 이동 차단과 전용 영역을 함께 빌드하고 두 설정을 실제 Tauri 타입으로 검사합니다. 물리적 Explorer drop/새OS 수용은 별도이며 progress/PHASE-02를 따릅니다.

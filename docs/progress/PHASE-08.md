@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## 공개 자산 복사의 절대 출력 경로 수정 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26. 별도 worker 실험 빌드에서 발견한 Vite 절대 outDir 복사 실패를 재현하고 공통 경로 처리 한 곳을 수정했습니다. 대상/전체519프론트·정적 검사·상대/절대 실제 웹 빌드·내장/Windows 빌드는 완료했고 새 소스의 Git/패키지·원격을 후속으로 구분합니다. 전체 Phase8/기본9개·부분5개 상태는 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- 구현 전 docs/12에 상대·절대 출력 경로와 허용목록/원본 보존 계약을 기록했습니다. `scripts/publicAssets.mjs`에서 root/outDir 결합을 Node join에서 resolve로 바꿨습니다. 기존 타입 선언·복사파일 목록·기본 상대 dist와 사용자 원본/앱 데이터는 유지합니다. 새 의존성·IPC/DB 변경이나 폴더 삭제는 없습니다.
+- `src/test/publicAssets.test.mjs`: 기존 자체 파일 생성/정리 경계를 재사용해 Vite configResolved/writeBundle 호출의 상대/절대 실제 파일 복사를 검사합니다. 허용 자산 전체 바이트/목록과 원본·비허용 개인 파일의 보존을 확인합니다. 정리는 기존 임시 상위/전용 prefix 확인을 통과한 자체 테스트 폴더만 대상으로 합니다.
+- docs/09·12·13·로드맵/진행표를 갱신합니다. 실제 사용자 public 내보내기 파일을 읽거나 수정하지 않았습니다. 별도 worker 실험의 출력은 target 아래 새 폴더이며 제품 dist/사용자 앱을 실험 페이지로 바꾸지 않았습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `pnpm exec vitest run src/test/publicAssets.test.mjs`: **1실패/2성공**,1.03초. 절대 Windows 드라이브 경로 앞에 root가 중복된 mkdir 오류를 재현했습니다. 수정 후 같은 명령 **3개 성공**,1.05초/검사228ms입니다.
+- `pnpm typecheck`/`pnpm lint`/`pnpm format:check`: **성공**. `pnpm test`: **519개/112파일 성공**,34.11초. 로그 `public-assets-path-front-20261026.log`를 보존합니다.
+- 기본 상대 출력의 `pnpm build`: **성공**,Vite1분12초·기존500kB chunk 경고. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture` **4개 성공**,0.01초, `cargo build … --features custom-protocol` **Windows 성공**,5.78초·기존MSVC 링크/테스트 아이콘 안내입니다. `public-assets-path-{build,bundle,native-build}-20261026.log`를 보존합니다. 앱은 실행하지 않았습니다.
+- 별도 절대 outDir의 실제Vite 검증도 성공했습니다. 최초 production-1은 원래 join 경로 오류로7.79초에 실패했고 실패 폴더/로그를 보존합니다. 수정 후 새 production-2의 같은 경로 체인은7.89초, production-3은7.65초에 성공했습니다. `score-import-probe-build-20261026.log`/`score-import-probe-build-fixed-20261026.log`/`score-import-json-probe-build-20261026.log`에서 구분합니다.
+- 새 Git/독립ZIP/원격은 **미실행** — 로컬 검사/문서를 마친 정확한 소스로 이어서 검증합니다. Rust/Python 엔진 변경이 없어 로컬 전체 재검사는 **미실행**이며 직전05f1866의247/251Rust·AI113/도구143·MSRV 원격 전체 성공과 구분합니다. 실제 사용자 앱 조작/개인 자료·입력/REC·새OS 수용도 **미실행**입니다.
+
+### 4. 미구현 및 알려진 문제
+
+함께 진행한 파싱 worker 실험은 제품에 연결하지 않았습니다. Map 최적화 번들에서는 명시적 JS 복원112.8ms와 달리 실제 heartbeat 지연이324.6→364.7ms로 악화됐습니다. JSON 전송은409.6→253.6ms로 줄었지만 중간33,986,204문자/전체1312.4ms(동기419.3ms)·추가 worker약1.02MB와 복원/메모리 비용이 남았습니다. 두 경우 자체 악보의 UUID를 제외한 음정·시간·운지/박자·원본 바이트는 일치했지만 현재 장점만으로 기존 파서를 교체하지 않습니다. 영수증 `score-import-map-probe-20261026.json`/`score-import-json-probe-20261026.json`을 보존하며 개발환경의 단순 복원시간 감소만 제품 응답 개선으로 주장하지 않습니다. RSS/GC 통제·다른 악보/OS 범위도 미실행입니다.
+
+### 5. 다음 작업 계획
+
+이 경로 수정 소스를 Git에 보존하고 정확한 소스의 새 패키지/원격 기능·격리 설치 회귀를 확인합니다. worker 실험은 보류한 상태로 남기고 새로운 구현을 채택할 때는 전체 시간·메시지 복원/최대 지연·취소·원본/다른 형식 보존을 함께 검증합니다. 남은 고급 판정 정답/특화 모델 허가·별도 Windows10/11/서명·실제 사용자 수용은 기존 미완료 조건을 유지합니다.
+
 ## 선택 트랙 직렬화 전용 입력 후속 — 2026-10-26
 
 ### 1. 작업 개요
@@ -19,6 +47,8 @@ docs/12에 먼저 직렬화 전용 얕은복사·부모/원본 불변 계약을 
 - 실제SVG 관측: 같은Chromium156/1280×720/DPR1·256마디/2000음·선택0/기본lazy 조건에서59e12d9와 후속을 번갈아8회 측정했습니다. 128트랙3쌍의 표시복사 시간은 이전99.7/83.9/97.5ms·후속4.1/1.9/1.6ms, 관측 중앙값97.5→1.9ms입니다. 전체시각의 중앙값은837.0→670.1ms이며 최초fixture/파싱도 포함합니다. 1트랙 대조는275.3→278.6ms로 비슷했고 이 차이를 일반적인 단일트랙 개선으로 주장하지 않습니다.8회 모두SVG 생성/원본 불변을 확인했고 `selected-serialization-observed-20261026.json`에 기록했습니다. GC/CPU 격리·통계 수용이나 RSS 절감 주장은 없습니다.
 - 이전 자동승인 검토 사용량 한도로 중단된 문서 정리/검증은 같은 승인 경로의 재개로 처리했습니다. 우회 실행 없이 이번 Windows 빌드·문서 변경이 승인됐으며 확인하지 못한 항목을 완료로 기록하지 않습니다. 새 직렬화의 현재 사용자 앱 재실행은 미실행입니다.
 - 재개 후 같은 후속 코드의128번째 트랙도 실제SVG/프렛7 클릭→원본트랙128/MIDI71 연결을 확인했습니다. SVG5개/482자식·source 불변, 표시는 직렬화 입력의 원래 부모를 유지했습니다. `selected-serialization-last-track-click-20261026.json`을 보존합니다. 자동 종료된 검증 서버/탭은 별도 localhost1429 검증 환경만 다시 만들어 확인했고 사용자 GuitarLab은 재실행하지 않았습니다. `docs/21-QUICKSTART.md`에는 새 검색/정보수정·읽기 전용 저장 이력 사용법도 추가했습니다.
+- 2026-10-26 원격 확정: main `05f1866b0bb9980a254b2b636a7c4a7091f62980`의 [Windows40248387433](https://github.com/BomJin2/GuitarLab/actions/runs/40248387433)/job121334739871는 정리까지 **전체 success**입니다. 실제517프론트/112파일(84.71초), 기본247Rust(56.16초)/확장251Rust(70.37초·각28개 기본 제외), 예제1+1·AI113(2.39초)/도구143(15.161초·제외 없음)·MSRV12.24초를 확인했고 `selected-serialization-ci-final-20261026.json`을 보존합니다.
+- 같은 소스의 EXE41,232,384바이트·SHA `782d5b1ae6c25c02239ec3f87b8de05f5c0c65b596ebf6a3ea287da0be3b25ab`/고정runtime3393파일·64,095,466바이트 후보는 `selected-serialization-candidate-9e896a35-7f23-4e94-9322-5650cbb4b90b.json`입니다. ZIP `validation-packages/6aa8a39b-11b9-4786-8548-a53638b1a144/GuitarLab-validation.zip`은3613파일/40,286,156바이트·SHA `eccbeba825ed009ba8a5207c518f4124a44d42006cd74def983eec66450e349a`이며 전체SHA/CRC·동일바이트 추출/실제PS5.1 종료0·개발경로 제외 Python3.12.15 검사를 통과했습니다. `selected-serialization-package-receipt-dc60b929-0231-47df-986b-b43e71af8133.json`에 기록했습니다. 같은EXE/ZIP의 Defender4.18.26090.9/정의1.461.202.0·치료 없는 검사도 모두0/지문 동일입니다(`selected-serialization-defender-0e143b10-9a7b-4e2c-8aec-9f01cc7aba5b.json`). NotSigned/별도Windows·다른백신/사용자 앱 수용 미실행은 유지하며 generic 포인터/사용자 자료는 변경하지 않았습니다. 위 원격/새패키지 대기는 이전 이력입니다.
 
 ### 4. 미구현 및 알려진 문제
 
@@ -27,6 +57,8 @@ docs/12에 먼저 직렬화 전용 얕은복사·부모/원본 불변 계약을 
 ### 5. 다음 작업 계획
 
 정확한 소스의 새 독립패키지/백신·원격 회귀를 마칩니다. 직전59e12d9의 새ZIP/원격 성공은 아래 절에 확정했고 남은 최초 파싱 지연은 별도 worker 검증/계약으로 다룹니다. 사용자의 현재 앱/개인 프로젝트로 자동 테스트하거나 입력/REC를 시작하지 않습니다.
+
+다음 실험 재개 위치: `src-tauri/target/runtime-validation/score-import-probe-20261026/`의 별도 worker가 기존 XML 파서→Score 직렬화만 수행하고 메인에서 Score/lookup·정규화를 복원합니다. 자체7,567,955바이트/256마디/128트랙/2000음에서 동기 메인344.9ms·worker 복원93.7ms/lookup·정규화58.5ms(합152.2ms), worker 전체1063.2ms·파싱341.3ms/직렬화72.9ms를 관측했고 UUID를 제외한 음정·시간·운지/표기·원본바이트는 일치했습니다. 이 개발 서버 단일 관측만으로 제품에 연결하지 않습니다. 별도 production-1 번들에서 첫 로딩 비용/동등성을 확인한 뒤 새 계약·취소/오류 보호를 정의해야 하며 현재 worker 실험은 제품 기능으로 미구현입니다.
 
 ## 선택 트랙 표시 복사본과 실제 SVG 관측 — 2026-10-26
 

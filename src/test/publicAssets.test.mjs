@@ -14,7 +14,22 @@ import { expect, test } from 'vitest';
 import {
   copyPublicAssets,
   publicAssetNames,
+  publicAssetsPlugin,
 } from '../../scripts/publicAssets.mjs';
+
+async function seedSource(root) {
+  const source = join(root, 'public');
+  for (const name of [
+    ...publicAssetNames,
+    'fixtures/private-take.wav',
+    'fixtures/exported.json',
+  ]) {
+    const path = join(source, name);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, name);
+  }
+  return source;
+}
 
 async function removeTestRoot(root) {
   const resolved = await realpath(root);
@@ -28,18 +43,9 @@ async function removeTestRoot(root) {
 
 test('지정 공개 자산만 복사하고 사용자 녹음/악보와 원본은 보존한다', async () => {
   const root = await mkdtemp(join(tmpdir(), 'guitarlab-public-'));
-  const source = join(root, 'public');
   const destination = join(root, 'dist');
   try {
-    for (const name of [
-      ...publicAssetNames,
-      'fixtures/private-take.wav',
-      'fixtures/exported.json',
-    ]) {
-      const path = join(source, name);
-      await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, name);
-    }
+    const source = await seedSource(root);
     await copyPublicAssets(source, destination);
     expect((await readdir(join(destination, 'fixtures'))).sort()).toEqual(
       publicAssetNames
@@ -56,3 +62,33 @@ test('지정 공개 자산만 복사하고 사용자 녹음/악보와 원본은 
     await removeTestRoot(root);
   }
 });
+
+test.each(['relative', 'absolute'])(
+  'Vite %s 출력 경로에도 허용 자산만 복사하고 원본을 유지한다',
+  async (kind) => {
+    const root = await mkdtemp(join(tmpdir(), 'guitarlab-public-'));
+    try {
+      const source = await seedSource(root);
+      const outDir =
+        kind === 'relative' ? 'nested/dist' : join(root, '별도 출력', 'dist');
+      const expected =
+        kind === 'relative' ? join(root, 'nested', 'dist') : outDir;
+      const plugin = publicAssetsPlugin();
+      plugin.configResolved({ root, publicDir: source, build: { outDir } });
+      await plugin.writeBundle();
+      for (const name of publicAssetNames)
+        expect(await readFile(join(expected, name), 'utf8')).toBe(name);
+      expect((await readdir(join(expected, 'fixtures'))).sort()).toEqual(
+        publicAssetNames
+          .filter((name) => name.startsWith('fixtures/'))
+          .map((name) => name.slice('fixtures/'.length))
+          .sort(),
+      );
+      expect(
+        await readFile(join(source, 'fixtures/private-take.wav'), 'utf8'),
+      ).toBe('fixtures/private-take.wav');
+    } finally {
+      await removeTestRoot(root);
+    }
+  },
+);
