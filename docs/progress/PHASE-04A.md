@@ -21,6 +21,8 @@
 
 ### 4. 미구현 및 알려진 문제
 
+원격 확정: main `509ee966738a4277b2faebb36ff9ff028cfdd9c4`의 [Windows40254348865](https://github.com/BomJin2/GuitarLab/actions/runs/40254348865)/job121352878211는 정리까지 **전체 success**입니다.519프론트/112파일, 기본247Rust(45.72초)/확장251Rust(47.01초·각28개 기본 제외), 예제1+1·AI113(6.08초)/도구143(15.799초)·MSRV12.13초를 확인했습니다. `recording-level-ci-final-20261026.json`에 정확한 소스/실행을 보존하며 위 원격 대기는 이전 이력입니다. 이 UI 후속의 독립 새 ZIP·실제 사용자 앱 수용은 미실행이며 직전6393f5f 패키지/설치 영수증과 구분합니다.
+
 최종 로컬 빌드: `pnpm build` **성공**,Vite1분27초·기존500kB chunk 안내입니다(`recording-level-build-20261026.log`). `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`/`cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`는 **성공**이며 Windows 빌드는12.61초·기존MSVC 링크 안내입니다(`recording-level-{bundle,native-build}-20261026.log`). 위 빌드 미실행은 이전 이력이며 현재 앱은 재실행하지 않았습니다. 새 Git/원격은 이어 확인합니다.
 
 최대값에는 구간/샘플 수·지속 시간 정보가 없습니다. 실제 아날로그 왜곡이나 clipping을 판정하거나 원본을 자동 보정하지 않습니다. float WAV는1 초과도 보존하는 기존 정책을 유지합니다. 네이티브 데이터/녹음·재생 볼륨 정책과 고급 채점은 변경하지 않습니다.

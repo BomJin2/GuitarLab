@@ -153,7 +153,7 @@ export function InputPanel({
             </p>
           )}
           <label>
-            입력 레벨{' '}
+            입력 레벨 (RMS){' '}
             <meter
               min={-80}
               max={0}
@@ -164,8 +164,21 @@ export function InputPanel({
             />{' '}
             {state.levelDbfs.toFixed(1)} dBFS
           </label>
-          {active && state.levelDbfs > -1 && (
+          {active && state.levelDbfs > -1 && !state.fullScaleFrames && (
             <p>⚠ 입력 레벨이 높습니다. 인터페이스 게인을 낮춰주세요.</p>
+          )}
+          {state.fullScaleFrames !== undefined && (
+            <p>
+              디지털 최대값 도달·초과 {state.fullScaleFrames.toLocaleString()}
+              프레임 · 이번 입력 시작 이후 분석한 샘플 기준
+            </p>
+          )}
+          {active && (state.fullScaleFrames ?? 0) > 0 && (
+            <p role="status">
+              소리가 찌그러졌다면 인터페이스의 입력 GAIN을 낮춰주세요. 이 수는
+              실제 왜곡 여부나 지속 시간을 확정하지 않으며 입력을 다시 시작하면
+              초기화됩니다.
+            </p>
           )}
           <TunerDisplay state={state} />
           <p>

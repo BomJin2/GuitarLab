@@ -43,6 +43,8 @@
 
 ## Phase 3 — 오디오 장치 + 단음 판정
 
+2026-10-26 진단 후속: RMS가 약-3dBFS인 피크1 사인파에서 기존 높은 RMS 경고가 뜨지 않는 문제를 재현했습니다. 별도 worker의 최대값 도달 누적값/입력 GAIN 안내·v1 이전 응답 호환·중단/오류 보존을 추가해 대상14개/전체521프론트·253확장Rust·Clippy/MSRV를 검증했습니다. Windows/원격과 실제 장치 미실행 범위는 PHASE-03 최신절을 따르며 기존 단음 수용/고급 채점 경계는 유지합니다.
+
 - [x] Rust CPAL 오디오 입력 선택, 실시간 레벨 미터와 튜너.
 - [x] DSP onset/pitch detection PoC, monotonic capture timestamp.
 - [x] calibration UI 및 offset 저장, epoch 시간 동기화.

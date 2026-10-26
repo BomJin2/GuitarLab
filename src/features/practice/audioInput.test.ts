@@ -7,6 +7,20 @@ import {
 } from './audioInput';
 
 describe('네이티브 입력 계약', () => {
+  it('최대값 도달 수는 이전 응답의 누락을 허용하되 잘못된 수는 거부한다', () => {
+    const { fullScaleFrames: omitted, ...legacy } = emptyAudioSnapshot;
+    expect(omitted).toBe(0);
+    expect(decodeSnapshot(legacy).fullScaleFrames).toBeUndefined();
+    expect(
+      decodeSnapshot({ ...legacy, capturedFrames: 10, fullScaleFrames: 10 })
+        .fullScaleFrames,
+    ).toBe(10);
+    for (const fullScaleFrames of [-1, 0.5, 11, NaN, Infinity, '1', null]) {
+      expect(() =>
+        decodeSnapshot({ ...legacy, capturedFrames: 10, fullScaleFrames }),
+      ).toThrow('AUDIO_CONTRACT_INVALID');
+    }
+  });
   it('기본 출력 표시는 선택적 boolean이며 기존 목록도 계속 읽는다', () => {
     const device = {
       id: 'out',

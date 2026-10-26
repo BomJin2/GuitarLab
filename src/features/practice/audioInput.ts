@@ -36,6 +36,7 @@ export type AudioSnapshot = {
   droppedFrames: number;
   discontinuities: number;
   levelDbfs: number;
+  fullScaleFrames?: number;
   pitchMidi: number | null;
   confidence: number | null;
   capturedMonotonicNs: string;
@@ -59,6 +60,7 @@ export const emptyAudioSnapshot: AudioSnapshot = {
   droppedFrames: 0,
   discontinuities: 0,
   levelDbfs: -120,
+  fullScaleFrames: 0,
   pitchMidi: null,
   confidence: null,
   capturedMonotonicNs: '0',
@@ -106,6 +108,8 @@ function snapshot(value: unknown): value is AudioSnapshot {
     integer(value.droppedFrames) &&
     integer(value.discontinuities) &&
     number(value.levelDbfs, -120, 0) &&
+    (value.fullScaleFrames === undefined ||
+      integer(value.fullScaleFrames, Number(value.capturedFrames))) &&
     (value.pitchMidi === null || number(value.pitchMidi, 0, 127)) &&
     (value.confidence === null || number(value.confidence, 0, 1)) &&
     timestamp(value.capturedMonotonicNs) &&

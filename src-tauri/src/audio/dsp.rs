@@ -108,6 +108,7 @@ pub struct Detector {
     unverified: VecDeque<Sample>,
     previous_index: Option<u64>,
     pub discontinuities: u64,
+    pub full_scale_frames: u64,
 }
 
 impl Detector {
@@ -129,10 +130,14 @@ impl Detector {
             unverified: VecDeque::with_capacity(8),
             previous_index: None,
             discontinuities: 0,
+            full_scale_frames: 0,
         }
     }
 
     pub fn push(&mut self, sample: Sample) -> Option<DspOutput> {
+        if sample.value.is_finite() && sample.value.abs() >= 1.0 {
+            self.full_scale_frames = self.full_scale_frames.saturating_add(1);
+        }
         if self
             .previous_index
             .is_some_and(|index| sample.index != index + 1)
@@ -242,6 +247,63 @@ impl Detector {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn full_scale_sine_is_counted_even_when_rms_warning_would_not_trigger() {
+        let mut detector = super::Detector::new(48_000, -50.0);
+        let mut expected = 0;
+        let mut energy = 0.0;
+        let mut latest_rms_dbfs = -120.0;
+        for index in 0..48_000 {
+            let value = (std::f64::consts::TAU * 1_000.0 * index as f64 / 48_000.0).sin() as f32;
+            expected += u64::from(value.abs() >= 1.0);
+            energy += f64::from(value).powi(2);
+            if let Some(output) = detector.push(super::Sample {
+                value,
+                index,
+                captured_ns: index * 1_000_000_000 / 48_000,
+            }) {
+                latest_rms_dbfs = output.level_dbfs;
+            }
+        }
+        assert!(20.0 * (energy / 48_000.0).sqrt().log10() < -3.0);
+        assert!(latest_rms_dbfs < -3.0);
+        assert!(expected > 0);
+        assert_eq!(detector.full_scale_frames, expected);
+    }
+
+    #[test]
+    fn full_scale_count_survives_gaps_but_new_detector_starts_empty() {
+        let mut detector = super::Detector::new(48_000, -50.0);
+        for (index, value) in [
+            0.0,
+            0.9996,
+            -0.9996,
+            1.0,
+            -1.0,
+            1.2,
+            -1.2,
+            f32::NAN,
+            f32::INFINITY,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            detector.push(super::Sample {
+                value,
+                index: index as u64,
+                captured_ns: 0,
+            });
+        }
+        assert_eq!(detector.full_scale_frames, 4);
+        detector.push(super::Sample {
+            value: 1.0,
+            index: 20,
+            captured_ns: 0,
+        });
+        assert_eq!(detector.full_scale_frames, 5);
+        assert_eq!(detector.discontinuities, 1);
+        assert_eq!(super::Detector::new(48_000, -50.0).full_scale_frames, 0);
+    }
     use super::*;
 
     #[test]

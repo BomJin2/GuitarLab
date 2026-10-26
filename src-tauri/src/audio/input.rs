@@ -74,6 +74,7 @@ pub struct AudioSnapshot {
     pub dropped_frames: u64,
     pub discontinuities: u64,
     pub level_dbfs: f64,
+    pub full_scale_frames: u64,
     pub pitch_midi: Option<f64>,
     pub confidence: Option<f64>,
     pub captured_monotonic_ns: String,
@@ -109,6 +110,7 @@ impl Default for AudioSnapshot {
             dropped_frames: 0,
             discontinuities: 0,
             level_dbfs: -120.0,
+            full_scale_frames: 0,
             pitch_midi: None,
             confidence: None,
             captured_monotonic_ns: "0".into(),
@@ -885,6 +887,9 @@ impl AudioService {
                             snapshot.captured_frames = captured.load(Ordering::Relaxed);
                             snapshot.dropped_frames = dropped.load(Ordering::Relaxed);
                             snapshot.discontinuities = detector.discontinuities;
+                            // callback 종료 전에는 captured 카운터가 worker보다 늦을 수 있습니다.
+                            snapshot.full_scale_frames =
+                                detector.full_scale_frames.min(snapshot.captured_frames);
                             snapshot.captured_monotonic_ns = latest_ns.to_string();
                             snapshot.judgement_watermark_ns =
                                 detector.judgement_watermark_ns(latest_ns).to_string();
@@ -952,6 +957,15 @@ mod tests {
     #[test]
     fn failure_before_worker_publish_is_visible_and_stop_recovers() {
         let service = AudioService::default();
+        let initial = service.snapshot().expect("초기 상태");
+        let value = serde_json::to_value(initial).expect("상태 직렬화");
+        assert_eq!(value["schemaVersion"], 1);
+        assert_eq!(value["fullScaleFrames"], 0);
+        service
+            .snapshot
+            .lock()
+            .expect("테스트 상태")
+            .full_scale_frames = 12;
         *service.active.lock().expect("테스트 상태") = Some(RunningInput {
             stream: None,
             stop: Arc::new(AtomicBool::new(false)),
@@ -962,12 +976,14 @@ mod tests {
         let status = service.snapshot().expect("실패 조회");
         assert_eq!(status.state, "ERROR");
         assert_eq!(status.error_code, Some("AUDIO_DEVICE_UNAVAILABLE"));
+        assert_eq!(status.full_scale_frames, 12);
         assert!(service.active.lock().expect("테스트 상태").is_none());
         let stopped = service
             .stop(StopRequest { schema_version: 1 })
             .expect("중단 복구");
         assert_eq!(stopped.state, "STOPPED");
         assert_eq!(stopped.error_code, None);
+        assert_eq!(stopped.full_scale_frames, 12);
     }
     #[test]
     #[ignore = "실제 Windows 장치 열거용; 캡처하지 않음"]

@@ -1,5 +1,36 @@
 # Phase 03 — 오디오 입력과 단음 판정
 
+## 후속 — RMS와 분리한 입력 최대값 누적 진단 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 입력 레벨이 RMS여서 피크1 사인파(약-3dBFS)에서도 기존 RMS>-1 경고가 나오지 않는 누락을 재현했습니다. 기존 튜너/노이즈 게이트·onset/판정을 유지하고 사용자에게 입력 GAIN 안내를 제공하는 진단 후속입니다. 실제 장치 수용과 고급 판정 완료로 기록하지 않습니다.
+
+### 2. 구현 및 변경 사항
+
+- docs/12를 먼저 갱신해 v1 선택적 `fullScaleFrames`와 이전 native 호환·동시 게시 상한/기기 한계를 정의했습니다.
+- `audio/dsp.rs`는 실제 DSP worker가 처리하는 유한한 샘플의 절댓값1 이상 프레임을 누적합니다. 오디오 callback/녹음/모니터 큐·피치/onset 연산은 그대로이고 새 할당/로그·디스크 쓰기를 추가하지 않습니다.
+- `audio/input.rs`의 새 상태는0부터 시작하며 worker가 누적값을 게시합니다. callback의 captured 카운터 갱신 전에는 현재 capturedFrames 상한을 적용하며 오류/중단은 직전 값을 보존합니다.
+- `audioInput.ts`/`audioInput.test.ts`는 v1 이전 필드 누락과 안전 정수/전체 프레임 상한을 검증합니다. `InputPanel.tsx`/테스트는 RMS 표시를 명시하고 누적값/입력 GAIN 안내·기존 고RMS 경고와 중복 제거·새 입력/중단/이전 native를 구분합니다. 새 의존성·DB/Python 계약·자동 입력/REC는 없습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `pnpm exec vitest run src/features/practice/InputPanel.test.tsx`: **1실패/2성공**,2.25초. RMS-3.01에서 최대값12프레임 안내가 없는 문제를 재현했습니다(`input-full-scale-before-20261026.log`).
+- 수정 후 InputPanel/audioInput/useAudioInput 대상: **14개/3파일 성공**,최종3.40초. 타입/lint/포맷과 전체 프론트 **521개/112파일 성공**,36.47초(`input-full-scale-front-20261026.log`). 마지막 중복 경고 분기 보완 뒤 대상14개를 다시 검증했습니다.
+- Rust 초기 대상3개는 성공했으나 상태 필드에 직접 값을 대입하는 중복 테스트를 제거하고 기존 실제 서비스의 오류/중단 검사에 통합했습니다. 최종 전체 Rust/Clippy/MSRV·웹/Windows 빌드/원격은 **진행 중**, 실제 완료 결과를 이어 기록합니다.
+- 첫 확장 명령에 존재하지 않는 judgement-runtime feature를 지정해 실행 전 실패했습니다. Cargo.toml/CI의 실제 --all-features로 수정했고 실패 로그 `input-full-scale-invalid-feature-20261026.log`를 보존합니다. 이 실패를 검사 성공으로 세지 않습니다.
+- 실제 입력 장치/사용자 앱·개인 자료/REC: **미실행** — 자체 신호와 임시 상태만 사용합니다.
+
+### 4. 미구현 및 알려진 문제
+
+최종 로컬 결과: 확장 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features` **253개 성공/28개 기본 제외**,18.90초입니다(`input-full-scale-rust-20261026.log`). 확장 all-targets Clippy **성공**,19.25초·`cargo +1.90.0 check … --all-targets --all-features` **성공**,16.28초입니다. `pnpm build` **성공**,Vite1분42초·기존chunk 안내(`input-full-scale-build-20261026.log`), 최종 내장 `bundle_tests`/Windows custom-protocol 빌드도 **성공**,Windows12.10초·기존MSVC 링크 안내입니다(`input-full-scale-{bundle,native-build}-20261026.log`). 앱은 실행하지 않았습니다. 위 진행 중은 이전 이력이며 정확한 소스 Git/원격을 다음으로 확인합니다.
+
+이 값은 클리핑 발생 시간/지속 시간이나 아날로그 왜곡 판정이 아닙니다. 분석 큐에 도착하지 못한 프레임은 제외하고 정수 입력의 양의 최대값이1 미만일 수도 있어 모든 포화를 검출하지 않습니다. 입력을 다시 시작하면 누적값은 초기화되며 이전 native는 해당 표시를 제공하지 않습니다. 기존 채점 임계값/녹음 PCM·장치 선택/기본 모니터 꺼짐 정책을 유지합니다.
+
+### 5. 다음 작업 계획
+
+전체 Rust/최소 버전·Windows/내장 빌드와 정확한 소스 원격 검사를 마칩니다. 새 필드로 실제 연주 지연·정답률이나 고급 채점 완료를 주장하지 않으며 다음 독립 요구사항은 기존 로드맵 순서/미완료 경계에 맞춰 진행합니다.
+
 ## 1. 작업 개요
 
 - 목표: Rust CPAL 입력·레벨·튜너, onset/pitch, 캘리브레이션·epoch 동기화와 결정론적 판정.
