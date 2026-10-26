@@ -8,7 +8,8 @@ import {
   type ScoreExportFormat,
 } from './scoreExport';
 
-export function useScoreExport(source: Uint8Array) {
+// source는 파일 읽기가 아닌 작업 취소·상태 초기화의 문맥 식별자입니다.
+export function useScoreExport(source: object) {
   const native = scoreExportApi.available();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

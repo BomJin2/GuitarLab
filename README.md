@@ -2,6 +2,8 @@
 
 ## 현재 소스 상태 — 2026-10-26
 
+2026-10-26 저장 이력 후속: 조회한 저장 편집본을 현재 편집/head·이전 버전과 분리한 새 JSON/MusicXML로 보존합니다.523프론트·타입/lint/포맷·Windows 내장 빌드를 확인했으며 실제 저장 창·원격 상태와 원본 기반 버전 제외는 [Phase5 최신 기록](docs/progress/PHASE-05.md)을 따릅니다. 이전 날짜/원격 수치는 아래 보존한 이력과 구분합니다.
+
 처음 사용하는 분은 [기타 입력·모니터·녹음 빠른 시작](docs/21-QUICKSTART.md)을 참고하세요.
 
 Windows용 기타 카피·연습·연주 앱의 개발 소스입니다. Tauri2·React·TypeScript·Tailwind·Rust·Python·SQLite를 사용하며, UI는 기능 검증을 위한 임시 구성입니다.

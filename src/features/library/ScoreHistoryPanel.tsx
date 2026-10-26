@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { RevisionDocument } from './projects';
 import { useScoreHistory } from './useScoreHistory';
+import { useScoreExport } from '../score/useScoreExport';
+
+const emptyPreview = {};
 
 function RevisionPreview({ revision }: { revision: RevisionDocument }) {
   const [trackIndex, setTrackIndex] = useState(
@@ -65,17 +68,23 @@ export function ScoreHistoryPanel({
   disabled: boolean;
 }) {
   const history = useScoreHistory(projectId);
+  const exporting = useScoreExport(history.preview ?? emptyPreview);
   const [selected, setSelected] = useState('');
   const entries = history.page?.entries ?? [];
   const entry =
     entries.find((item) => item.revisionId === selected) ?? entries[0];
-  const locked = disabled || history.busy;
+  const locked = disabled || history.busy || exporting.busy;
+  const exportLocked =
+    locked ||
+    !exporting.native ||
+    history.preview?.score.renderSource !== 'NORMALIZED';
   return (
     <section className="panel" aria-label="저장 악보 버전">
       <h3>저장 악보 버전</h3>
       <p>
         저장 내용만 조회합니다. 현재 편집·재생·되돌리기 이력은 유지합니다. 이
-        화면에서 이전 버전을 적용하거나 삭제할 수 없습니다.
+        화면에서 이전 버전을 직접 적용하거나 삭제할 수 없습니다. 조회한 편집본은
+        별도 새 파일로 내보낼 수 있습니다.
       </p>
       <div className="toolbar">
         <button disabled={locked} onClick={() => void history.load()}>
@@ -126,10 +135,55 @@ export function ScoreHistoryPanel({
       {history.error && <p role="alert">{history.error}</p>}
       {history.notice && <p role="status">{history.notice}</p>}
       {history.preview && (
-        <RevisionPreview
-          key={history.preview.revisionId}
-          revision={history.preview}
-        />
+        <>
+          <RevisionPreview
+            key={history.preview.revisionId}
+            revision={history.preview}
+          />
+          <section aria-label="조회 버전 내보내기">
+            <p>
+              출력 대상: 조회한 버전 {history.preview.revision} · 전체 트랙.
+              현재 편집본과 저장 버전은 바뀌지 않습니다. 프로젝트 전체 백업은
+              아닙니다.
+            </p>
+            <div className="toolbar">
+              <button
+                disabled={exportLocked}
+                onClick={() => {
+                  if (history.preview?.score.renderSource === 'NORMALIZED')
+                    void exporting.export(history.preview.score, 'JSON');
+                }}
+              >
+                조회 버전을 새 JSON으로 내보내기
+              </button>
+              <button
+                disabled={exportLocked}
+                onClick={() => {
+                  if (history.preview?.score.renderSource === 'NORMALIZED')
+                    void exporting.export(history.preview.score, 'MUSICXML');
+                }}
+              >
+                조회 버전을 새 MusicXML로 내보내기
+              </button>
+            </div>
+            {history.preview.score.renderSource !== 'NORMALIZED' && (
+              <p>
+                이 버전은 원본 파일 기반이어서 저장 편집본 출력 대상이 아닙니다.
+              </p>
+            )}
+            {!exporting.native && (
+              <p>새 파일 저장은 Windows 앱에서 가능합니다.</p>
+            )}
+            {exporting.busy && (
+              <p role="status">
+                조회한 버전 파일 출력 중{' '}
+                <button onClick={exporting.cancel}>버전 출력 취소</button>
+              </p>
+            )}
+            {exporting.error && <p role="alert">{exporting.error}</p>}
+            {exporting.notice && <p role="status">{exporting.notice}</p>}
+          </section>
+        </>
       )}
     </section>
   );

@@ -1,5 +1,35 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 조회한 저장 편집본 새 파일 보존 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 읽기 전용 저장 이력에서 조회한 편집본을 현재 작업 공간과 분리한 새 JSON/MusicXML로 보존합니다. 기본9단계/부분5단계 상태는 유지하며 코드/대상 검사는 성공, 전체 검사·Windows/원격·실제 파일 선택은 아래 상태로 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- docs/12에 먼저 NORMALIZED 한정·조회 대상 버전 고정·현재 편집/head/원본 보존·기존 출력 보호 재사용 계약을 기록했습니다. 새 IPC/의존성/DB·native/Python 코드 변경은 없습니다.
+- `ScoreHistoryPanel.tsx`가 실제 조회 내용의 버전/전체 트랙을 명시하고 출력·조회 중 중복 동작을 막습니다. 원본 기반/브라우저의 사유와 출력 진행·취소/성공/오류를 표시합니다. 선택칸만 바꾼 미조회 버전을 출력하지 않습니다.
+- 기존 `useScoreExport.ts`의 작업 문맥 타입을 object로 넓혀 조회 RevisionDocument에도 동일한 취소/이탈/오류 초기화를 재사용합니다. 파일을 다시 읽는 인수가 아니며 기존 Uint8Array 호출은 유지합니다. 출력 서비스의 의미 왕복/용량/네이티브 파일 보호는 그대로입니다.
+- `ScoreHistoryPanel.test.tsx`에 실제 조회/목록 선택 분리·브라우저/원본 기반/상위 잠금·중복/조회 차단·양식/저장 공간 오류 재시도·취소/프로젝트 변경·불변 검증을 추가했습니다. docs/02·04·09·21/진행표에 사용 범위를 기록합니다.
+
+### 3. 테스트 결과
+
+- `pnpm exec vitest run src/features/library/ScoreHistoryPanel.test.tsx src/features/library/useScoreHistory.test.tsx src/features/score/useScoreExport.test.tsx src/features/score/scoreExport.test.ts`: **11개/4파일 성공**,최종3.01초. 실제 JSON/MusicXML 재입력·8MiB 거부와 기존 문맥 취소 검사를 포함합니다.
+- 초기 타입/린트와 대상 Prettier는 **성공**. 전체 타입/린트/포맷·프론트/웹 및 내장/Windows 빌드·원격은 **진행 중**, 실제 완료 결과를 이어 기록합니다.
+- native/Python 전체 로컬 검사: **미실행** — 해당 코드 변경이 없으며 직전7ff2bef의249/253Rust·AI113/도구143·MSRV 원격 성공과 구분합니다.
+- 실제 사용자 앱/파일 선택·개인 저장 이력: **미실행** — 자체 fixture/모의 작업만 사용하며 현재 앱/개인 자료·입력/REC를 유지합니다.
+
+최종 로컬 결과: `pnpm typecheck`/`pnpm lint`/`pnpm format:check` **성공**, 전체 `pnpm test` **523개/112파일 성공**,34.48초(`revision-export-front-20261026.log`)입니다. `pnpm build` **성공**,Vite2분2초·기존chunk 안내이며 `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**·Windows `cargo build … --features custom-protocol` **성공**,15.45초·기존MSVC 링크 안내입니다(`revision-export-{build,bundle,native-build}-20261026.log`). 앱은 재실행하지 않았습니다. 위 전체/빌드 대기는 이전 이력이며 새 소스 Git/원격과 실제 파일 선택 수용은 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+원본 GP/MusicXML 기반 버전은 자동 변환하지 않습니다. 기존 기본 단성6줄/용량/의미 왕복 검증을 통과하는 편집본만 출력합니다. 프로젝트의 음원·녹음/설정 백업이나 현재 편집본으로 직접 복원하는 기능은 아닙니다. 취소 전에 실제 파일이 게시됐다면 기존 출력 안내에 따라 남을 수 있으며 자동 삭제하지 않습니다.
+
+### 5. 다음 작업 계획
+
+전체 프론트/웹·내장/Windows 검사를 마쳐 이 슬라이스를 보존합니다. 이후 같은 저장 이력의 읽기 전용 TAB 미리보기를 독립 후속으로 검토하고 전체 출시·실제 사용자 수용은 기존 미완료 경계를 유지합니다.
+
 ## 후속 — 저장 악보 버전 읽기 전용 조회 (2026-10-26)
 
 ### 1. 작업 개요
