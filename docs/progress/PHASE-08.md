@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## 입력 설정 유지 독립 패키지 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26.7dd566aea6b18442105b6167f3b998f9298beddb의 입력 설정 유지 수정을 새 독립 패키지로 검사했습니다. 로컬/원격 검사는 완료이며 [Windows40322363438](https://github.com/BomJin2/GuitarLab/actions/runs/40322363438)/job121570231824는 전체 success입니다. 실제 사용자 앱/장치와 별도 OS 수용은 미실행입니다.
+
+### 2. 구현 및 변경 사항
+
+기존 고정 런타임/패키지 검증기를 재사용해 새 UUID 후보·ZIP·영수증만 만들었습니다. Git 깨끗함/정확한 커밋·실행 파일/3393개 런타임 SHA를 확인하고 기존 앱/패키지·일반 후보나 사용자 데이터를 교체하지 않았습니다. 자체 산출물은 ignored `src-tauri/target/runtime-validation`에 보존합니다.
+
+### 3. 테스트 결과
+
+- `input-selection-package-20261026.py` **성공**, VERIFIED_NOT_LAUNCHED. EXE41,234,944바이트/SHA `9700c6933b6c4da2654edf7f94a70d9339900b88d170150f2f8b852044e0e670`, ZIP3613파일/40,289,259바이트/SHA `dfb65522561729e073a525ced565d41e9b9caf4ba438fdf85068ef35b7dfa48c`입니다. 전체CRC/지문·새 추출 동일성·실제 기본PowerShell5.1/최소PATH 독립Python3.12.15 두 번 **성공**,exit0입니다.
+- ZIP은 `validation-packages/95d7e280-732a-47af-9a74-c753bea131ee/GuitarLab-validation.zip`, 후보는 `input-selection-candidate-1eb119d9-df00-4b26-b4d9-ef3e98b30eda.json`, 영수증은 `input-selection-package-receipt-4e792218-37bc-49fe-839a-bc5fd02cee4c.json`입니다. frontend537/bundle4와 전체localRust 미실행·변경 없는253 기준을 구분했습니다.
+- `scan-input-selection-candidate-20261026.ps1` **성공**. 지정 EXE/ZIP 각각 exit0/위협 미검출·전후 SHA 동일, Defender4.18.26090.9/정의1.461.211.0·remediation 비활성·설정 변경 없음입니다. `input-selection-defender-b864dd35-db46-44e2-a7bd-8ccfee93fd0c.json`에 NotSigned/검사 범위를 기록했습니다.
+- 실제 사용자 앱/장치·입력/모니터/REC·파일 선택, 별도 Windows10/11·서명/다른 백신/최종 설치기 수용은 **미실행**입니다. 새 원격 전체 결론은 후속으로 확정하며 이전2c33c77의 성공을 새 소스 성공으로 대신하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+같은 PC의 무서명 개발 패키지 검사이며 별도 OS/실제 장치 수용·출시 전체 완료가 아닙니다. 새 입력 설정 유지의 실제 SSL 재진입/중단 청취는 자동/DEMO 검사와 별도로 미실행입니다.
+
+### 5. 다음 작업 계획
+
+7dd566a의 원격 전체 결론과 진행표/최신 결과 문서를 확정합니다. 기본9단계/부분5단계 및 별도 OS·특화 모델/주법 품질·서명/실제 데이터 작업의 미수용 조건은 유지합니다.
+
+후속 확정:7dd566a의 위 원격은 **전체 success**이며 실제537프론트/249기본·253확장Rust(각 제외28개)·예제1+1·AI113/도구143·Clippy/MSRV1.90/사후 정리를 확인했습니다. 진행표14개 고유 Phase/결과 파일·최신5절·기존 Phase3/8 이력 보존·CRLF 허용 diff check도 성공입니다. 위 원격 진행 중은 이 확정 전 이력입니다. 최종 결과 문서는 실행 파일/패키지의7dd566a 코드와 구분하며 추가 제품/데이터 변경은 없습니다.
+
 ## 원본 기반 TAB 독립 패키지 — 2026-10-26
 
 ### 1. 작업 개요
