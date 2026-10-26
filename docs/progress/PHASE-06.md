@@ -20,6 +20,8 @@
 
 최종 프론트/웹 결과: `pnpm format:check` **성공**·`pnpm test` **521개/112파일 성공**,37.15초(`model-install-guidance-front-20261026.log`), `pnpm build` **성공**,Vite1분57초·기존chunk 안내입니다(`model-install-guidance-build-20261026.log`). 기존 고정 manifest/캐시 계약의 Basic Pitch cp310은41개/144,366,287바이트·cp312는42개/146,364,006바이트이므로138~140MiB가 두 경로에 맞는 안내입니다. 가중치 추가를 포함한 Demucs 캐시675~676MiB와 설치 여유1/4GiB는 기존 계약을 유지했습니다. 위 검사 대기는 이전 이력이며 Windows/원격 결과는 이어 확인합니다.
 
+원격 확정: 제품 소스 main `7ff2bef0e167d2efbf92c73b56309beaf7a92414`의 [Windows40256414128](https://github.com/BomJin2/GuitarLab/actions/runs/40256414128)/job121359125018는 정리까지 **전체 success**입니다.521프론트/112파일(78.94초), 기본249Rust(82.73초)/확장253Rust(47.21초·각28개 기본 제외), 예제1+1·AI113(2.56초)/도구143(14.539초)·MSRV13.20초를 확인했습니다. `model-install-guidance-ci-final-20261026.json`에 기록했으며 위 원격 대기는 이전 이력입니다. 이후에는 진행 문서만 변경했고 제품 실행 동작/테스트 코드는 동일합니다.
+
 ### 4. 미구현 및 알려진 문제
 
 이 문구 수정은 별도 Windows10/11 모델 포함 오프라인 실행·가중치 재배포 허가·AI 정확도 수용 완료를 뜻하지 않습니다. 파일 무결성 확인은 실제 추론 품질 검증과 계속 구분합니다.
