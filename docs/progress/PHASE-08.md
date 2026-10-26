@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## PC 기본 입력 선택 독립 패키지 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26.10a3e721eb1de60ced9f05c0341f5092c673e827의 PC 기본 입력 선택을 새 독립 패키지로 검사했습니다. 로컬/원격 검사는 완료이며 [Windows40327472732](https://github.com/BomJin2/GuitarLab/actions/runs/40327472732)/job121587803841은 전체 success입니다. 실제 앱의 캡처/청취와 별도 OS·출시 수용은 미실행입니다.
+
+### 2. 구현 및 변경 사항
+
+기존 고정 runtime3393파일/패키지 검증기를 재사용하고 Git 깨끗함/정확한 커밋·실행 파일과 런타임 전체 SHA를 확인했습니다. 새 UUID 후보/ZIP/추출·영수증만 만들었으며 기존 앱/패키지·일반 후보나 사용자 자료는 교체하지 않았습니다. 자체 산출물은 ignored `src-tauri/target/runtime-validation`에 보존합니다.
+
+### 3. 테스트 결과
+
+- `default-input-package-20261026.py` **성공**, VERIFIED_NOT_LAUNCHED. EXE41,236,992바이트/SHA `206ed5549e8082de96a46a68d2f308089bfa49b80ddbaa72955df991d3108d8c`, ZIP3613파일/40,289,763바이트/SHA `5b2d5182ab6525d5a9b28b76133b38c08ab4c73eb2cd363735f1622c2343c6d2`입니다. 전체CRC/지문·새 추출 동일성·실제 기본PowerShell5.1/최소PATH 독립Python3.12.15 두 번 **성공**,exit0입니다.
+- ZIP은 `validation-packages/329df692-889c-4a23-a9aa-7d81bf1c2c9e/GuitarLab-validation.zip`, 후보는 `default-input-candidate-123c57d4-1932-47c8-92e2-009f73200d58.json`, 영수증은 `default-input-package-receipt-42a70680-6327-4ee9-b634-eee5c73a03aa.json`입니다. frontend542/실제 전체localRust253·내장4개와 실제 읽기 전용 열거1개를 구분했습니다.
+- `scan-default-input-candidate-20261026.ps1` **성공**. 지정 EXE/ZIP 각각 exit0/위협 미검출·전후 SHA 동일, Defender4.18.26090.9/정의1.461.211.0·remediation 비활성·설정 변경 없음입니다. `default-input-defender-5318052e-fd6f-480f-b756-f735ac6068f5.json`에 NotSigned/검사 범위를 기록했습니다.
+- 실제 앱의 새 선택 UI/캡처·청취·모니터/REC·개인 자료, 새 브라우저 DEMO·별도 Windows10/11·서명/다른 백신/최종 설치기 수용은 **미실행**입니다. 현재 PC 입력 열거1개 성공을 실제 캡처/청취 검증으로 확대하지 않습니다. 새 원격 전체 결론은 후속으로 확정합니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 PC의 무서명 개발 후보 검사이며 별도 OS/실제 앱 캡처·청취/출시 전체 완료가 아닙니다. PC 기본 입력과 기타가 연결된 장치가 다를 수 있어 사용자가 실제 입력·채널을 확인하고 시작해야 합니다.
+
+### 5. 다음 작업 계획
+
+10a3e72의 원격 전체 결론과 진행표/최신 결과 문서를 확정합니다. 기본9단계/부분5단계와 기존 별도 OS·특화 모델/고급 주법 품질·서명/실제 데이터 작업의 미수용 조건은 유지합니다.
+
+후속 확정: 위 원격 **전체 success**,실제542프론트/249기본·253확장Rust(각 제외28개)·예제1+1·AI113/도구143·Clippy/MSRV1.90·사후 정리를 확인했습니다. 14개 Phase 행/고유 결과 파일·최신5절·과거 이력/한국어 신규 문서·CRLF 허용 diff check도 성공입니다. 위 원격 대기는 확정 전 이력이며 이후 변경은 결과 문서뿐입니다. 실제 새 앱/별도 OS 수용은 완료로 바꾸지 않습니다.
+
 ## 입력 설정 유지 독립 패키지 — 2026-10-26
 
 ### 1. 작업 개요
