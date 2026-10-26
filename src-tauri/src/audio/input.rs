@@ -152,6 +152,10 @@ fn is_loopback(name: &str) -> bool {
 
 pub fn list_devices() -> Result<DeviceList, AppError> {
     let host = cpal::default_host();
+    let default_id = host
+        .default_input_device()
+        .and_then(|device| device.id().ok())
+        .map(|id| id.to_string());
     let mut devices = Vec::new();
     for device in host.input_devices().map_err(device_error)? {
         let (Ok(id), Ok(description), Ok(config)) = (
@@ -164,13 +168,15 @@ pub fn list_devices() -> Result<DeviceList, AppError> {
         if is_loopback(description.name()) {
             continue;
         }
+        let id = id.to_string();
+        let is_default = default_id.as_deref().map(|default| default == id.as_str());
         devices.push(DeviceInfo {
-            id: id.to_string(),
+            id,
             name: description.name().to_owned(),
             channels: config.channels(),
             sample_rate: config.sample_rate(),
             sample_format: format!("{}", config.sample_format()),
-            is_default: None,
+            is_default,
         });
     }
     Ok(DeviceList {
@@ -992,8 +998,12 @@ mod tests {
         println!("입력 장치 수: {}", list.devices.len());
         for device in list.devices {
             println!(
-                "{}: {} Hz / {}채널 / {}",
-                device.name, device.sample_rate, device.channels, device.sample_format
+                "{}: {} Hz / {}채널 / {} / PC 기본 입력 {:?}",
+                device.name,
+                device.sample_rate,
+                device.channels,
+                device.sample_format,
+                device.is_default
             );
         }
     }

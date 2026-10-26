@@ -12,7 +12,7 @@ export function InputPanel({
 }) {
   const { state } = input;
   const { deviceId, channelIndex, gate, selectDevice, selectChannel, setGate } =
-    useInputSelection(state);
+    useInputSelection(state, input.devices);
   const selected = input.devices.find((device) => device.id === deviceId);
   const active = state.state === 'RUNNING' || state.state === 'STARTING';
   const activeDevice = input.devices.find(
@@ -74,6 +74,7 @@ export function InputPanel({
                 {input.devices.map((device) => (
                   <option key={device.id} value={device.id}>
                     {device.name}
+                    {device.isDefault ? ' · PC 기본 입력' : ''}
                   </option>
                 ))}
               </select>

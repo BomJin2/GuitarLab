@@ -26,6 +26,160 @@ function controller(): AudioInputController {
   };
 }
 describe('명시적 튜너 입력', () => {
+  it('늦게 온 기본 목록을 처음에만 선택하고 직접 선택·해제한 값은 새로고침에도 유지한다', () => {
+    const input = controller();
+    const device = input.devices[0];
+    if (!device) throw new Error('자체 장치 누락');
+    input.devices = [];
+    const { rerender } = render(<InputPanel input={input} />);
+    input.devices = [
+      { ...device, isDefault: true },
+      { ...device, id: 'manual-input', isDefault: false },
+    ];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('input1');
+    fireEvent.change(screen.getByRole('combobox', { name: '입력 장치' }), {
+      target: { value: 'manual-input' },
+    });
+    input.devices = input.devices.map((item) => ({
+      ...item,
+      isDefault: item.id === 'input1',
+    }));
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('manual-input');
+    fireEvent.change(screen.getByRole('combobox', { name: '입력 장치' }), {
+      target: { value: '' },
+    });
+    input.devices = [...input.devices];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('');
+    expect(input.start).not.toHaveBeenCalled();
+  });
+  it('기본 장치를 고른 뒤 늦게 도착한 이전 실제 입력 설정을 우선한다', () => {
+    const input = controller();
+    const device = input.devices[0];
+    if (!device) throw new Error('자체 장치 누락');
+    input.devices = [
+      { ...device, channels: 2 },
+      { ...device, id: 'default-input', isDefault: true },
+    ];
+    const { rerender } = render(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('default-input');
+    input.state = {
+      ...emptyAudioSnapshot,
+      deviceId: 'input1',
+      channelIndex: 1,
+      channels: 2,
+      noiseGateDbfs: -60,
+    };
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('input1');
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 채널' })
+        .value,
+    ).toBe('1');
+    fireEvent.click(
+      screen.getByRole('button', { name: '선택 장치 입력 시작' }),
+    );
+    expect(input.start).toHaveBeenCalledWith('input1', 1, -60);
+  });
+  it('기본 표시 없음·중복·구형 목록은 빈 선택으로 남기고 수동 선택할 수 있다', () => {
+    const input = controller();
+    const { rerender } = render(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('');
+    const device = input.devices[0];
+    if (!device) throw new Error('자체 장치 누락');
+    input.devices = [{ ...device, isDefault: false }];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('');
+    input.devices = [
+      { ...device, isDefault: true },
+      { ...device, id: 'ambiguous', isDefault: true },
+    ];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('');
+    fireEvent.change(screen.getByRole('combobox', { name: '입력 장치' }), {
+      target: { value: 'input1' },
+    });
+    expect(input.start).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: '선택 장치 입력 시작' }),
+    );
+    expect(input.start).toHaveBeenCalledWith('input1', 0, -50);
+  });
+  it('처음 선택한 기본 장치가 사라져도 새 기본 장치로 임의 전환하지 않는다', () => {
+    const input = controller();
+    const device = input.devices[0];
+    if (!device) throw new Error('자체 장치 누락');
+    input.devices = [{ ...device, isDefault: true }];
+    const { rerender } = render(<InputPanel input={input} />);
+    input.devices = [{ ...device, id: 'new-default', isDefault: true }];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('');
+    expect(
+      screen
+        .getByRole('button', { name: '선택 장치 입력 시작' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(input.start).not.toHaveBeenCalled();
+    input.devices = [{ ...device, isDefault: false }, ...input.devices];
+    rerender(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('input1');
+  });
+  it('처음에는 목록 순서·이름 대신 PC 기본 입력을 선택하고 시작 버튼 전에는 캡처하지 않는다', () => {
+    const input = controller();
+    const device = input.devices[0];
+    if (!device) throw new Error('자체 장치 누락');
+    input.devices = [
+      { ...device, isDefault: false },
+      { ...device, id: 'default-input', isDefault: true },
+    ];
+    render(<InputPanel input={input} />);
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', { name: '입력 장치' })
+        .value,
+    ).toBe('default-input');
+    expect(
+      screen
+        .getByRole('option', { name: /PC 기본 입력/ })
+        .getAttribute('value'),
+    ).toBe('default-input');
+    expect(input.start).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: '선택 장치 입력 시작' }),
+    );
+    expect(input.start).toHaveBeenCalledWith('default-input', 0, -50);
+  });
   it('입력 중 화면에 재진입한 뒤 중단해도 실제 장치·채널·gate로 다시 시작할 수 있다', () => {
     const input = controller();
     const device = input.devices[0];
