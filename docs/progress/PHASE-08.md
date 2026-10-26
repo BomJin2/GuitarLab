@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## 원본 기반 TAB 독립 패키지 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26. 원본 기반 저장 TAB의2c33c7757efc2c0dfac8e537cc683d80964bdefd를 독립 패키지로 검사했습니다. 로컬 검사는 완료이고 [Windows40292589404](https://github.com/BomJin2/GuitarLab/actions/runs/40292589404)/job121470920653의 전체 결론은 진행 중입니다. 실제 앱/별도 OS·출시 수용과 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+기존 검증 도구를 재사용해 새 UUID 폴더/ZIP만 만들었습니다. Git 깨끗함/정확한 커밋·EXE/고정 runtime3393파일의 전체 지문을 확인했으며 제품 코드/기존 패키지·일반 후보/사용자 앱·데이터는 교체하지 않았습니다. 모든 자체 도구/영수증은 ignored `src-tauri/target/runtime-validation`에 보존합니다.
+
+### 3. 테스트 결과
+
+- `revision-original-package-20261026.py` **성공**, VERIFIED_NOT_LAUNCHED. EXE41,234,432바이트/SHA `91b2f84d6ac7ceaaca4aff3ba7d16ad0e865c10332d01562f1c419038932289e`, ZIP3613파일/40,288,746바이트/SHA `1877aa49cc45c0fa69dbc38da3ea3d52995f46f344dfa545a9fdd9757f102bd7`입니다. 전체 CRC/지문·새 추출 동일성과 실제 기본PowerShell5.1/최소PATH 독립Python3.12.15 두 번이 **성공**,exit0입니다.
+- ZIP 경로는 `validation-packages/54dc5ef5-1090-47fe-8822-604220a5f13f/GuitarLab-validation.zip`, 후보는 `revision-original-candidate-c595f11c-495c-4eb6-b19a-1004e1c18bc0.json`, 영수증은 `revision-original-package-receipt-8c917f05-b67a-4748-a707-7f2b0b351879.json`입니다. frontend534/bundle4를 기록하고 전체 localRust 미실행·변경 없는253 기준과 구분했습니다.
+- `scan-revision-original-candidate-20261026.ps1` **성공**. 지정 EXE/ZIP 각각 exit0/위협 미검출·전후 SHA 동일, Defender4.18.26090.9/정의1.461.202.0·remediation 비활성·설정 변경 없음입니다. `revision-original-defender-e10fa452-db59-4e22-883d-7b7c756b26c6.json`에 NotSigned/검사 범위를 기록했습니다.
+- PowerShell5.1 출력 로그를 UTF-8로 읽었을 때 한글이 깨져 보인 것은 CP949 콘솔 출력의 표시 문제였습니다. 원본 스크립트/패키지 복사본은 둘 다 UTF-8 BOM이며 실제 로그의 CP949 해독·재인코딩 바이트 동일성/대체문자 없음과 ‘검증 패키지’ 코드포인트를 확인했습니다. 제품 스크립트를 불필요하게 바꾸지 않았습니다.
+- 실제 사용자 앱/개인 이력·입력/REC/파일 선택, 별도 Windows10/11·서명/다른 백신/최종 설치기 수용은 **미실행**입니다. 새 원격은 앱 기본/확장 정적 검사까지 성공했고 전체 결과는 후속으로 확정합니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 PC·무서명 개발 후보 검사이며 별도 OS의 모델 포함 오프라인/장기 실제 Tauri·장치 성능을 검증한 것이 아닙니다. 기본9단계/부분5단계와 출시 미완료를 유지합니다.
+
+### 5. 다음 작업 계획
+
+2c33c77의 원격 전체 결과와 변경 파일/진행표 정합성을 확정합니다. 새 기능·새 실행이 필요한 변경 없이 검사만 반복하지 않고 남은 외부 수용 조건은 진행표를 재개 기준으로 유지합니다.
+
+후속 확정: [Windows40292589404](https://github.com/BomJin2/GuitarLab/actions/runs/40292589404)/job121470920653 **전체 success**. 실제534프론트/249기본·253확장Rust(각 제외28개)/예제1+1·AI113/도구143·Clippy/MSRV1.90·사후 정리 성공입니다. 문서 검사도14개 Phase 행/고유 결과 파일·최신5절·기존 Phase5/8 이력 보존·CRLF 허용 diff check가 **성공**했습니다. 위 원격 대기는 이 확정 전 이력입니다. 결과만 문서화했으며 제품 앱/자료·정책·모델은 변경하지 않았습니다.
+
 ## 저장 이력 TAB 독립 패키지·원격 확정 — 2026-10-26
 
 ### 1. 작업 개요
