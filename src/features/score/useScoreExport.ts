@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { ScoreDocument } from '../../entities/score';
 import type { JobSnapshot } from '../library/projects';
 import { LatestTask } from '../../shared/latestTask';
@@ -19,7 +19,7 @@ export function useScoreExport(source: object) {
   const operation = useRef(false);
   const epoch = useRef(0);
   const mounted = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const current = task.current;
     const generation = epoch;
     mounted.current = true;

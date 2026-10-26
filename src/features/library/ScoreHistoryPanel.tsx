@@ -2,10 +2,19 @@ import { useState } from 'react';
 import type { RevisionDocument } from './projects';
 import { useScoreHistory } from './useScoreHistory';
 import { useScoreExport } from '../score/useScoreExport';
+import { useRevisionScorePreview } from './useRevisionScorePreview';
+import { ScoreViewport } from '../score/ScoreViewport';
 
 const emptyPreview = {};
 
-function RevisionPreview({ revision }: { revision: RevisionDocument }) {
+function RevisionPreview({
+  revision,
+  disabled,
+}: {
+  revision: RevisionDocument;
+  disabled: boolean;
+}) {
+  const preview = useRevisionScorePreview(revision);
   const [trackIndex, setTrackIndex] = useState(
     revision.workspace.activeTrackIndex,
   );
@@ -32,6 +41,33 @@ function RevisionPreview({ revision }: { revision: RevisionDocument }) {
       <p>
         PPQ {revision.score.ppq} · {track.notes.length}음 · 최대 100음 표시
       </p>
+      <button
+        disabled={!preview.eligible || (!preview.open && disabled)}
+        aria-expanded={preview.open}
+        onClick={preview.open ? preview.hide : preview.show}
+      >
+        저장 TAB {preview.open ? '닫기' : '보기'}
+      </button>
+      {!preview.eligible && (
+        <p>원본 파일 기반 버전은 저장 TAB 미리보기를 지원하지 않습니다.</p>
+      )}
+      {preview.open && (
+        <section aria-label="저장 TAB 미리보기">
+          <p>
+            조회한 버전의 읽기 전용 TAB입니다. 현재 악보·재생 위치는 바뀌지
+            않습니다.
+          </p>
+          {preview.error && <p role="alert">{preview.error}</p>}
+          {preview.value && (
+            <ScoreViewport
+              score={preview.value.score}
+              lookup={preview.value.playbackLookup}
+              trackIndex={trackIndex}
+              tick={null}
+            />
+          )}
+        </section>
+      )}
       <table>
         <caption>저장된 음표 · 읽기 전용</caption>
         <thead>
@@ -139,6 +175,7 @@ export function ScoreHistoryPanel({
           <RevisionPreview
             key={history.preview.revisionId}
             revision={history.preview}
+            disabled={locked}
           />
           <section aria-label="조회 버전 내보내기">
             <p>

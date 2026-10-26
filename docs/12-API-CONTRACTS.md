@@ -1,8 +1,14 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 저장 편집본의 읽기 전용 TAB — 2026-10-26
+
+조회한 NORMALIZED RevisionDocument에서 사용자가 ‘저장 TAB 보기’를 누른 경우에만 기존 renderNormalized의 검증/의미 왕복으로 독립 alphaTab Score/lookup을 준비합니다. 원본 asset/현재 ScoreSession·PlayerEngine/Undo·head를 읽거나 변경하지 않습니다. 목록 선택만으로 준비하지 않으며 새 조회 문맥에서는 닫힌 상태로 돌아갑니다. 원본 기반 버전은 미지원 사유를 표시하고 지원 범위/용량·왕복 실패는 음표 표를 유지합니다.
+
+TAB는 기존 ScoreViewport를 별도 인스턴스로 사용하며 기본 TAB/커서 null·음표 선택/탐색 콜백 없음·플레이어 비활성을 유지합니다. 저장된 트랙 선택은 이 미리보기만 바꾸고 닫기/문맥 변경/이탈 시 기존 viewport worker 정리를 사용합니다. 준비 로직은 UI와 분리한 컨트롤러에서 기존 동기 파서를 재사용하며 사전 준비의 즉시 취소/전체 무지연·정밀 재생을 주장하지 않습니다. 새 IPC/DB/파일/네트워크·녹음/AI 실행은 없습니다.
+
 ## 조회한 저장 버전의 새 파일 출력 — 2026-10-26
 
-새 IPC/DB 스키마를 추가하지 않습니다. 소유권·해시·스키마를 확인해 조회한 RevisionDocument 중 `score.renderSource === NORMALIZED`인 편집본만 기존 `export_score_file` v1로 새 JSON/MusicXML을 출력합니다. 버튼은 버전 선택칸이 아닌 실제 조회 내용의 버전과 전체 ScoreDocument를 대상으로 합니다. 원본 GP/MusicXML 해석에 의존하는 ORIGINAL/필드 누락 버전은 이 경로에서 변환하지 않습니다. 정규화 내보내기의 기존 단성6줄/용량·의미 왕복 검증과 새 파일 비덮어쓰기·앱 데이터 목적지 거부·진행/취소·녹음/작업 잠금을 재사용합니다.
+새 IPC/DB 스키마를 추가하지 않습니다. 소유권·해시·스키마를 확인해 조회한 RevisionDocument 중 `score.renderSource === NORMALIZED`인 편집본만 기존 `export_score_file` v1로 새 JSON/MusicXML을 출력합니다. 버튼은 버전 선택칸이 아닌 실제 조회 내용의 버전과 전체 ScoreDocument를 대상으로 합니다. 원본 GP/MusicXML 해석에 의존해 renderSource가 없는 버전은 이 경로에서 변환하지 않습니다. ‘원본 기반’은 설명이며 ORIGINAL이라는 wire 값은 없습니다. 정규화 내보내기의 기존 단성6줄/용량·의미 왕복 검증과 새 파일 비덮어쓰기·앱 데이터 목적지 거부·진행/취소·녹음/작업 잠금을 재사용합니다.
 
 원본 asset을 다시 읽거나 현재 편집/Undo·재생/선택 트랙·저장 head/revision/파일을 바꾸지 않습니다. 출력된 파일은 악보 문서이며 프로젝트 전체 복원이 아닙니다. 조회/출력 중 중복 동작은 UI에서 차단하고 native StorageJob 잠금도 유지합니다. 파일 출력의 문맥 식별자는 원본 Uint8Array뿐 아니라 조회 RevisionDocument 객체를 사용할 수 있으며 문맥 변경/이탈 시 취소·이전 성공/실패 표시 초기화 정책은 같습니다. 기존 오류코드/계약 버전·Python은 변경하지 않습니다.
 

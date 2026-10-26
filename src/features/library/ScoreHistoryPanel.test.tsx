@@ -13,6 +13,27 @@ import { ScoreHistoryPanel } from './ScoreHistoryPanel';
 import { scoreExportApi } from '../score/scoreExport';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
 import type { RevisionDocument } from './projects';
+import type { ScoreViewport } from '../score/ScoreViewport';
+vi.mock('../score/ScoreViewport', () => ({
+  ScoreViewport: ({
+    score,
+    trackIndex,
+    tick,
+    onSelectNote,
+    onNavigateNote,
+  }: Parameters<typeof ScoreViewport>[0]) => (
+    <output
+      aria-label="과거 TAB 프렛"
+      data-interactive={Boolean(onSelectNote || onNavigateNote)}
+      data-tick={tick === null ? '없음' : tick}
+    >
+      {
+        score.tracks[trackIndex]?.staves[0]?.bars[0]?.voices[0]?.beats[0]
+          ?.notes[0]?.fret
+      }
+    </output>
+  ),
+}));
 vi.mock('./scoreHistory', () => ({
   scoreHistoryApi: { list: vi.fn(), read: vi.fn() },
 }));
@@ -54,6 +75,66 @@ async function readPreview(revision: RevisionDocument) {
   await screen.findByRole('region', { name: '저장 악보 읽기 전용' });
   return view;
 }
+
+it('명시적 TAB 준비와 저장 트랙 선택만 독립 렌더에 전달하고 닫기·이탈은 해제한다', async () => {
+  const revision = projectFixture().revision;
+  if (!revision) throw new Error('자체 악보 누락');
+  revision.revision = 3;
+  revision.score = {
+    ...scoreEditingFixture().document,
+    renderSource: 'NORMALIZED',
+  };
+  const track = revision.score.tracks[0];
+  if (!track) throw new Error('자체 트랙 누락');
+  revision.score.tracks.push({
+    ...track,
+    id: 'history-second',
+    name: '당시 리듬',
+    notes: track.notes.map((note) => ({
+      ...note,
+      id: `history-${note.id}`,
+      trackId: 'history-second',
+      fret: (note.fret ?? 0) + 2,
+      pitchMidi: note.pitchMidi + 2,
+    })),
+  });
+  revision.workspace.activeTrackIndex = 1;
+  const before = JSON.stringify(revision);
+  const view = await readPreview(revision);
+  expect(
+    screen.queryByRole('region', { name: '저장 TAB 미리보기' }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 보기' }));
+  const tab = screen.getByLabelText('과거 TAB 프렛');
+  expect(tab.textContent).toBe(String((track.notes[0]?.fret ?? 0) + 2));
+  expect(tab.getAttribute('data-interactive')).toBe('false');
+  expect(tab.getAttribute('data-tick')).toBe('없음');
+  fireEvent.change(screen.getByLabelText('저장된 트랙'), {
+    target: { value: '0' },
+  });
+  expect(tab.textContent).toBe(String(track.notes[0]?.fret));
+  expect(JSON.stringify(revision)).toBe(before);
+  view.rerender(
+    <ScoreHistoryPanel projectId={revision.projectId} disabled={true} />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 닫기' }));
+  const open = screen.getByRole('button', { name: '저장 TAB 보기' });
+  expect(open.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(open);
+  expect(screen.queryByLabelText('과거 TAB 프렛')).toBeNull();
+  view.rerender(
+    <ScoreHistoryPanel projectId={revision.projectId} disabled={false} />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 TAB 보기' }));
+  expect(screen.getByLabelText('과거 TAB 프렛')).toBeTruthy();
+  view.rerender(
+    <ScoreHistoryPanel
+      projectId="00000000-0000-4000-8000-000000000098"
+      disabled={false}
+    />,
+  );
+  expect(screen.queryByLabelText('과거 TAB 프렛')).toBeNull();
+});
 
 it('조회한 정규화 버전 전체만 출력하며 다른 버전 선택·중복·실패 후에도 조회와 원본을 보존한다', async () => {
   const available = vi
@@ -238,6 +319,11 @@ it('명시적으로 목록·내용만 읽고 저장된 트랙·100음 표를 표
   expect(json.hasAttribute('disabled')).toBe(true);
   fireEvent.click(json);
   expect(exportFile).not.toHaveBeenCalled();
+  expect(
+    screen
+      .getByRole('button', { name: '저장 TAB 보기' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
   rerender(<ScoreHistoryPanel projectId={projectFixtureId} disabled={true} />);
   expect(
     screen
