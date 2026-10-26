@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## 저장 조회 문맥 보호 독립 패키지 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26.8a18f1fbb460b3a33d24d62c7852835ab6d9150d의 저장 조회 문맥 보호를 새 독립 패키지로 검사했습니다. 로컬/원격 검사는 완료이며 [Windows40332164724](https://github.com/BomJin2/GuitarLab/actions/runs/40332164724)/job121604103210은 전체 success입니다. 실제 새 앱/개인 이력·별도 OS 수용과 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+Git 깨끗함/정확한 커밋·실행 파일/고정 runtime3393파일 전체 SHA를 확인하고 기존 검증기로 새 UUID 후보·ZIP·추출/영수증만 만들었습니다. 일반 후보·기존 앱/패키지나 사용자 자료는 교체하지 않았습니다. 자체 도구/산출물은 ignored `src-tauri/target/runtime-validation`에 보존합니다.
+
+### 3. 테스트 결과
+
+- `history-context-package-20261026.py` **성공**, VERIFIED_NOT_LAUNCHED. EXE41,236,992바이트/SHA `770961d9e94b4d40622f052662d22842227108f59d9ac9d595d4241210883261`, ZIP3613파일/40,289,977바이트/SHA `9d3c88cbade90b51a93d3adc821d2bcb1c48b37490628e4cff0ed55a5dd3a8e8`입니다. 전체CRC/지문·새 추출 동일성·실제 기본PowerShell5.1/최소PATH 독립Python3.12.15 두 번 **성공**,exit0입니다.
+- ZIP은 `validation-packages/61e0eace-e1e1-4b90-88f6-c0a04374c127/GuitarLab-validation.zip`, 후보는 `history-context-candidate-eb043ede-c5a8-4f0e-90ea-a7a3c637b5a5.json`, 영수증은 `history-context-package-receipt-6ce87859-655f-4c22-ac09-fc9c9663dada.json`입니다. frontend546/내장4개와 전체localRust 미실행·10a3e72의253 기준을 구분했습니다.
+- `scan-history-context-candidate-20261026.ps1` **성공**. 지정 EXE/ZIP 각각 exit0/위협 미검출·전후 SHA 동일, Defender4.18.26090.9/정의1.461.211.0·remediation 비활성·설정 변경 없음입니다. `history-context-defender-e1f3f5dd-6df0-4891-a4d7-48ebfff2ab90.json`에 NotSigned/검사 범위를 기록했습니다.
+- 실제 새 앱/개인 이력·파일·입력/모니터/REC·브라우저 DEMO와 별도 Windows10/11·서명/다른 백신/최종 설치기 수용은 **미실행**입니다. native/Python/개발 도구는 검증한10a3e72와 동일하며 새 원격 결론은 후속으로 확정합니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 PC의 무서명 개발 후보 검사이며 별도 OS/실제 사용자 화면 전환·개인 자료/출시 전체 완료가 아닙니다. 프로젝트 문맥 보호를 전체 프로젝트 복원/이전 버전 적용 기능으로 확대하지 않습니다.
+
+### 5. 다음 작업 계획
+
+8a18f1f의 원격 전체 결과와 진행표/최신 문서 정합성을 확정합니다. 기본9단계/부분5단계와 남은 별도 OS·특화 모델/고급 주법 품질·서명/실제 데이터 작업의 수용 조건은 유지합니다.
+
+후속 확정: 위 원격 **전체 success**,실제546프론트/249기본·253확장Rust(각 제외28개)·예제1+1·AI113/도구143·Clippy/MSRV1.90·사후 정리를 확인했습니다. 14개 Phase 행/고유 결과 파일·최신5절·과거 이력/한국어 신규 문서·CRLF 허용 diff check도 성공입니다. 최종 계약/진행 문서는 검증한 프로젝트 전환→같은 ID 복귀 범위를 구체화하고 결과만 확정했으며 제품 코드/사용자 자료를 추가 변경하지 않았습니다. 실제 새 앱/별도 OS 수용은 완료로 바꾸지 않습니다.
+
 ## PC 기본 입력 선택 독립 패키지 — 2026-10-26
 
 ### 1. 작업 개요
