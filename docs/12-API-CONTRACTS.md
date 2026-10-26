@@ -1199,6 +1199,8 @@ native cfg(test) 평가만 이 정책을 추가 수용하고 기존 stable-windo
 최적화 산출물 검증을 위해 개발용 prepare_validation_installer.py의 --profile과 Test-ValidationInstaller.ps1의 -BuildProfile에 debug/release 두 값만 허용합니다. 기존 기본값은debug이며 새 계획의 buildProfile과 검사 인자가 일치하지 않으면 설치 전에 거부합니다. 이전 프로필 없는 계획은debug로만 해석합니다. 목표 경로는 해당 고정target/debug 또는target/release에서 계산하고 임의 경로·profile 이름은 받지 않습니다. UUID별제품명/프로세스/AppData·현재 사용자 설치·데이터 보존/원격 권한은 유지하며 제품 IPC/DB/모델 계약은 변경하지 않습니다. release 검증도 서명/최종배포·새Windows 수용을 뜻하지 않습니다.
 ## 선택 트랙 표시용 복사본의 범위 축소 — 구현 전 계약(2026-10-26)
 
+2026-10-26 직렬화 후속 계약: 역직렬화/worker만 줄인 첫 수정에도 전체 트랙의 중간 Map 직렬화가 남았습니다. 다음 후속은 `Object.assign(new model.Score(), source, {tracks:[선택트랙]})`의 직렬화 전용 얕은 복사본을 만들고 기존 공개 JsonConverter 왕복으로 선택 트랙/전역 메타데이터를 깊게 복사합니다. 이 임시 복사본에 finish/addTrack·렌더/재생을 호출하거나 부모 연결을 쓰지 않습니다. 실제 renderer에는 깊은 복사본만 전달하며 원래 Track.score/index·모든 원본 음표/부모·마디/반복/메타데이터 불변을 회귀로 검사합니다. 이전 첫 수정의 전체 직렬화 잔여비용 기록은 이력이며 새 후속의 실측과 구분합니다.
+
 실제 브라우저의128트랙/256마디/전체2000음 관측에서 선택1트랙 표시에도 전체트랙 복사/worker 전송 비용이 발생했습니다. createDisplayScore는 기존 alphaTab1.6.1의 공개 JsonConverter 왕복을 유지하되 직렬화된 tracks 중 선택 트랙만 역직렬화합니다. 표시 복사본의 트랙 인덱스는0이며 기존 ScoreViewport는 명시적으로 이 렌더 인덱스를 사용합니다. 현재 선택 인덱스·도메인/원본 ScoreDocument·lookup과 저장/판정/녹음 계약은 변경하지 않습니다.
 
 음표/박자는 원래 선택 트랙 객체와 기존 Map으로 연결합니다. 원래 트랙 인덱스에 귀속된 stylesheet의 tuning/chord diagram/multibar-rest 설정은 복사본의0으로 재매핑하고 전역 masterBars/템포/박자/반복·튜닝·음정/길이는 유지합니다. 실패/잘못된 인덱스는 기존 표시 오류로 처리하며 원본·커서/선택에 추정값을 적용하지 않습니다. UI/저장 형식·의존성/IPC 변경은 없습니다. 실제 브라우저 관측은 OS RSS·GC 통제/통계 수용이나 전체 앱 성능 수용으로 기록하지 않습니다.

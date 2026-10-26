@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## 선택 트랙 직렬화 전용 입력 후속 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26. 직전59e12d9의 선택 트랙 역직렬화/worker 개선에 남은 전체 중간Map 직렬화를 줄이는 후속입니다. 대상/전체 프론트·정적 검사/웹·Windows 빌드와 실제SVG 전후 관측을 완료했습니다. 새 독립ZIP/원격은 후속 결과로 구분하며 기본9개/부분5개 상태는 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+docs/12에 먼저 직렬화 전용 얕은복사·부모/원본 불변 계약을 기록했습니다. `scoreDisplay.ts`에서 새 model.Score에 원래 메타데이터/선택트랙 참조만 복사해 공개 JsonConverter의 읽기 입력으로 사용합니다. 이 임시객체에 finish/addTrack/렌더/재생을 호출하지 않으며 실제 renderer에는 왕복한 깊은 복사본만 전달합니다. 전체트랙 Map 생성/필터/형식검사를 없애 코드량도 줄였습니다. 기존 표기3종·음표/박자 매핑은 유지하고 `scoreDisplay.test.ts`에 원래 Track.score/index 보존을 추가합니다. 새 의존성/IPC·저장/도메인 변경은 없습니다.
+
+### 3. 테스트 결과
+
+- `pnpm typecheck`/`pnpm lint`: **성공**. 대상 `pnpm exec vitest run src/features/score/scoreDisplay.test.ts src/features/score/ScoreViewport.test.tsx`: **13개/2파일 성공**,3.78초.128트랙/표기·원래 부모/인덱스·음표/반복/커서·두 번째 트랙 클릭을 포함합니다.
+- 별도 `render-probe-20261026/index-v4.html`/probe-v4.js는59e12d9의 실제 이전모듈과 후속을 같은브라우저에서 비교하며 comparison/baselineCommit/variant·실제SVG 대기로 계측을 구분합니다. 전체프론트/포맷·Vite/Windows·새독립ZIP/원격은 아직 **미실행 또는 진행 중**이며 완료 결과를 다음 절에 추가합니다.
+- 실제 Tauri 앱/사용자프로젝트·입력/REC·OS RSS/강제GC·다른OS 수용은 **미실행** — 현재 앱과 개인자료를 유지합니다. Rust/Python 전체 로컬 재검사는 해당 엔진 변경이 없어 **미실행**이며 원격/내장 결과와 구분합니다.
+- 최종 `pnpm test`: **517개/112파일 성공**,37.58초(`selected-serialization-front-20261026.log`). `pnpm format:check`/`pnpm build`: **성공**,Vite51.01초·기존chunk 경고(`selected-serialization-build-20261026.log`). `cargo test … --all-features bundle_tests -- --nocapture` **4개 성공**,0.01초, `cargo build … --features custom-protocol` **Windows 성공**,13.43초·기존MSVC 링크/테스트 아이콘 안내입니다. `selected-serialization-{bundle,native-build}-20261026.log`를 보존합니다. 메타데이터 제목/아티스트·기본과 다른tempo95 보존 assertion을 보완한 대상13개도16.54초/실제검사1.37초에 재확인했습니다. 위 검사 전/진행 중은 이전 이력입니다.
+- 실제SVG 관측: 같은Chromium156/1280×720/DPR1·256마디/2000음·선택0/기본lazy 조건에서59e12d9와 후속을 번갈아8회 측정했습니다. 128트랙3쌍의 표시복사 시간은 이전99.7/83.9/97.5ms·후속4.1/1.9/1.6ms, 관측 중앙값97.5→1.9ms입니다. 전체시각의 중앙값은837.0→670.1ms이며 최초fixture/파싱도 포함합니다. 1트랙 대조는275.3→278.6ms로 비슷했고 이 차이를 일반적인 단일트랙 개선으로 주장하지 않습니다.8회 모두SVG 생성/원본 불변을 확인했고 `selected-serialization-observed-20261026.json`에 기록했습니다. GC/CPU 격리·통계 수용이나 RSS 절감 주장은 없습니다.
+- 이전 자동승인 검토 사용량 한도로 중단된 문서 정리/검증은 같은 승인 경로의 재개로 처리했습니다. 우회 실행 없이 이번 Windows 빌드·문서 변경이 승인됐으며 확인하지 못한 항목을 완료로 기록하지 않습니다. 새 직렬화의 현재 사용자 앱 재실행은 미실행입니다.
+- 재개 후 같은 후속 코드의128번째 트랙도 실제SVG/프렛7 클릭→원본트랙128/MIDI71 연결을 확인했습니다. SVG5개/482자식·source 불변, 표시는 직렬화 입력의 원래 부모를 유지했습니다. `selected-serialization-last-track-click-20261026.json`을 보존합니다. 자동 종료된 검증 서버/탭은 별도 localhost1429 검증 환경만 다시 만들어 확인했고 사용자 GuitarLab은 재실행하지 않았습니다. `docs/21-QUICKSTART.md`에는 새 검색/정보수정·읽기 전용 저장 이력 사용법도 추가했습니다.
+
+### 4. 미구현 및 알려진 문제
+
+최초 악보 XML 파싱/정규화는 별도 비용으로 남습니다. 임시Score는 직렬화 입력에만 사용해야 하며 원래 트랙을 addTrack으로 옮기거나 shallow 객체를 renderer에 전달하지 않습니다. 이번 후속으로 전체 앱 무지연·메모리 절감/RSS·고급판정/별도Windows 품질을 주장하지 않습니다.
+
+### 5. 다음 작업 계획
+
+정확한 소스의 새 독립패키지/백신·원격 회귀를 마칩니다. 직전59e12d9의 새ZIP/원격 성공은 아래 절에 확정했고 남은 최초 파싱 지연은 별도 worker 검증/계약으로 다룹니다. 사용자의 현재 앱/개인 프로젝트로 자동 테스트하거나 입력/REC를 시작하지 않습니다.
+
 ## 선택 트랙 표시 복사본과 실제 SVG 관측 — 2026-10-26
 
 ### 1. 작업 개요
@@ -29,6 +57,10 @@
 - 첫 계측의 postRenderFinished/두 프레임만으로는 실제SVG가 뒤늦게 붙어0개 판정 실패가 발생했습니다. MutationObserver로 실제SVG를 기다리게 보완했습니다. Vite가 watch 제외한 검증 폴더의 이전 모듈을 캐시해 결과variant가 누락된 중간 비교도 최종값에서 제외했습니다. 새 probe-v2.js/variant 확인 후 위6회만 채택했습니다. 예비 `render-baseline-20261026.json`은 PRELIMINARY_LAYOUT_ONLY로 보존하며 최종 비교에 사용하지 않습니다.
 - JS heap은 관측 순서/GC 때문에128트랙 eager에서 이전451,063,942바이트·다음 수정714,925,259바이트였습니다. 이를 메모리 절감/누수 또는 프로세스 RSS로 해석하지 않습니다. 강제GC/별도 프로세스 RSS·통계적 반복은 **미실행**입니다. native/독립ZIP·원격은 아래 후속 결과로 구분합니다.
 - 최종 `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`: **4개 성공**,0.01초. `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **Windows 성공**,12.62초·기존MSVC 링크/테스트 아이콘 안내. 로그 `selected-render-bundle-20261026.log`/`selected-render-native-build-20261026.log`를 보존하며 위 native 진행 중은 이전 시점입니다. 앱은 실행하지 않았습니다.
+
+추가 실제브라우저 수용: 같은59e12d9 소스에서128번째 트랙을 렌더 인덱스0으로 보여주고 첫 프렛7을 실제 클릭했습니다. ‘원본 트랙128 · MIDI71 · 프렛7’로 원래 객체에 연결되고 source JSON은 유지됐습니다. alphaTab 내부string6은 도메인 고음1번 줄이며 검증 페이지의 내부 번호를 실제 기타6번 줄로 해석하지 않습니다. 영수증 `selected-render-last-track-click-20261026.json`, 페이지 `render-probe-20261026/index-v3.html`을 보존합니다. 도구의 일반status 선택자가 output의 암시적status까지 두 개를 찾은 오류는 명시적 ‘선택 음표 연결’로 읽어 해결했으며 제품 오류가 아닙니다.
+
+2026-10-26 원격/패키지 확정: main `59e12d9db7f73debd6d457aeba34522df295113d`의 [Windows40229010879](https://github.com/BomJin2/GuitarLab/actions/runs/40229010879)/job121276515568는 **전체 success**입니다. 실제517프론트/112파일(61.43초), 기본247Rust(49.57초)/확장251Rust(48.93초·각28개 기본 제외), 예제1+1·AI113(2.11초)/도구143(16.958초·제외없음)·MSRV10.03초/정리를 확인했습니다. `selected-render-ci-final-20261026.json`을 보존합니다. 같은 소스/EXE41,232,384바이트·SHA `b7bf491e94a5592e688dc8aaed7bdb94cbaa5250d0c4181d6a40458eb53546d5`, 고정runtime3393파일/64,095,466바이트의 후보 `selected-render-candidate-500e9fa9-7ceb-48d1-a79f-b24511550be0.json`을 앱 실행 없이 만들었습니다. ZIP `validation-packages/1dec63f6-a494-4f51-bdda-18ad5c668859/GuitarLab-validation.zip`은3613파일/40,286,537바이트·SHA `167f2c9c5dc71faa310d011e087ab3e47e307bc17cff871c2f4d848aca2a40c2`이며 전체SHA/CRC·같은 바이트 추출·실제PS5.1 종료0/독립Python3.12.15를 확인했습니다. 영수증 `selected-render-package-receipt-c7936292-5aa0-4c98-8bdf-fb534bcbf683.json`. 이59e12d9 후보의 추가Defender는 미실행이고 다음 최종 소스 패키지에서 별도로 검사합니다. 사용자 앱/개인 자료/generic 포인터는 유지했습니다. 위 새ZIP/원격 대기는 이전 이력입니다.
 
 ### 4. 미구현 및 알려진 문제
 

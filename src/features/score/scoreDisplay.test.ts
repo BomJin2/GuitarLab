@@ -19,6 +19,9 @@ it('128트랙 중 마지막 트랙만 복사하고 트랙별 표기·원래 객�
     timeSignatures: capacity.timeSignatures.slice(0, 4),
   };
   const { score } = renderNormalized(document);
+  score.title = '표시 원본 제목';
+  score.artist = '자체 연주자';
+  score.tempo = 95;
   score.stylesheet.perTrackDisplayTuning = new Map([
     [0, true],
     [127, false],
@@ -28,7 +31,14 @@ it('128트랙 중 마지막 트랙만 복사하고 트랙별 표기·원래 객�
   const before = model.JsonConverter.scoreToJson(score);
   const display = createDisplayScore(score, 127, 'tab');
   expect(display.score.tracks).toHaveLength(1);
+  expect([
+    display.score.title,
+    display.score.artist,
+    display.score.tempo,
+  ]).toEqual([score.title, score.artist, score.tempo]);
   expect(display.score.tracks[0]?.name).toBe(score.tracks[127]?.name);
+  expect(score.tracks[127]?.score).toBe(score);
+  expect(score.tracks[127]?.index).toBe(127);
   expect(display.score.tracks[0]?.staves[0]?.bars).toHaveLength(4);
   expect([...(display.score.stylesheet.perTrackDisplayTuning ?? [])]).toEqual([
     [0, false],

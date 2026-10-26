@@ -29,14 +29,13 @@ export function createDisplayScore(
 ) {
   const originalTrack = source.tracks[trackIndex];
   if (!originalTrack) throw new Error('악보 표시 트랙이 없습니다.');
-  const serialized = model.JsonConverter.scoreToJsObject(source);
-  if (!(serialized instanceof Map))
-    throw new Error('악보 표시 형식이 다릅니다.');
-  const tracks: unknown = serialized.get('tracks');
-  if (!Array.isArray(tracks) || tracks.length !== source.tracks.length)
-    throw new Error('악보 표시 트랙 형식이 다릅니다.');
-  serialized.set('tracks', [tracks[trackIndex]]);
-  const score = model.JsonConverter.jsObjectToScore(serialized);
+  // 직렬화 전용 복사본은 읽기만 하며 원래 트랙의 부모 연결을 바꾸지 않습니다.
+  const serializationSource = Object.assign(new model.Score(), source, {
+    tracks: [originalTrack],
+  });
+  const score = model.JsonConverter.jsObjectToScore(
+    model.JsonConverter.scoreToJsObject(serializationSource),
+  );
   const track = score.tracks[0];
   if (!track) throw new Error('악보 표시 트랙이 없습니다.');
   for (const key of [
