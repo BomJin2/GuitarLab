@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import type { AudioInputController } from './useAudioInput';
 import { TunerDisplay } from './TunerDisplay';
+import { useInputSelection } from './useInputSelection';
 import type { ClockState } from '../player/useCaptureClock';
 
 export function InputPanel({
@@ -10,10 +10,9 @@ export function InputPanel({
   input: AudioInputController;
   clock?: ClockState;
 }) {
-  const [deviceId, setDeviceId] = useState('');
-  const [channelIndex, setChannelIndex] = useState(0);
-  const [gate, setGate] = useState(-50);
   const { state } = input;
+  const { deviceId, channelIndex, gate, selectDevice, selectChannel, setGate } =
+    useInputSelection(state);
   const selected = input.devices.find((device) => device.id === deviceId);
   const active = state.state === 'RUNNING' || state.state === 'STARTING';
   const activeDevice = input.devices.find(
@@ -21,6 +20,10 @@ export function InputPanel({
   );
   const shownDeviceId = active ? (state.deviceId ?? deviceId) : deviceId;
   const shownChannels = active ? state.channels : (selected?.channels ?? 1);
+  const validChannel =
+    Number.isInteger(channelIndex) &&
+    channelIndex >= 0 &&
+    channelIndex < shownChannels;
   return (
     <section className="panel" aria-label="기타 입력">
       <h2>기타 입력 · 단음 튜너</h2>
@@ -65,10 +68,7 @@ export function InputPanel({
                 aria-label="입력 장치"
                 disabled={input.busy || active}
                 value={shownDeviceId}
-                onChange={(event) => {
-                  setDeviceId(event.target.value);
-                  setChannelIndex(0);
-                }}
+                onChange={(event) => selectDevice(event.target.value)}
               >
                 <option value="">장치를 선택하세요</option>
                 {input.devices.map((device) => (
@@ -83,11 +83,16 @@ export function InputPanel({
               <select
                 aria-label="입력 채널"
                 disabled={input.busy || active || !selected}
-                value={active ? state.channelIndex : channelIndex}
-                onChange={(event) =>
-                  setChannelIndex(Number(event.target.value))
+                value={
+                  active ? state.channelIndex : validChannel ? channelIndex : -1
                 }
+                onChange={(event) => selectChannel(Number(event.target.value))}
               >
+                {!active && !validChannel && (
+                  <option value={-1} disabled>
+                    채널을 다시 선택하세요
+                  </option>
+                )}
                 {Array.from({ length: shownChannels }, (_, i) => (
                   <option key={i} value={i}>
                     채널 {i + 1}
@@ -112,6 +117,7 @@ export function InputPanel({
                 input.busy ||
                 active ||
                 !selected ||
+                !validChannel ||
                 gate < -80 ||
                 gate > -10 ||
                 !Number.isFinite(gate)
@@ -127,6 +133,11 @@ export function InputPanel({
               입력 중단
             </button>
           </div>
+          {!active && selected && !validChannel && (
+            <p role="status">
+              입력 장치의 채널 수가 바뀌었습니다. 입력 채널을 다시 선택하세요.
+            </p>
+          )}
           {!input.devicesLoaded && !input.error && (
             <p role="status">입력 장치 목록을 불러오는 중입니다.</p>
           )}
