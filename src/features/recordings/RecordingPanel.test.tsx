@@ -198,5 +198,23 @@ it('정렬 REC의 비활성 사유를 표시하고 재생·동기화 후 실제 
   expect(
     vi.mocked(recording.start).mock.calls.at(-1)?.[0].referenceTakeIds,
   ).toBeUndefined();
+  const starts = vi.mocked(recording.start).mock.calls.length;
+  recording.take = { ...take, peak: 0.9996 };
+  rerender(view());
+  expect(screen.getByText(/peak 1\.000/)).toBeTruthy();
+  expect(screen.queryByText(/녹음 입력이 디지털 최대값/)).toBeNull();
+  recording.take = { ...take, state: 'RECORDING', peak: 1 };
+  recording.locked = true;
+  rerender(view());
+  expect(screen.getByText(/인터페이스의 입력 GAIN/)).toBeTruthy();
+  recording.take = { ...take, peak: 1.2 };
+  recording.locked = false;
+  rerender(view());
+  expect(screen.getByText(/최대값만으로 실제/)).toBeTruthy();
+  expect(vi.mocked(recording.start).mock.calls.length).toBe(starts);
+  expect(recording.stop).not.toHaveBeenCalled();
+  recording.take = null;
+  rerender(view());
+  expect(screen.queryByText(/녹음 입력이 디지털 최대값/)).toBeNull();
   engine.dispose();
 });

@@ -12,6 +12,7 @@ import type { ClockState } from '../player/useCaptureClock';
 import { usePlayer } from '../player/usePlayer';
 import { getActiveTrackIndex } from '../score/trackSelection';
 import type { StartRecordingRequest } from './recordings';
+import { RecordingLevelNotice } from './RecordingLevelNotice';
 export function RecordingPanel({
   recording,
   project,
@@ -184,6 +185,7 @@ export function RecordingPanel({
           ? `${take.state} · ${(take.frames / take.sampleRate).toFixed(2)}초 · ${take.frames.toLocaleString()}프레임 · 누락 ${take.droppedFrames} · peak ${take.peak.toFixed(3)}`
           : '녹음 꺼짐 · REC를 눌러야 파일이 생성됩니다.'}
       </p>
+      {take && <RecordingLevelNotice peak={take.peak} />}
       {recording.locked && (
         <>
           <progress

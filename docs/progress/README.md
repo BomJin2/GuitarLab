@@ -1,5 +1,11 @@
 # 개발 진행 상태
 
+**현재 작업 — 2026-10-26 녹음 최대 입력 안내**: 기존 peak만 사용하는 공통 안내를 녹음/다시 듣기에 연결했습니다. 원래1 이상만 표시하고 반올림0.9996·A/B/음량·음소거·REC/STOP 보존을 검증해 대상4개/전체519프론트·타입/lint/포맷이 성공했습니다. [Phase4A](PHASE-04A.md)에 계약/변경 파일/검사와 실제 앱 미실행을 기록했으며 웹·Windows 내장 빌드/Git·원격을 이어 확인합니다. 원본 PCM/DB·현재 사용자 앱/입력/REC와 기본9개/부분5개는 유지합니다. 직전fc6628c의 기능/격리 설치 원격은 모두 성공입니다.
+
+**원격 확정 — 2026-10-26**: main `fc6628c1bfe11b11f871374fcd6e477ff0c5558f`의 [기능40252073543](https://github.com/BomJin2/GuitarLab/actions/runs/40252073543)/[격리 설치40252073597](https://github.com/BomJin2/GuitarLab/actions/runs/40252073597) 모두 **success**입니다.519프론트/247·251Rust/AI113/도구143·MSRV/정리와 release 설치/runtime3393·정상 종료0·제거/데이터 보존을 확인했습니다. 영수증과 깨끗한 OS/모델·서명 미수용 경계는 [Phase8](PHASE-08.md) 최신절을 따릅니다. 제품 코드는6393f5f와 같고 사용자 앱/자료·입력/REC를 유지합니다. 다음은 기존 peak 메타데이터를 활용한 녹음 과입력 안내의 누락 여부 확인입니다. 기본9개/부분5개는 유지하며 아래 대기는 이전 이력입니다.
+
+**원격 두 실행 확인 중 — 2026-10-26**: main `fc6628c1bfe11b11f871374fcd6e477ff0c5558f`에 설치CI 감시3경로를 올렸고 [기능40252073543](https://github.com/BomJin2/GuitarLab/actions/runs/40252073543)/[격리 설치40252073597](https://github.com/BomJin2/GuitarLab/actions/runs/40252073597) 두 실행을 확인했습니다. 아직 성공 결론은 기록하지 않습니다. 직전6393f5f의519프론트/247·251Rust/AI113/도구143·MSRV/정리·독립ZIP/PS5.1/Defender 성공과 구분하며 제품 코드는 같습니다. 자체 검증 탭과 localhost1429/1430/1431의 정확한 node PID/명령줄을 재확인해 서버 세 개만 정리했습니다. 사용자 GuitarLab/자료·입력/REC/generic 포인터는 조작하지 않았고9기본/5부분·worker 미채택은 유지합니다. 다음은 두 원격의 실제 설치/제거·보존/검사 영수증과 최종 문서 정리입니다.
+
 **현재 확정/다음 검사 — 2026-10-26**: 경로 수정 main `6393f5f126af0518c45d162842016cf62aea499f`/[Windows40250996837](https://github.com/BomJin2/GuitarLab/actions/runs/40250996837)는519프론트·247/251Rust·AI113/도구143·MSRV/정리 **전체success**이며 같은EXE/새3613파일ZIP·전체SHA/CRC·실제PS5.1/독립Python·Defender도 성공했습니다. 현재 로컬의 설치CI 감시3경로 추가는 정적diff/Prettier를 통과했고 이제 업로드해 기능/격리 설치 두 실행을 확인합니다. 제품 코드/9기본·5부분은 유지하고 파싱worker는 두 실험의 비용 근거로 미적용입니다. [Phase8](PHASE-08.md) 최신절을 기준으로 이어가며 사용자 앱/자료·입력/REC/generic 포인터는 유지합니다.
 
 **설치 회귀 연결 중 — 2026-10-26**: 경로 수정 main `6393f5f126af0518c45d162842016cf62aea499f`의 새3613파일ZIP/전체SHA·CRC·실제PS5.1/독립Python은 성공했습니다. [Windows40250996837](https://github.com/BomJin2/GuitarLab/actions/runs/40250996837)/job121342634187는 후반 검사 중입니다. 현재 로컬에는 Vite 설정/publicAssets 모듈·선언 세 입력을 설치 CI push 감시에 추가한 작은 변경이 있으며, 직전 기능 회귀의 결론 후 업로드해 두 원격 검사를 확인합니다. 새 후보 Defender는 검사 중이고 상세는 [Phase8](PHASE-08.md) 최신절을 따릅니다. 파싱 worker 두 방식은 제품 미적용, 사용자 앱/자료·입력/REC/generic 포인터·9기본/5부분은 유지합니다.
@@ -510,14 +516,14 @@
 | 3 | 오디오 장치와 단음 판정 | 완료(단음 PoC) | [PHASE-03.md](PHASE-03.md) |
 | 4 | 프로젝트 저장과 기록 | 기본 완료 · 정보수정/로컬검색509프론트·244/248Rust·AI113/도구143·MSRV 원격 성공. 실제 새 관리 폼 조작은 미실행 | [PHASE-04.md](PHASE-04.md) |
 | 2A | 다중 기타 악보 트랙 선택 | 완료 | [PHASE-02A.md](PHASE-02A.md) |
-| 4A | 입력 녹음과 다시 듣기 | 기본 완료(원본 WAV 후속485프론트/243Rust·Windows/독립ZIP/원격 성공, 실제 저장 창은 미실행) | [PHASE-04A.md](PHASE-04A.md) |
+| 4A | 입력 녹음과 다시 듣기 | 기본 완료. 최대 입력 안내 후속519프론트·타입/lint/포맷·Vite/내장 자산·Windows 빌드 성공, 새 원격 확인 예정. 원본 WAV·새 안내 실제 앱 수용은 미실행 | [PHASE-04A.md](PHASE-04A.md) |
 | 4B | 오버더빙과 로컬 믹스 출력 | 완료 | [PHASE-04B.md](PHASE-04B.md) |
 | 5 | 수동 TAB 편집 | 기본 수용 완료(이동·트랙/저장 화면). 저장 이력 읽기515프론트·247/251Rust·새ZIP/PS5.1·Defender/원격 전체 성공. 실제 조회 폼 조작은 미실행 | [PHASE-05.md](PHASE-05.md) |
 | 6 | AI 기타 카피와 stem 분리 | 진행 중(두 모델/자체 분석·현재 PC 독립 실행·GitHub Server의 기본 runtime 설치 성공, 모델 포함 별도Win10/11 수용 보류) | [PHASE-06.md](PHASE-06.md) |
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
 | 7 | 고급 판정 | 진행 중(긴 녹음 구간 분석476프론트/239확장Rust·Windows/독립ZIP·실제PS5.1/원격 전체 검증. 박자·장식음·골페 보호·배음 교정 기각/pYIN 미채택. 독립 정답/주법·고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
-| 8 | 품질과 릴리스 | 진행 중(공개자산 경로 수정519프론트·상대/절대 Vite·Windows 성공, 새ZIP/원격 후속. 직전05f1866의 실제SVG/클릭·새ZIP/Defender·247/251Rust·AI113/도구143·MSRV 원격 전체 성공. worker미채택/최초파싱·RSS·실제Tauri/키/Explorer·데이터교체/영구삭제·서명/별도Windows10/11 미완료) | [PHASE-08](PHASE-08.md) |
+| 8 | 품질과 릴리스 | 진행 중. 공개자산 경로·선택 표시/직렬화·새ZIP/Defender·519프론트/247·251Rust/AI113/도구143·MSRV와 fc6628c 격리 설치/정상종료/제거·보존 성공. worker 미채택/최초파싱·RSS·실제Tauri/키/Explorer·데이터교체/영구삭제·서명/별도Windows10/11 미완료 | [PHASE-08](PHASE-08.md) |
 
 ## 현재 작업 위치
 

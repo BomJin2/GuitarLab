@@ -1,5 +1,34 @@
 # Phase 4A — 입력 녹음과 다시 듣기
 
+## 후속 — 녹음 최대 입력 안내 (2026-10-26)
+
+### 1. 작업 개요
+
+작업일2026-10-26. 입력 설정의 레벨 안내와 달리 녹음/다시 듣기에 숫자 peak만 보이던 부분을 보완합니다. 기존 검증된 최대값을 사용한 안내이며 별도 PCM 분석이나 고급 판정이 아닙니다. 기본 수용/전체 진행 상태는 유지하고 실제 앱 수용은 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 docs/12에 원래 peak/1 기준·반올림/왜곡 비확정·데이터 불변 계약을 기록했습니다.
+- `RecordingLevelNotice.tsx`는 검증된 peak를 받는 공통 순수 표시입니다. `RecordingPanel.tsx`/`TakeReplay.tsx`에 연결해 녹음 중·저장 후·A/B 선택에서 동일하게 입력 GAIN과 재생 음량의 차이를 설명합니다. 새 IPC/의존성·네이티브/저장 형식은 없습니다.
+- 두 기존 통합 테스트에 실제1/1.2·반올림0.9996·take 해제·A/B 이동·음소거/음량과 독립된 안내/REC·STOP 불변 검증을 추가했습니다. docs/17·09·21에 기능/검사/초보자 안내를 반영합니다.
+
+### 3. 테스트 결과
+
+- `pnpm exec vitest run src/features/recordings/RecordingPanel.test.tsx src/features/recordings/TakeReplay.test.tsx`: **4개/2파일 성공**,3.79초.
+- `pnpm typecheck`/`pnpm lint`/`pnpm format:check`: **성공**. `pnpm test`: **519개/112파일 성공**,36.90초(`recording-level-front-20261026.log`). 기존 재생 음량/A·B 비율을 새 최대값 fixture에 맞춰 확인했고 별도 실행 오류는 없었습니다.
+- 웹/내장 자산·Windows 빌드/새 소스 원격: **미실행**, 이 문서 작성 후 이어서 검증합니다. native/Python 구현이 바뀌지 않아 전체 로컬 엔진 검사는 **미실행**이며 직전fc6628c의247/251Rust·AI113/도구143·MSRV 원격 성공과 구분합니다.
+- 실제 앱/개인 녹음 청취·인터페이스 GAIN 변화: **미실행** — 현재 사용자 앱/자료·입력/REC를 조작하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+최종 로컬 빌드: `pnpm build` **성공**,Vite1분27초·기존500kB chunk 안내입니다(`recording-level-build-20261026.log`). `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture`/`cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol`는 **성공**이며 Windows 빌드는12.61초·기존MSVC 링크 안내입니다(`recording-level-{bundle,native-build}-20261026.log`). 위 빌드 미실행은 이전 이력이며 현재 앱은 재실행하지 않았습니다. 새 Git/원격은 이어 확인합니다.
+
+최대값에는 구간/샘플 수·지속 시간 정보가 없습니다. 실제 아날로그 왜곡이나 clipping을 판정하거나 원본을 자동 보정하지 않습니다. float WAV는1 초과도 보존하는 기존 정책을 유지합니다. 네이티브 데이터/녹음·재생 볼륨 정책과 고급 채점은 변경하지 않습니다.
+
+### 5. 다음 작업 계획
+
+이 소스의 웹/Windows 내장 빌드·Git/원격 회귀를 확인하고 다음 독립 요구사항을 진행합니다. 기본9개/부분5개의 미수용 조건은 기존 로드맵을 유지합니다.
+
 ## 후속 — 테이크 원본 WAV 내보내기 (2026-10-25)
 
 ### 1. 작업 개요

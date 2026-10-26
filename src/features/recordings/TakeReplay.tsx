@@ -15,6 +15,7 @@ import { ScoreViewport } from '../score/ScoreViewport';
 import { audioTimeToScoreTick } from '../player/sync';
 import { logDiagnostic } from '../../shared/logger';
 import { waveformPeaks } from './waveform';
+import { RecordingLevelNotice } from './RecordingLevelNotice';
 
 export function TakeReplay({
   take,
@@ -189,6 +190,7 @@ export function TakeReplay({
   return (
     <section className="panel" aria-label="테이크 재생">
       <h2>{take.name} 다시 듣기</h2>
+      <RecordingLevelNotice peak={take.peak} />
       <button
         disabled={loading}
         onClick={() => setLoadAttempt((value) => value + 1)}

@@ -110,7 +110,7 @@ it('원곡과 원본을 유지하며 재생 음량·음소거·A/B 음량 맞춤
   vi.spyOn(recordingApi, 'revision').mockRejectedValue(
     new Error('REVISION_NOT_FOUND'),
   );
-  const a = recordingFixture();
+  const a = recordingFixture({ peak: 1 });
   const b = recordingFixture({
     id: '00000000-0000-4000-8000-000000000009',
     songStartMs: 1200,
@@ -135,15 +135,17 @@ it('원곡과 원본을 유지하며 재생 음량·음소거·A/B 음량 맞춤
   fireEvent.change(screen.getByRole('slider', { name: '테이크 재생 음량' }), {
     target: { value: '40' },
   });
-  expect(engine.audio.volume).toBeCloseTo(0.2);
+  expect(engine.audio.volume).toBeCloseTo(0.1);
+  expect(screen.getByText(/녹음 입력이 디지털 최대값/)).toBeTruthy();
   expect(engine.getSnapshot().audioTimeMs).toBe(position);
   expect(engine.getSnapshot().playbackEpoch).toBe(epoch);
   expect(engine.audio).toBe(media);
   expect(main.audio.volume).toBe(1);
   fireEvent.click(screen.getByRole('button', { name: '테이크 음소거' }));
   expect(engine.audio.volume).toBe(0);
+  expect(screen.getByText(/녹음 입력이 디지털 최대값/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '테이크 음소거' }));
-  expect(engine.audio.volume).toBeCloseTo(0.2);
+  expect(engine.audio.volume).toBeCloseTo(0.1);
   fireEvent.click(screen.getByLabelText('A/B peak 음량 맞춤'));
   expect(engine.audio.volume).toBeCloseTo(0.4);
   expect(recordingApi.read).toHaveBeenCalledTimes(1);
@@ -154,6 +156,9 @@ it('원곡과 원본을 유지하며 재생 음량·음소거·A/B 음량 맞춤
   );
   await act(async () => {});
   expect(engine.getSnapshot().audioTimeMs).toBe(600);
+  expect(screen.queryByText(/녹음 입력이 디지털 최대값/)).toBeNull();
+  expect(a.peak).toBe(1);
+  expect(b.peak).toBe(0.25);
   expect(engine.getSnapshot().status).toBe('playing');
   expect(engine.audio.volume).toBeCloseTo(0.4);
   expect(
