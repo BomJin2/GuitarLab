@@ -2,6 +2,8 @@
 
 ## 별도 Vite 출력 폴더 — 2026-10-26
 
+설치 CI의 push 감시에는 `vite.config.ts`와 공개 자산 복사 모듈 `scripts/publicAssets.mjs`/타입 선언 `scripts/publicAssets.d.mts`도 포함합니다. 이 입력이 바뀌어도 설치 검증이 누락되던 경계를 보완합니다. 기존 main 브랜치·고정 actions/도구·contents:read·동시 실행/시간 제한·격리 설치 방식은 유지하며 실제 실행 결론은 progress/PHASE-08에서 확인합니다.
+
 공개 자산 복사 플러그인은 Vite가 확정한 root/outDir를 Node resolve로 결합합니다. 기본 상대 dist와 절대 경로의 검증 폴더를 모두 지원하며, 지정한 fixture/font/soundfont 허용목록만 복사하는 규칙은 유지합니다. 기존 join은 절대 Windows 드라이브 경로 앞에 root를 중복해 잘못된 경로를 만들었고 상대/절대 경로의 실제 복사 회귀로 재현·수정했습니다. 새 사용자 파일 수집/폴더 삭제·앱 데이터 변경은 없습니다. 결과/원격·별도 worker 실험은 progress/PHASE-08 최신 절을 따릅니다.
 
 ## Windows HTML5 파일 drop 설정 — 2026-10-25

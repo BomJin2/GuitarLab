@@ -1,5 +1,27 @@
 # Phase8 — 품질·릴리스
 
+## 설치 CI의 Vite 빌드 입력 감시 — 2026-10-26
+
+### 1. 작업 개요
+
+작업일2026-10-26. 절대 출력 경로 수정의 설치 검증을 준비하다가 설치 CI가 Vite 설정/공개자산 복사 모듈 변경을 감시하지 않음을 확인했습니다. 세 입력의 감시만 보완하며 자동 원격 실행은 업로드 후 확인합니다.
+
+### 2. 구현 및 변경 사항
+
+먼저 docs/13에 경계를 기록하고 `.github/workflows/installer-smoke.yml`의 main push.paths에 vite.config.ts/publicAssets.mjs/publicAssets.d.mts 세 줄을 추가합니다. 기존 actions 고정 SHA/도구·contents:read·취소/시간 제한·실제 격리 설치/제거와 데이터 보존 검사는 변경하지 않습니다. 앱/데이터·런타임/모델 설치 코드는 그대로이며 docs/진행표를 갱신합니다.
+
+### 3. 테스트 결과
+
+변경 diff에서 세 입력 경로와 기존 권한/고정 버전 유지·공백을 확인했습니다. 별도의 구현을 복제하는 단위 검사는 추가하지 않습니다. 새 기능/설치 원격 회귀는 **미실행** — 직전6393f5f의 기능 회귀가 끝난 뒤 업로드해 실행/실제 로그를 확인합니다. 제품 코드의 로컬519프론트·타입/lint/포맷·상대/절대 Vite/내장4개/Windows 결과는 아래 절의6393f5f와 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+연결된 GitHub 도구에는 새 workflow_dispatch 실행이 없고 로컬 GitHub CLI도 없어 수동 새 실행으로 대신하지 않았습니다. 필요한 빌드 입력의 자동 감시를 수정해 같은 문제의 재발을 막습니다. 실제 Windows10/11 사용자 PC/모델 포함 오프라인·서명/다른백신·고급 판정 수용은 이 CI로 완료 처리하지 않습니다.
+
+### 5. 다음 작업 계획
+
+업로드 후 기능/격리 설치 두 실행의 정확한 커밋·영수증을 확인하고 실패 시 원인을 해결합니다. 현재 사용자 앱과 자료·입력/REC는 조작하지 않습니다.
+
 ## 공개 자산 복사의 절대 출력 경로 수정 — 2026-10-26
 
 ### 1. 작업 개요
@@ -19,6 +41,8 @@
 - 기본 상대 출력의 `pnpm build`: **성공**,Vite1분12초·기존500kB chunk 경고. `cargo test --locked --manifest-path src-tauri/Cargo.toml --all-features bundle_tests -- --nocapture` **4개 성공**,0.01초, `cargo build … --features custom-protocol` **Windows 성공**,5.78초·기존MSVC 링크/테스트 아이콘 안내입니다. `public-assets-path-{build,bundle,native-build}-20261026.log`를 보존합니다. 앱은 실행하지 않았습니다.
 - 별도 절대 outDir의 실제Vite 검증도 성공했습니다. 최초 production-1은 원래 join 경로 오류로7.79초에 실패했고 실패 폴더/로그를 보존합니다. 수정 후 새 production-2의 같은 경로 체인은7.89초, production-3은7.65초에 성공했습니다. `score-import-probe-build-20261026.log`/`score-import-probe-build-fixed-20261026.log`/`score-import-json-probe-build-20261026.log`에서 구분합니다.
 - 새 Git/독립ZIP/원격은 **미실행** — 로컬 검사/문서를 마친 정확한 소스로 이어서 검증합니다. Rust/Python 엔진 변경이 없어 로컬 전체 재검사는 **미실행**이며 직전05f1866의247/251Rust·AI113/도구143·MSRV 원격 전체 성공과 구분합니다. 실제 사용자 앱 조작/개인 자료·입력/REC·새OS 수용도 **미실행**입니다.
+- 확정 후속: main `6393f5f126af0518c45d162842016cf62aea499f`/[Windows40250996837](https://github.com/BomJin2/GuitarLab/actions/runs/40250996837)/job121342634187는 정리까지 **전체 success**입니다.519프론트/112파일(78.80초), 기본247Rust(50.74초)/확장251Rust(52.34초·각28개 기본 제외), 예제1+1·AI113(2.38초)/도구143(19.234초·제외 없음)·MSRV9.73초를 확인했고 `public-assets-path-ci-final-20261026.json`을 보존합니다.
+- 같은 소스 EXE41,232,384바이트·SHA `9d4f99f990d0f2772e8494f8618b6faf342a0f4d4a8fdb08dd506b36be4719ca`와 고정runtime3393개·64,095,466바이트 후보는 `public-assets-path-candidate-671c393a-d853-4f67-84ec-47db5af4c0d0.json`입니다. 새 ZIP `validation-packages/06a6d5c8-4006-4a44-9fa5-9af599b08513/GuitarLab-validation.zip`은3613파일/40,286,155바이트·SHA `816124d33d8c713a35c6eafa229a363a905d68b3f82b11ba2574531b66a085e2`이며 전체SHA/CRC·같은 바이트 추출·실제PS5.1 종료0/독립Python3.12.15 검사가 성공했습니다(`public-assets-path-package-receipt-dd787686-1b8e-4a94-ac7e-b51ea02655e6.json`). 동일EXE/ZIP만 검사한 Defender도 모두0/지문 동일이고 NotSigned입니다(`public-assets-path-defender-06648ba2-158f-437e-9e41-4c95c3374187.json`). 앱/개인 자료/generic 포인터는 유지했고 위 새ZIP/원격 미실행은 이전 이력입니다. 이 source의 설치CI는 감시 경로에 빌드 모듈이 없어 시작되지 않았고 위 별도 감시 보완으로 실제 설치 회귀를 이어갑니다.
 
 ### 4. 미구현 및 알려진 문제
 

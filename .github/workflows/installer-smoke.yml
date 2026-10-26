@@ -6,6 +6,9 @@ name: Windows 격리 설치 검증
     branches: [main]
     paths:
       - '.github/workflows/installer-smoke.yml'
+      - 'vite.config.ts'
+      - 'scripts/publicAssets.mjs'
+      - 'scripts/publicAssets.d.mts'
       - 'scripts/prepare_ci_installer.py'
       - 'scripts/prepare_validation_installer.py'
       - 'scripts/Test-ValidationInstaller.ps1'
