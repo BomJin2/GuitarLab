@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { usePlayerEngine } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
@@ -26,6 +32,15 @@ export function TakeReplay({
   peer: RecordedTake | null;
   playRequest?: number;
 }) {
+  const {
+    projectId,
+    id: takeId,
+    scoreRevisionId,
+    targetScoreTrackId,
+    frames,
+    sampleRate,
+    sha256,
+  } = take;
   const main = usePlayerEngine();
   const [engine] = useState(() => new PlayerEngine());
   const state = useSyncExternalStore(engine.subscribe, engine.getSnapshot);
@@ -49,11 +64,7 @@ export function TakeReplay({
     take,
     (state.audioTimeMs / 1000) * take.sampleRate,
   );
-  useEffect(() => {
-    engine.activate();
-    return () => engine.dispose();
-  }, [engine]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = latest.current;
     if (previous.id !== take.id)
       restore.current = {
@@ -64,6 +75,12 @@ export function TakeReplay({
         time: engine.getSnapshot().audioTimeMs,
       };
     latest.current = take;
+  }, [take, engine]);
+  useEffect(() => {
+    engine.activate();
+    return () => engine.dispose();
+  }, [engine]);
+  useEffect(() => {
     main.pause();
     engine.pause();
     engine.clear();
@@ -76,8 +93,8 @@ export function TakeReplay({
     void current
       .run(async (signal) => {
         const bytes = await recordingApi.read(
-          take.projectId,
-          take.id,
+          projectId,
+          takeId,
           signal,
           setJob,
         );
@@ -87,11 +104,11 @@ export function TakeReplay({
         let session: ScoreSession | null = null;
         let scoreError = false;
         try {
-          const revision = await recordingApi.revision(take.projectId, take.id);
-          if (revision.revisionId !== take.scoreRevisionId)
+          const revision = await recordingApi.revision(projectId, takeId);
+          if (revision.revisionId !== scoreRevisionId)
             throw new Error('RECORDING_CONTRACT_INVALID');
           const original = await projectApi.read(
-            take.projectId,
+            projectId,
             revision.scoreAssetId,
             signal,
             setJob,
@@ -101,7 +118,7 @@ export function TakeReplay({
             new Uint8Array(original.data),
           );
           const index = revision.score.tracks.findIndex(
-            (t) => t.id === take.targetScoreTrackId,
+            (t) => t.id === targetScoreTrackId,
           );
           if (index < 0) throw new Error('RECORDING_CONTRACT_INVALID');
           session = {
@@ -109,7 +126,7 @@ export function TakeReplay({
             document: revision.score,
             originalBytes: new Uint8Array(original.data),
             activeTrackIndex: index,
-            activePerformanceTrackId: take.targetScoreTrackId,
+            activePerformanceTrackId: targetScoreTrackId,
           };
         } catch (cause) {
           if (signal.aborted) throw cause;
@@ -133,7 +150,7 @@ export function TakeReplay({
             '저장된 원본 악보를 읽지 못해 TAB 표시는 생략합니다. 녹음은 들을 수 있습니다.',
           );
         setClipStart(0);
-        setClipEnd((take.frames / take.sampleRate) * 1000);
+        setClipEnd((frames / sampleRate) * 1000);
       })
       .catch(() => {
         if (!canceled) {
@@ -146,7 +163,18 @@ export function TakeReplay({
       current.cancel();
       engine.pause();
     };
-  }, [take, engine, main, loadAttempt]);
+  }, [
+    projectId,
+    takeId,
+    sha256,
+    scoreRevisionId,
+    targetScoreTrackId,
+    frames,
+    sampleRate,
+    engine,
+    main,
+    loadAttempt,
+  ]);
   useEffect(() => {
     if (requested.current !== playRequest) {
       requested.current = playRequest;

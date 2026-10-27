@@ -71,6 +71,125 @@ function preparePlayback() {
   });
   return { main, originalMedia, replays };
 }
+it('이름·메모를 저장해도 WAV를 다시 읽거나 재생 위치·상태를 초기화하지 않는다', async () => {
+  const { main, originalMedia, replays } = preparePlayback();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(recordingApi, 'revision').mockRejectedValue(
+    new Error('REVISION_NOT_FOUND'),
+  );
+  const take = recordingFixture();
+  const view = (value: typeof take) => (
+    <Context.Provider value={main}>
+      <TakeReplay take={value} peer={null} />
+    </Context.Provider>
+  );
+  const { rerender } = render(view(take));
+  await act(async () => {});
+  const engine = [...replays][0];
+  if (!engine) throw new Error('리플레이 엔진 필요');
+  act(() => engine.seek(1000));
+  await act(async () => {
+    await engine.play();
+  });
+  const media = engine.audio;
+  const epoch = engine.getSnapshot().playbackEpoch;
+  rerender(view({ ...take, name: '저장한 이름', memo: '연습 메모' }));
+  await act(async () => {});
+  expect(
+    screen.getByRole('heading', { name: '저장한 이름 다시 듣기' }),
+  ).toBeTruthy();
+  expect(recordingApi.read).toHaveBeenCalledTimes(1);
+  expect(engine.audio).toBe(media);
+  expect(engine.getSnapshot().status).toBe('playing');
+  expect(engine.getSnapshot().audioTimeMs).toBe(1000);
+  expect(engine.getSnapshot().playbackEpoch).toBe(epoch);
+  expect(main.audio).toBe(originalMedia);
+});
+it('정렬 offset만 바꾸면 파일 위치를 유지하고 A/B는 새 악보 시간을 사용한다', async () => {
+  const { main, replays } = preparePlayback();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(recordingApi, 'revision').mockRejectedValue(
+    new Error('REVISION_NOT_FOUND'),
+  );
+  const a = recordingFixture(),
+    b = recordingFixture({ id: crypto.randomUUID(), songStartMs: 1200 });
+  const view = (value: typeof a) => (
+    <Context.Provider value={main}>
+      <TakeReplay take={value} peer={null} />
+    </Context.Provider>
+  );
+  const { rerender } = render(view(a));
+  await act(async () => {});
+  const engine = [...replays][0];
+  if (!engine) throw new Error('리플레이 엔진 필요');
+  act(() => engine.seek(1000));
+  rerender(view({ ...a, alignmentOffsetMs: 40 }));
+  await act(async () => {});
+  expect(recordingApi.read).toHaveBeenCalledTimes(1);
+  expect(engine.getSnapshot().audioTimeMs).toBe(1000);
+  expect(screen.getByText(/악보 1540.0ms/)).toBeTruthy();
+  rerender(view(b));
+  await act(async () => {});
+  expect(engine.getSnapshot().audioTimeMs).toBe(700);
+});
+it('같은 테이크의 내용 지문 변경과 명시적 다시 읽기는 파일을 새로 읽는다', async () => {
+  const { main } = preparePlayback();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(recordingApi, 'revision').mockRejectedValue(
+    new Error('REVISION_NOT_FOUND'),
+  );
+  const take = recordingFixture();
+  const view = (value: typeof take) => (
+    <Context.Provider value={main}>
+      <TakeReplay take={value} peer={null} />
+    </Context.Provider>
+  );
+  const { rerender } = render(view(take));
+  await act(async () => {});
+  rerender(view({ ...take, sha256: 'b'.repeat(64) }));
+  await act(async () => {});
+  expect(recordingApi.read).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole('button', { name: '녹음 다시 불러오기' }));
+  await act(async () => {});
+  expect(recordingApi.read).toHaveBeenCalledTimes(3);
+});
+it('파일을 읽는 중 이름이 갱신돼도 현재 읽기를 취소하거나 중복 요청하지 않는다', async () => {
+  const { main } = preparePlayback();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(recordingApi, 'revision').mockRejectedValue(
+    new Error('REVISION_NOT_FOUND'),
+  );
+  let finish!: (value: ArrayBuffer) => void;
+  let signal: AbortSignal | undefined;
+  vi.mocked(recordingApi.read).mockImplementation(
+    (_projectId, _takeId, current) => {
+      signal = current;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    },
+  );
+  const take = recordingFixture();
+  const view = (value: typeof take) => (
+    <Context.Provider value={main}>
+      <TakeReplay take={value} peer={null} />
+    </Context.Provider>
+  );
+  const { rerender } = render(view(take));
+  rerender(view({ ...take, name: '읽는 중 바꾼 이름' }));
+  expect(signal?.aborted).toBe(false);
+  expect(recordingApi.read).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    finish(recordingWaveFixture());
+  });
+  expect(
+    screen.getByRole('heading', { name: '읽는 중 바꾼 이름 다시 듣기' }),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: '테이크 재생' })).toHaveProperty(
+    'disabled',
+    false,
+  );
+});
 it('녹음 당시 편집 리비전을 원본과 분리해 실제 파생 음표로 렌더한다', async () => {
   const { main } = preparePlayback();
   const initial = scoreEditingFixture();

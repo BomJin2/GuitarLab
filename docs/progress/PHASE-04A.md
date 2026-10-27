@@ -1,5 +1,34 @@
 # Phase 4A — 입력 녹음과 다시 듣기
 
+## 후속 — 테이크 정보 저장 중 재생 유지 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 이름/메모와 정렬 offset 변경만으로 WAV/악보를 다시 읽어 재생이 멈추고 위치가 초기화되는 문제를 수정했습니다. 대상12개·전체646프론트/타입/lint 성공이며 포맷/웹·Windows·Git/원격 확정은 후속입니다. 기존 녹음/원본·기본 수용은 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12`, `docs/09`, `docs/17`: 파일 내용 식별자와 가변 정보의 구분, 실제 재읽기·A/B 최신 offset과 검증 기준을 먼저 기록했습니다. IPC/DB·녹음 파일·원본/보정·배속/볼륨/부분 반복 형식은 변경하지 않습니다.
+- `TakeReplay.tsx`: 파일/악보 읽기를 프로젝트·테이크 ID/내용 SHA·프레임/샘플레이트·저장 악보 revision/트랙과 명시적 재읽기에 연결했습니다. 이름/메모 변경은 기존 미디어/재생/위치를 유지하며 가벼운 최신 metadata 참조 갱신을 별도 layout 수명으로 옮겨 A/B는 새 정렬 offset을 사용합니다.
+- `TakeReplay.test.tsx`:4개 회귀를 추가해 기존 이름/메모 변경의 재생 중단·offset 변경의 위치 손실을 재현하고 내용 변경/명시적 재읽기·진행 중 읽기 보존을 확인합니다. UI 디자인/네이티브 엔진과 외부 의존성은 변경하지 않습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 **2개 실패/4개 성공**,4.10초를 재현했습니다. 이름/메모·offset 변경 뒤 읽기 횟수와 재생 위치가 달라졌습니다. 로그 `take-replay-metadata-red-20261027.log`.
+- 수정 후 초기 대상 **11개 성공**,4.27초. 읽는 중 정보 갱신을 추가한 최종 `pnpm exec vitest run src/features/recordings/TakeReplay.test.tsx src/features/recordings/RecordingsPage.test.tsx src/features/recordings/TakeExportPanel.test.tsx`: **12개/3파일 성공**,4.94초입니다. 원곡 미디어·기존 A/B/TAB tick/음량/부분 반복도 유지합니다.
+- `pnpm test`: **646개/122파일 성공**,48.20초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite2분2초/기존 큰 chunk 안내. 내장 자산/권한 **4개 성공**·Windows 빌드 **성공**,13.75초/기존 MSVC 링크 안내입니다. 새 Git/원격은 후속이며 로그 `take-replay-metadata-…-20261027.log`에 보존합니다.
+- 앞선 목록/복구 소스4243408은 웹2분4초·내장4개/Windows14.40초·독립 ZIP3,613파일/40,293,800바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 두 번이 성공했습니다. 그 소스의 [Windows40503288346](https://github.com/BomJin2/GuitarLab/actions/runs/40503288346)/job122186116665는 진행 중이며 현재 재생 유지 소스와 구분합니다. 지문/영수증은 Phase8 후속에 기록합니다.
+- 앞선 소스의 최종 실제 로그를 확인해 사후 정리까지 **전체 성공**으로 확정했습니다. 프론트642/122파일(99.39초), 기본Rust252/확장256(45.01/47.47초·각29개 기본 제외), 예제1+1·AI113(4.44초)/도구143(13.793초)·Clippy/MSRV1.90 성공입니다. 위 원격 대기는 확정 전 이력이며 재생 유지 추가 전 후보와 이후 코드를 구분합니다.
+- 실제 새 GUI/개인 녹음·청취/REC·별도 OS는 **미실행** — 합성 WAV·모의 파일 API/미디어와 실제 PlayerEngine으로 검사하며 사용자 앱/입력·설치 모델/개인 DB는 조작하지 않았습니다. 새 로컬 전체 native/Python/도구 재실행은 **미실행** — 해당 엔진과 의존성은 기존 검증 소스와 동일합니다.
+
+### 4. 미구현 및 알려진 문제
+
+현재 청취 위치를 유지하면서 정렬 offset만 바꾸면 악보 커서 위치는 새 매핑으로 달라지는 것이 정상입니다. 다른 테이크/실제 내용 변경이나 명시적 다시 읽기는 기존처럼 재생 준비를 다시 수행하며 모든 상황에서 재생을 유지한다고 주장하지 않습니다. 실제 장치 청취·장기 동기/별도 OS 수용은 별도입니다.
+
+### 5. 다음 작업 계획
+
+최종 빌드·Git/원격과 두 수정이 포함된 독립 패키지를 확인하고 문서화합니다. 원본 녹음/사용자 앱은 유지하며 앞선 후보 검증을 새 코드의 검증으로 혼용하지 않습니다.
+
 ## 후속 — 녹음 목록·정보 저장·복구의 문맥 보호 (2026-10-27)
 
 ### 1. 작업 개요
@@ -19,7 +48,8 @@
 - 기존 동작을 컨트롤러로 옮긴 뒤 초기 **10개 실패**,3.57초를 재현했습니다. 프로젝트 첫 반환/이전 함수·외부 테이크/목록·중복 작업·늦은 저장 오류와 실제 복구 취소 종료를 검사했습니다. 로그 `take-list-context-red-20261027.log`. 초기 수정 후 **10개 성공**,3.50초입니다.
 - 정상 저장/원본 객체 불변·목록 취소/재시도·취소 후 오류/완료 복구본·이전 취소·프로젝트 전환 중 실제 종료 대기를 보강했습니다. 기존 replay/출력까지 `pnpm exec vitest run src/features/recordings/useRecordedTakes.test.tsx src/features/recordings/RecordingsPage.test.tsx src/features/recordings/recordingRecovery.test.ts src/features/recordings/TakeReplay.test.tsx src/features/recordings/TakeExportPanel.test.tsx`: **24개/5파일 성공**,4.49초입니다.
 - `pnpm test`: **642개/122파일 성공**,45.73초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. 첫 lint의 ref cleanup 경고는 기존 패턴처럼 effect 안에 ref 별칭을 두어 해결했습니다. UI 검사에서 A/B의 같은 옵션을 단일 요소로 찾던1개 실패는 A 선택칸 안으로 조회를 좁혀 해결했습니다. 로그 `take-list-context-target-final-20261027.log`, `take-list-context-front-20261027.log`.
-- 웹/내장/Windows·새 Git/원격·독립 패키지는 진행 중이며 실제 결과를 이어 기록합니다. 보조 로그/산출물은 ignored `src-tauri/target/runtime-validation/`에 보존합니다.
+- `pnpm build`: **성공**,Vite2분4초/기존 큰 chunk 안내. 내장 자산/권한 **4개 성공**, Windows `cargo build … --features custom-protocol` **성공**,14.40초/기존 MSVC 링크 안내입니다. 소스4243408을 main에 push했고 [Windows40503288346](https://github.com/BomJin2/GuitarLab/actions/runs/40503288346)/job122186116665는 진행 중입니다. 같은 소스의 독립 ZIP3,613파일/실제 PS5.1·최소 PATH Python3.12.15 두 번은 성공이며 뒤의 재생 유지 변경과 구분합니다. 보조 로그/산출물은 ignored `src-tauri/target/runtime-validation/`에 보존합니다.
+- 원격 최종은 프론트642/252·256Rust·AI113/도구143·예제1+1·Clippy/MSRV1.90·사후 정리까지 **전체 성공**입니다. 이 목록/복구 슬라이스의 실제 검증 완료일은2026-10-27이며 위 대기는 확정 전 이력입니다. 독립 ZIP의 경로/지문은 Phase8 최신 절을 따르고 추가 재생 유지 코드의 검증과 구분합니다.
 - 실제 새 GUI·개인 메타데이터 저장/복구·청취/REC·별도 OS는 **미실행** — 합성 metadata/모의 API로 수명을 확인하며 사용자 앱/개인 자료·입력/모니터·설치 모델은 조작하지 않았습니다. 전체 로컬 native/Python/도구 재실행은 **미실행** — 해당 엔진/의존성 변경이 없으며 새 소스의 원격 회귀와 구분합니다.
 
 ### 4. 미구현 및 알려진 문제
