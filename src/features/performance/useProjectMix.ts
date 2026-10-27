@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlayerEngine } from '../player/usePlayer';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { recordingApi, type RecordedTake } from '../recordings/recordings';
@@ -34,7 +34,7 @@ export function useProjectMix(
   const [prepared, setPrepared] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [job, setJob] = useState<JobSnapshot | null>(null);
+  const [job, setJobState] = useState<JobSnapshot | null>(null);
   const [stats, setStats] = useState<MixStats | null>(null);
   const [preview] = useState(() => new PlayerEngine());
   const [player] = useState(
@@ -48,12 +48,28 @@ export function useProjectMix(
   const operation = useRef(false);
   const epoch = useRef(0);
   const mounted = useRef(false);
+  const context = useMemo(
+    () => ({ projectId, backingId, revisionId }),
+    [projectId, backingId, revisionId],
+  );
+  const owner = useRef(context);
+  const currentEnabled = useRef(enabled);
+  const ownsContext = () => mounted.current && owner.current === context;
+  const visible = owner.current === context;
+  const visibleMix = visible ? mix : null;
+  const visiblePrepared = visible && prepared;
+  useLayoutEffect(() => {
+    currentEnabled.current = enabled;
+  }, [enabled]);
+  function setJob(value: JobSnapshot | null) {
+    if (ownsContext()) setJobState(value);
+  }
   const clear = useCallback(() => {
     player.clear();
     setPrepared(false);
   }, [player]);
   const refresh = useCallback(async () => {
-    if (!projectId) return;
+    if (!mounted.current || owner.current !== context || !projectId) return;
     const current = ++epoch.current;
     clear();
     setStems([]);
@@ -66,7 +82,17 @@ export function useProjectMix(
         mixApi.load(projectId),
         recordingApi.list(projectId),
       ]);
-      if (!mounted.current || current !== epoch.current) return;
+      if (
+        !mounted.current ||
+        owner.current !== context ||
+        current !== epoch.current
+      )
+        return;
+      if (
+        (saved && saved.projectId !== projectId) ||
+        list.some((take) => take.projectId !== projectId)
+      )
+        throw new Error('MIX_SOURCE_UNAVAILABLE');
       setMix(
         saved ?? {
           schemaVersion: 1,
@@ -88,22 +114,33 @@ export function useProjectMix(
       );
       setTakes(list);
     } catch (cause) {
-      if (mounted.current && current === epoch.current)
+      if (
+        mounted.current &&
+        owner.current === context &&
+        current === epoch.current
+      )
         setError(mixError(cause));
     } finally {
-      if (mounted.current && current === epoch.current) setBusy(false);
+      if (
+        mounted.current &&
+        owner.current === context &&
+        current === epoch.current
+      )
+        setBusy(false);
     }
-  }, [projectId, backingId, clear]);
-  useEffect(() => {
+  }, [projectId, backingId, clear, context]);
+  useLayoutEffect(() => {
+    owner.current = context;
     mounted.current = true;
     preview.activate();
     setMix(null);
     setPrepared(false);
     setTakes([]);
+    setStems([]);
     setImportedStems([]);
     setBusy(false);
     setStats(null);
-    setJob(null);
+    setJobState(null);
     setError(null);
     setNotice(null);
     void refresh();
@@ -116,8 +153,8 @@ export function useProjectMix(
       player.clear();
       preview.dispose();
     };
-  }, [refresh, player, preview, revisionId]);
-  useEffect(() => {
+  }, [refresh, player, preview, revisionId, context]);
+  useLayoutEffect(() => {
     if (!enabled) {
       task.current.cancel();
       clear();
@@ -125,7 +162,10 @@ export function useProjectMix(
     }
   }, [enabled, clear, preview]);
   function update(next: MixDocument, structural = false) {
+    if (!ownsContext() || !currentEnabled.current) return;
     try {
+      if (next.projectId !== projectId)
+        throw new Error('MIX_SOURCE_UNAVAILABLE');
       decodeMix(next);
       if (structural) clear();
       else if (prepared) player.update(next);
@@ -138,7 +178,15 @@ export function useProjectMix(
     }
   }
   async function run(work: (signal: AbortSignal) => Promise<void>) {
-    if (operation.current || !mix || !enabled) return;
+    if (
+      !ownsContext() ||
+      operation.current ||
+      !mix ||
+      mix.projectId !== projectId ||
+      !enabled ||
+      !currentEnabled.current
+    )
+      return;
     operation.current = true;
     setBusy(true);
     setError(null);
@@ -300,6 +348,8 @@ export function useProjectMix(
   function addImported(id: string) {
     if (
       !mix ||
+      !ownsContext() ||
+      !currentEnabled.current ||
       !enabled ||
       operation.current ||
       !importedStems.some(
@@ -326,45 +376,48 @@ export function useProjectMix(
     );
   }
   return {
-    mix,
-    takes,
-    stems,
-    importedStems,
+    mix: visibleMix,
+    takes: visible ? takes : [],
+    stems: visible ? stems : [],
+    importedStems: visible ? importedStems : [],
     refreshImported,
     addImported,
     configureStems,
     canConfigureStems: !!backingId,
-    busy,
-    prepared,
-    error,
-    notice,
-    job,
-    stats,
+    busy: visible && busy,
+    prepared: visiblePrepared,
+    error: visible ? error : null,
+    notice: visible ? notice : null,
+    job: visible ? job : null,
+    stats: visible ? stats : null,
     preview,
     refresh,
     update,
     prepare,
-    clear,
+    clear: () => {
+      if (ownsContext()) clear();
+    },
     render,
     exportWav,
     save,
     cancel: () => {
+      if (!ownsContext()) return;
       task.current.cancel();
       clear();
     },
     referenceTakeIds:
-      prepared && mix
-        ? mix.layers
-            .filter((l) => l.kind === 'TAKE' && layerVolume(mix, l) > 0)
+      visiblePrepared && visibleMix
+        ? visibleMix.layers
+            .filter((l) => l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0)
             .map((l) => l.id)
         : [],
     needsPreparation:
-      !!mix?.layers.some(
+      !!visibleMix?.layers.some(
         (l) =>
           l.kind === 'STEM' ||
           l.kind === 'IMPORTED_STEM' ||
-          (l.kind === 'TAKE' && layerVolume(mix, l) > 0),
-      ) && !prepared,
+          (l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0),
+      ) && !visiblePrepared,
   };
 }
 export type ProjectMixController = ReturnType<typeof useProjectMix>;

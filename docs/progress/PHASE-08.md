@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일 2026-10-27. 백업 동의 해제 뒤 예전 함수로 실행하거나 화면 이탈 뒤 백업/검사/추출을 시작하는 경계를 수정했습니다. 대상14개·613프론트/타입/lint/포맷·웹/내장/Windows 빌드는 성공이며 Git·원격/최신 패키지 확정을 진행 중입니다. 모델 관리 후속 검증과 현재 백업 후보를 구분하고 전체 Phase8은 미완료로 유지합니다.
+작업·검증 완료일 2026-10-27. 백업 동의 해제 뒤 예전 함수로 실행하거나 화면 이탈 뒤 백업/검사/추출을 시작하는 경계를 수정했습니다. 대상14개·613프론트/타입/lint/포맷·웹/내장/Windows 빌드·Git/원격·최신 패키지 검증을 완료했습니다. 모델 관리 후속 검증과 현재 백업 후보를 구분하고 전체 Phase8은 미완료로 유지합니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -19,7 +19,12 @@
 - `pnpm typecheck`, `pnpm lint`: **성공**. `pnpm test`: **613개/119파일 성공**,33.70초. `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite1분31초/기존 큰 chunk 안내. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests` **4개 성공**·`cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol` **성공**,11.56초/기존 MSVC 링크 안내입니다. 로그 `backup-command-lifecycle-…-20261027.log`에 보존합니다.
 - 앞선 모델 관리 소스 `e43f3fcc65d619cc74ea2a6650f1f6a58b870ea6`는605프론트/35개 대상·타입/lint/포맷·Vite1분52초·내장4개(컴파일34.23초)/Windows12.06초가 성공입니다. 새 ZIP3,613파일/40,293,803바이트·CRC/SHA·새 추출·실제 PS5.1/최소 PATH Python3.12.15 두 번도 성공이며 앱은 실행하지 않았습니다. 이 후보는 현재 백업 수정 전이므로 최신 후보로 혼동하지 않습니다.
 - 위 모델 관리 EXE41,244,672바이트/SHA `b84cf423690d6a7e8dd241f858c8d1cb838a36dee0a829e1baa8d6983d8489e6`, ZIP SHA `9c620b9d7f35a6e686fde002f7db412548c87878746a5267f6be8f71d74b512a`. ZIP `validation-packages/dccc9438-afa1-43f3-9b94-bd6703adc714/GuitarLab-validation.zip`, 영수증 `model-command-lifecycle-package-receipt-6751514a-6369-42f0-ae4e-2d17e13a92ee.json`입니다. 보조 도구/산출물은 ignored `src-tauri/target/runtime-validation/`에만 생성했습니다.
-- 새 실제 GUI·개인 DB/녹음의 백업 생성/검사/추출·실제 설치/다운로드·별도 OS 수용은 **미실행** — 모의 서비스로 명령 수명을 검증하며 사용자 앱/자료를 조작하지 않았습니다. 전체 로컬 Rust/Python/도구 재실행은 **미실행** — 해당 엔진과 의존성 변경이 없습니다. 앞선 ZIP의 별도 Defender 재검사는 **미실행**이며 최종 후보 검사와 구분합니다.
+- 백업 포함 소스 `13e9c75063107032f611b828ff29dec83a2160ce`의 최신 EXE **41,244,672바이트**, SHA `bdcbfaba087861bc7a750ebb4f438e3db5d0706706e8d8ad247e0952bf7c5d70`. 최신 ZIP **3,613파일/40,294,122바이트**, SHA `ee8728507bc456b3afd18b654192c98d10871a2c51b57ef518da1d6a04b62d75`입니다. 전체 CRC/SHA·새 추출과 실제 PS5.1/최소 PATH Python3.12.15 두 번 **성공**, exit0/`VERIFIED_NOT_LAUNCHED`입니다. ZIP `validation-packages/ed398868-b05e-43fc-af9f-c935aafad3f9/GuitarLab-validation.zip`, 후보 `backup-command-lifecycle-candidate-2acfa7b6-d243-4f5c-9ab9-f8a00841c9f1.json`, 영수증 `backup-command-lifecycle-package-receipt-885b61a2-9bcf-4955-ae1f-ba6a0eccf219.json`, 추출 `backup-command-lifecycle-roundtrip-ca13501f-621b-4f4f-8c0d-312e25bbdc72`입니다. 이 후보에는 모델 관리·백업 수명 수정이 함께 포함됩니다.
+- 원격 확장 Rust 단계 지연을 확인하기 위해 동일 구성 `cargo test --locked --offline --all-features --manifest-path src-tauri/Cargo.toml -- --nocapture`를 로컬 추가 실행해 **256개 성공/29개 기본 제외**,11.53초를 확인했습니다. 원격 확장도171초 뒤 성공했으며 교착/실패로 기록하지 않습니다. 로그 `model-command-lifecycle-rust-extended-20261027.log`. 해당 실행의 제품 엔진은 백업/모델 관리 전과 동일하며 문서의 전체 로컬 Rust 미실행은 이 추가 검사 전 이력입니다.
+- 최신 EXE/ZIP만 Defender의 `-DisableRemediation`으로 검사해 각 exit0/위협 없음/전후 SHA 동일 **성공**입니다. Defender4.18.26090.9·정의1.461.224.0, 서명 **NotSigned**, 영수증 `backup-command-lifecycle-defender-6f76da50-c664-4dd7-b8be-788652028764.json`입니다. 보조 스크립트 첫 실행에서 중복 BOM으로 첫 `$ErrorActionPreference` 설정 오류가 났습니다. 처음 생성된 검사 영수증과 별개로 BOM을 한 개로 고쳐 오류 시 중단 설정을 적용한 재검사도 성공했으며 실패 출력/초기 영수증을 보존했습니다. 제품 코드나 전역 보안 설정 오류/변경은 아닙니다.
+- 앞선 모델 관리 [Windows40495120166](https://github.com/BomJin2/GuitarLab/actions/runs/40495120166)/job122158712331은605프론트/252·256Rust·AI113/도구143·예제1+1·Clippy/MSRV1.90/사후 정리까지 **전체 성공**입니다. 종료 확인 후 백업 소스13e9c75를 push했고 [Windows40496717991](https://github.com/BomJin2/GuitarLab/actions/runs/40496717991)/job122163908545은 진행 중입니다. 두 소스를 혼용하지 않으며 백업 후보의 원격 결론은 이어 확정합니다.
+- 백업 소스의 최종 실제 로그/상태를 확인해 사후 정리까지 **전체 성공**으로 확정했습니다. 프론트613/119파일(88.39초), 기본Rust252/확장256(53.04/52.78초·각29개 기본 제외), 예제1+1·AI113(4.78초)/도구143(38.936초)·Clippy/MSRV1.90이 성공입니다. 위 원격 진행 중은 확정 전 이력이며 이어 개발하는 믹스 문맥 보호 소스와 구분합니다.
+- 새 실제 GUI·개인 DB/녹음의 백업 생성/검사/추출·실제 설치/다운로드·별도 OS 수용은 **미실행** — 모의 서비스로 명령 수명을 검증하며 사용자 앱/자료를 조작하지 않았습니다. 전체 로컬 Python/도구 재실행은 **미실행** — 해당 엔진과 의존성 변경이 없습니다. 앞선 모델 관리 ZIP의 별도 Defender 재검사는 **미실행**이며 모든 수정이 포함된 최종 후보 검사와 구분합니다.
 
 ### 4. 미구현 및 알려진 문제
 
@@ -27,7 +32,7 @@
 
 ### 5. 다음 작업 계획
 
-전체 회귀·웹/내장/Windows와 새 소스/원격을 확정합니다. 최신 후보만 새 독립 ZIP/보안 검사로 확인하고 앞선 성공 후보·개인 데이터는 유지합니다. 이전 후보의 검사를 현재 코드 성공으로 기록하거나 사용자 앱을 임의로 종료하지 않습니다.
+이 백업 슬라이스의 전체/빌드·Git/원격·독립 ZIP/보안 검증을 완료했습니다. 다음 믹스 문맥 보호는 Phase4B 최신 절에서 별도로 진행하며 이전 후보의 결과를 새 소스의 성공으로 기록하거나 사용자 앱을 임의로 종료하지 않습니다. 실제 데이터 교체·별도 OS/서명·독립 품질 수용 경계는 유지합니다.
 
 ## 사용자 기타 AI 입력 후보의 독립 패키지 — 2026-10-27
 

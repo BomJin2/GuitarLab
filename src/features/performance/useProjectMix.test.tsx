@@ -85,6 +85,199 @@ function importedFixture(projectId: string): ImportedGuitarStem {
     createdAtMs: 1,
   };
 }
+it.each(['projectId', 'backingId', 'revisionId'] as const)(
+  '%s 변경의 첫 반환부터 이전 믹스와 테이크를 숨긴다',
+  async (field) => {
+    const { main, mix, wrapper, props } = setup();
+    const seen: ReturnType<typeof useProjectMix>[] = [];
+    const hook = renderHook(
+      (p) => {
+        const state = useProjectMix(
+          p.projectId,
+          p.backingId,
+          p.revisionId,
+          p.enabled,
+        );
+        seen.push(state);
+        return state;
+      },
+      { initialProps: props, wrapper },
+    );
+    await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+    vi.mocked(mixApi.load).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    seen.length = 0;
+    hook.rerender({ ...props, [field]: crypto.randomUUID() });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(
+      seen.every(
+        (state) =>
+          state.mix === null &&
+          state.takes.length === 0 &&
+          state.referenceTakeIds.length === 0,
+      ),
+    ).toBe(true);
+    hook.unmount();
+    main.dispose();
+  },
+);
+it('프로젝트를 해제했다 다시 열어도 이전 조회·저장·수정 명령을 재사용하지 않는다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  const save = vi.spyOn(mixApi, 'save').mockResolvedValue(mix);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  const old = hook.result.current;
+  hook.rerender({ ...props, projectId: undefined });
+  hook.rerender(props);
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  const reads = vi.mocked(mixApi.load).mock.calls.length;
+  await act(async () => {
+    await old.refresh();
+    await old.save();
+    old.update({ ...mix, masterGain: 0.1 });
+  });
+  expect(mixApi.load).toHaveBeenCalledTimes(reads);
+  expect(save).not.toHaveBeenCalled();
+  expect(hook.result.current.mix).toEqual(mix);
+  hook.unmount();
+  main.dispose();
+});
+it('화면 이탈 뒤 이전 조회·저장 함수는 새 외부 작업을 시작하지 않는다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  const save = vi.spyOn(mixApi, 'save').mockResolvedValue(mix);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  const old = hook.result.current;
+  hook.unmount();
+  const reads = vi.mocked(mixApi.load).mock.calls.length;
+  await act(async () => {
+    await old.refresh();
+    await old.save();
+  });
+  expect(mixApi.load).toHaveBeenCalledTimes(reads);
+  expect(save).not.toHaveBeenCalled();
+  main.dispose();
+});
+it('현재 컨트롤러도 다른 프로젝트 믹스로 교체하지 않는다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  act(() =>
+    hook.result.current.update({ ...mix, projectId: crypto.randomUUID() }),
+  );
+  expect(hook.result.current.mix).toEqual(mix);
+  expect(hook.result.current.error).toBeTruthy();
+  hook.unmount();
+  main.dispose();
+});
+it('현재 잠금이 바뀌면 이전 활성 함수로 저장하지 않는다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  const save = vi.spyOn(mixApi, 'save').mockResolvedValue(mix);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  const oldSave = hook.result.current.save;
+  hook.rerender({ ...props, enabled: false });
+  await act(async () => {
+    await oldSave();
+  });
+  expect(save).not.toHaveBeenCalled();
+  hook.unmount();
+  main.dispose();
+});
+it('이전 취소 명령은 다시 연 프로젝트의 새 준비를 취소하지 않는다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  const oldCancel = hook.result.current.cancel;
+  hook.rerender({ ...props, projectId: undefined });
+  hook.rerender(props);
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  let finish!: (value: ArrayBuffer) => void;
+  let signal: AbortSignal | undefined;
+  vi.mocked(recordingApi.read).mockImplementation(
+    (_projectId, _takeId, current) => {
+      signal = current;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    },
+  );
+  let work!: Promise<void>;
+  act(() => {
+    work = hook.result.current.prepare();
+  });
+  act(oldCancel);
+  await act(async () => {
+    finish(recordingWaveFixture());
+    await work;
+  });
+  expect(signal?.aborted).toBe(false);
+  expect(hook.result.current.prepared).toBe(true);
+  hook.unmount();
+  main.dispose();
+});
+it.each(['믹스', '테이크'] as const)(
+  '다른 프로젝트의 %s 조회 결과를 표시하지 않는다',
+  async (kind) => {
+    const { main, mix, take, wrapper, props } = setup();
+    const foreign = crypto.randomUUID();
+    if (kind === '믹스')
+      vi.mocked(mixApi.load).mockResolvedValue({ ...mix, projectId: foreign });
+    else
+      vi.mocked(recordingApi.list).mockResolvedValue([
+        { ...take, projectId: foreign },
+      ]);
+    const hook = renderHook(
+      (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+      { initialProps: props, wrapper },
+    );
+    await waitFor(() => expect(hook.result.current.error).toBeTruthy());
+    expect(hook.result.current.mix).toBeNull();
+    expect(hook.result.current.takes).toEqual([]);
+    hook.unmount();
+    main.dispose();
+  },
+);
+it('프로젝트를 해제하면 이전 분리 목록도 지운다', async () => {
+  const { main, mix, wrapper, props } = setup();
+  vi.spyOn(separationApi, 'restore').mockResolvedValue({
+    info: {
+      ...separationFixture(),
+      projectId: mix.projectId,
+      assetId: props.backingId ?? '',
+    },
+    audio: [],
+  });
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  await act(async () => {
+    await hook.result.current.configureStems();
+  });
+  expect(hook.result.current.stems).toHaveLength(2);
+  hook.rerender({ ...props, projectId: undefined });
+  expect(hook.result.current.stems).toEqual([]);
+  hook.unmount();
+  main.dispose();
+});
 it('사용자 파일은 명시적으로 추가·출력·저장하고 준비 뒤 TAKE만 REC 참조로 제공한다', async () => {
   const { main, take, mix, prepare, wrapper, props } = setup();
   const stem = importedFixture(mix.projectId);
@@ -367,8 +560,13 @@ it('프로젝트 교체 후 이전 목록 응답을 폐기한다', async () => {
     (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
     { initialProps: props, wrapper },
   );
-  const next = { ...mix, projectId: '00000000-0000-4000-8000-000000000099' };
+  const next = {
+    ...mix,
+    projectId: '00000000-0000-4000-8000-000000000099',
+    layers: [],
+  };
   vi.mocked(mixApi.load).mockResolvedValue(next);
+  vi.mocked(recordingApi.list).mockResolvedValue([]);
   hook.rerender({ ...props, projectId: next.projectId });
   await waitFor(() =>
     expect(hook.result.current.mix?.projectId).toBe(next.projectId),

@@ -1,5 +1,34 @@
 # Phase 4B — 오버더빙과 로컬 믹스 출력
 
+## 후속 — 프로젝트 전환의 믹스 문맥 보호 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 프로젝트/기준 반주/저장 악보 revision 변경의 첫 반환에 이전 믹스가 노출되고 이전 조회·저장 함수가 다시 사용되는 경계를 수정했습니다. 대상32개·624프론트/타입/lint/포맷·웹/Windows 빌드는 성공이며 Git/원격·독립 패키지 확정은 후속입니다. 기존 Phase4B 기본 수용과 이번 후속의 실제 앱 미실행은 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 `docs/12-API-CONTRACTS.md`에 문맥별 데이터/명령 수명과 기존 파일/취소 정책 불변을 기록했습니다. 새 IPC/DB/모델·녹음/믹스 형식은 추가하지 않습니다.
+- `useProjectMix.ts`: 프로젝트/반주/revision 문맥을 구분하고 첫 반환부터 이전 믹스·테이크/분리/사용자 목록·준비/REC 참조·오류/진행/통계를 숨깁니다. layout 수명에서 이전 작업/재생 준비를 정리하고 기존 자동 설정 조회는 유지합니다.
+- 이전 문맥이나 화면 이탈 뒤 조회·수정/파일 작업·취소·공개 clear 명령을 차단하며 현재 활성 조건을 저장 시 다시 확인합니다. 다른 프로젝트의 믹스 편집·조회 결과/테이크 목록을 거부하고 프로젝트 해제 때 분리 목록도 초기화합니다. 이미 native에 요청한 저장의 rollback을 보장하는 변경은 아닙니다.
+- `useProjectMix.test.tsx`:11개 회귀를 추가했습니다. 기존 프로젝트 전환 테스트가 새 프로젝트에도 이전 프로젝트 테이크를 반환하던 fixture는 실제로 가능한 빈 새 프로젝트/목록으로 수정했습니다. 원본/레이어 음량·mute/solo·기존 재생/REC/출력과 UI 구조는 유지합니다.
+
+### 3. 테스트 결과
+
+- 최초 `pnpm exec vitest run src/features/performance/useProjectMix.test.tsx`: **7개 실패/11개 성공**,3.86초. 프로젝트/반주/revision 첫 반환·같은 프로젝트 복귀·이탈 뒤 실행·외부 프로젝트 편집·현재 잠금 우회를 재현했습니다. 로그 `mix-context-red-20261027.log`.
+- 초기 수정의 대상1개 실패는 새 소유권 검사에 걸린 기존 외부 프로젝트 테이크 fixture였으며 이를 올바른 새 프로젝트 목록으로 수정해 **28개 성공**,3.95초입니다. 이어 이전 취소/외부 조회·해제 목록 회귀를 보강했습니다.
+- 최종 `pnpm exec vitest run src/features/performance/useProjectMix.test.tsx src/features/performance/MixPanel.test.tsx src/features/performance/TakeMixPlayer.test.ts`: **32개/3파일 성공**,5.62초. 현재 준비/REC 참조·취소 후 실제 종료·출력/명시적 저장·REC 중 소스 잠금과 청취 음량 조절도 유지됩니다.
+- `pnpm typecheck`, `pnpm lint`: **성공**. `pnpm test`: **624개/119파일 성공**,56.53초. `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite2분22초/기존 큰 chunk 안내. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,16.94초/기존 MSVC 링크 안내입니다. Git/새 원격·독립 패키지 검사는 후속이며 로그 `mix-context-…-20261027.log`에 보존합니다.
+- 실제 새 GUI·개인 믹스/청취·오버더빙 REC·별도 OS는 **미실행** — 합성 fixture/모의 파일 API를 사용하며 사용자 앱/녹음·개인 DB/파일을 조작하지 않았습니다. 새 모델 설치/분석·네트워크 음원 전송도 없습니다. 전체 native/Python 로컬 재실행은 **미실행** — 기존 검증 엔진과 동일하며 새 소스의 원격 회귀와 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+이미 보낸 native 저장/설정 읽기를 새로 rollback/강제 취소하는 정책은 추가하지 않습니다. 기존 읽기의 늦은 응답 적용을 막고 진행 중 파일 작업은 기존 AbortSignal/종료 대기를 사용합니다. 같은 문맥의 수동 재조회 실패 시 기존 믹스를 보존하며 원본 take/WAV·저장 믹스를 자동 삭제하지 않습니다. 실제 장치/별도 OS·장기 동기/고급 판정 품질 수용은 별도입니다.
+
+### 5. 다음 작업 계획
+
+전체 프론트/포맷·웹/내장/Windows와 새 소스의 Git/원격을 확정합니다. 같은 엔진의 성공 검사를 반복하거나 개인 파일로 검증을 대신하지 않으며 독립 ZIP 결과·실제 앱 미실행을 구분해 문서화합니다.
+
 ## 1. 작업 개요
 
 - 시작일/완료 날짜: 2026-10-15. 상태: 완료(아래 최종 검증 범위와 제약 포함). 단계별 후보 기록은 이력으로 보존합니다.
