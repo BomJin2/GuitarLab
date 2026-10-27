@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { LatestTask } from '../../shared/latestTask';
 import { logDiagnostic } from '../../shared/logger';
@@ -21,8 +21,9 @@ export function useLocalBackup() {
   const task = useRef(new LatestTask());
   const operation = useRef(false),
     mounted = useRef(false);
+  const approval = useRef(false);
   const native = localBackupApi.available();
-  useEffect(() => {
+  useLayoutEffect(() => {
     mounted.current = true;
     const current = task.current;
     const subscription = native
@@ -48,7 +49,12 @@ export function useLocalBackup() {
     };
   }, [native]);
   async function start(nextMode: LocalBackupMode = 'CREATE') {
-    if (operation.current || (nextMode !== 'VERIFY' && !consent) || !native)
+    if (
+      !mounted.current ||
+      operation.current ||
+      (nextMode !== 'VERIFY' && !approval.current) ||
+      !native
+    )
       return;
     operation.current = true;
     setMode(nextMode);
@@ -64,7 +70,7 @@ export function useLocalBackup() {
     }[nextMode];
     const outcome = await task.current.run((signal) =>
       action(signal, (value) => {
-        if (mounted.current) setJob(value);
+        if (mounted.current && !signal.aborted) setJob(value);
       }),
     );
     operation.current = false;
@@ -79,7 +85,11 @@ export function useLocalBackup() {
   return {
     native,
     consent,
-    setConsent,
+    setConsent: (value: boolean) => {
+      if (!mounted.current || operation.current) return;
+      approval.current = value;
+      setConsent(value);
+    },
     busy,
     canceling,
     job,
@@ -90,7 +100,7 @@ export function useLocalBackup() {
     verify: () => start('VERIFY'),
     preview: () => start('PREVIEW'),
     cancel() {
-      if (operation.current) {
+      if (mounted.current && operation.current) {
         setCanceling(true);
         task.current.cancel();
       }

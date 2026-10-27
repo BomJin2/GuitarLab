@@ -20,7 +20,8 @@
 - 이전 취소가 새 작업을 막지 않는4개·최신 캐시 revision/동의2개를 추가해 **31개 성공**,2.96초입니다. 이어 모델 변경과 같은 이벤트 안의 실행 **4개 실패**,2.30초(나머지19개는 필터 제외)를 재현했고 선택 명령에서 이전 소유권을 즉시 무효화했습니다.
 - 최종 대상 `pnpm exec vitest run src/features/transcription/modelManagementLifecycle.test.tsx src/features/transcription/ModelDownloadPanel.test.tsx src/features/transcription/ModelSetupPanel.test.tsx src/features/transcription/ModelInstallationPanel.test.tsx src/features/transcription/CacheCleanupPanel.test.tsx`: **35개/5파일 성공**,2.76초. 최신 동의·소비/재동의·조회 갱신·취소·실제 종료 대기·정상 성공/실패를 포함합니다.
 - `pnpm typecheck`, `pnpm lint`: **성공**. 첫 lint의 테스트 미사용 인자2개와 확장 후 Prettier 실패는 해당 테스트의 불필요한 인자를 제거하고 포맷해 해결했습니다. 중간 전체601개/118파일은 성공했으나 마지막4개 경계를 보강하기 전 결과이므로 최종 결과와 구분합니다.
-- `pnpm test`: 최종 **605개/118파일 성공**,35.15초. `pnpm format:check`: **성공**. 웹·내장/Windows 빌드는 진행 중이며 실행 결과를 이어 기록합니다. 로그는 ignored `src-tauri/target/runtime-validation/model-command-lifecycle-…-20261027.log`에 보존합니다.
+- `pnpm test`: 최종 **605개/118파일 성공**,35.15초. `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite1분52초/기존 큰 chunk 안내. 내장 자산/권한 `cargo test … --features custom-protocol bundle_tests` **4개 성공**,컴파일34.23초·`cargo build … --features custom-protocol` **성공**,12.06초/기존 MSVC 링크 안내입니다. 로그는 ignored `src-tauri/target/runtime-validation/model-command-lifecycle-…-20261027.log`에 보존합니다.
+- 소스 `e43f3fcc65d619cc74ea2a6650f1f6a58b870ea6`를 Git에 올렸고 [Windows40495120166](https://github.com/BomJin2/GuitarLab/actions/runs/40495120166)/job122158712331은 진행 중입니다. 같은 코드의 새 독립 ZIP3,613파일/40,293,803바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 두 번이 성공했습니다. 정확한 지문/영수증은 [Phase8 첫 절](PHASE-08.md)에 기록하며 뒤이어 진행하는 백업 수정과 구분합니다.
 - 실제 새 앱·네트워크 다운로드/모델 설치·캐시 삭제·별도 Windows 수용은 **미실행** — 명령 수명 검증은 모의 API를 사용하며 기존 설치/사용자 자료를 변경하지 않습니다. 전체 native/Python 로컬 재실행은 **미실행** — 해당 엔진/프로토콜과 의존성 변경이 없습니다.
 
 ### 4. 미구현 및 알려진 문제

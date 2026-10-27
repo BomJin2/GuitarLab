@@ -1,5 +1,34 @@
 # Phase8 — 품질·릴리스
 
+## 로컬 백업 동의·명령 수명 후속 — 2026-10-27
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 백업 동의 해제 뒤 예전 함수로 실행하거나 화면 이탈 뒤 백업/검사/추출을 시작하는 경계를 수정했습니다. 대상14개·613프론트/타입/lint/포맷·웹/내장/Windows 빌드는 성공이며 Git·원격/최신 패키지 확정을 진행 중입니다. 모델 관리 후속 검증과 현재 백업 후보를 구분하고 전체 Phase8은 미완료로 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 `docs/12-API-CONTRACTS.md`, `docs/09-TEST-PLAN.md`에 최신 동의·mount 수명·기존 재시도/취소 정책 보존을 기록했습니다. IPC/DB·백업 native/Python·파일 형식은 변경하지 않습니다.
+- `useLocalBackup.ts`: 백업/새 폴더 추출에서 캡처된 과거 값 대신 최신 동의를 확인합니다. 화면 이탈 뒤 모든 실행/동의·취소를 차단하고 취소 뒤 늦은 진행률을 버립니다. 동의는 기존처럼 해제할 때까지 유지하며 실제 작업 종료까지 잠금을 유지합니다.
+- `localBackup.ts`: 실제 지원하는 DB v8/v9에 맞춰 BACKUP_DATABASE_VERSION 안내를 수정했습니다. 지원 DB나 복원 정책을 확장한 변경이 아닙니다.
+- `useLocalBackup.test.tsx`: 동의 해제/같은 이벤트·화면 이탈·정상 재시도/읽기 전용 검사·늦은 진행률/종료 대기를 검증하는8개 회귀를 추가했습니다. UI 디자인·기존 동의 유지/재시도와 원본 보존 동작은 유지합니다.
+
+### 3. 테스트 결과
+
+- 수정 전 **6개 실패/1개 성공**,2.31초를 재현했습니다. 로그 `backup-command-lifecycle-red-20261027.log`. 수정 후 대상13개 성공에서 취소 진행률 회귀를 추가한 최종 `pnpm exec vitest run src/features/settings/useLocalBackup.test.tsx src/features/settings/LocalBackupPanel.test.tsx src/features/settings/localBackup.test.ts`는 **14개/3파일 성공**,2.48초입니다.
+- `pnpm typecheck`, `pnpm lint`: **성공**. `pnpm test`: **613개/119파일 성공**,33.70초. `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite1분31초/기존 큰 chunk 안내. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests` **4개 성공**·`cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol` **성공**,11.56초/기존 MSVC 링크 안내입니다. 로그 `backup-command-lifecycle-…-20261027.log`에 보존합니다.
+- 앞선 모델 관리 소스 `e43f3fcc65d619cc74ea2a6650f1f6a58b870ea6`는605프론트/35개 대상·타입/lint/포맷·Vite1분52초·내장4개(컴파일34.23초)/Windows12.06초가 성공입니다. 새 ZIP3,613파일/40,293,803바이트·CRC/SHA·새 추출·실제 PS5.1/최소 PATH Python3.12.15 두 번도 성공이며 앱은 실행하지 않았습니다. 이 후보는 현재 백업 수정 전이므로 최신 후보로 혼동하지 않습니다.
+- 위 모델 관리 EXE41,244,672바이트/SHA `b84cf423690d6a7e8dd241f858c8d1cb838a36dee0a829e1baa8d6983d8489e6`, ZIP SHA `9c620b9d7f35a6e686fde002f7db412548c87878746a5267f6be8f71d74b512a`. ZIP `validation-packages/dccc9438-afa1-43f3-9b94-bd6703adc714/GuitarLab-validation.zip`, 영수증 `model-command-lifecycle-package-receipt-6751514a-6369-42f0-ae4e-2d17e13a92ee.json`입니다. 보조 도구/산출물은 ignored `src-tauri/target/runtime-validation/`에만 생성했습니다.
+- 새 실제 GUI·개인 DB/녹음의 백업 생성/검사/추출·실제 설치/다운로드·별도 OS 수용은 **미실행** — 모의 서비스로 명령 수명을 검증하며 사용자 앱/자료를 조작하지 않았습니다. 전체 로컬 Rust/Python/도구 재실행은 **미실행** — 해당 엔진과 의존성 변경이 없습니다. 앞선 ZIP의 별도 Defender 재검사는 **미실행**이며 최종 후보 검사와 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+백업 미리보기는 계속 새 폴더 추출만 제공하며 현재 앱 데이터를 교체하는 전체 복원은 구현하지 않습니다. 영구 삭제·서명/별도 Windows·실제 장치·독립 품질 수용도 미완료입니다. 동의 해제는 이미 시작한 작업의 자동 취소를 뜻하지 않으며 진행 중에는 기존 취소/종료 대기 절차를 사용합니다.
+
+### 5. 다음 작업 계획
+
+전체 회귀·웹/내장/Windows와 새 소스/원격을 확정합니다. 최신 후보만 새 독립 ZIP/보안 검사로 확인하고 앞선 성공 후보·개인 데이터는 유지합니다. 이전 후보의 검사를 현재 코드 성공으로 기록하거나 사용자 앱을 임의로 종료하지 않습니다.
+
 ## 사용자 기타 AI 입력 후보의 독립 패키지 — 2026-10-27
 
 ### 1. 작업 개요
