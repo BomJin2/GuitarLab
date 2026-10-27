@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectController } from '../library/useProjects';
 import { LatestTask } from '../../shared/latestTask';
 import {
@@ -24,8 +24,12 @@ export function useSeparation(
     info: SeparationInfo;
     sources: { role: StemRole; url: string }[];
   } | null>(null);
-  useEffect(() => {
+  const context = useMemo(() => ({ projectId, assetId }), [projectId, assetId]);
+  const owner = useRef(context);
+  const ownsContext = owner.current === context;
+  useLayoutEffect(() => {
     const current = task.current;
+    owner.current = context;
     generation.current++;
     mounted.current = true;
     active.current = false;
@@ -37,7 +41,7 @@ export function useSeparation(
       mounted.current = false;
       current.cancel();
     };
-  }, [projectId, assetId]);
+  }, [context]);
   useEffect(
     () => () => {
       preview?.sources.forEach((source) => URL.revokeObjectURL(source.url));
@@ -46,6 +50,8 @@ export function useSeparation(
   );
   async function run(mode: 'analyze' | 'restore') {
     if (
+      !mounted.current ||
+      owner.current !== context ||
       !projectId ||
       !assetId ||
       project?.busy ||
@@ -62,7 +68,12 @@ export function useSeparation(
     const result = await task.current.run((signal) =>
       separationApi[mode]({ projectId, assetId }, signal),
     );
-    if (!mounted.current || epoch !== generation.current) return;
+    if (
+      !mounted.current ||
+      owner.current !== context ||
+      epoch !== generation.current
+    )
+      return;
     active.current = false;
     setBusy(false);
     if (result.status === 'ready') {
@@ -97,14 +108,16 @@ export function useSeparation(
       );
   }
   return {
-    busy,
-    error,
-    notice,
-    preview,
+    busy: ownsContext && busy,
+    error: ownsContext ? error : null,
+    notice: ownsContext ? notice : null,
+    preview: ownsContext ? preview : null,
     native: separationApi.available(),
     available: !!projectId && !!assetId && !project?.busy,
     analyze: () => run('analyze'),
     restore: () => run('restore'),
-    cancel: () => task.current.cancel(),
+    cancel: () => {
+      if (mounted.current && owner.current === context) task.current.cancel();
+    },
   };
 }

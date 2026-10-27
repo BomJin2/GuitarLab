@@ -1,5 +1,34 @@
 # Phase 6 — AI 기타 카피 및 stem 분리
 
+## 후속 — AI 초안·분리 미리보기의 문맥 보호 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 악보/음원 전환의 첫 반환에 이전 AI 초안·미리 듣기가 남고, 이전 화면의 함수가 새 분석을 시작하거나 취소할 수 있는 경계를 자동 재현해 수정했습니다. 대상/전체 프론트·정적 검사·웹 빌드는 완료했으며 Windows/원격 결과는 후속 기록으로 구분합니다. Phase 6 전체의 별도 OS/모델 수용은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/09-TEST-PLAN.md`: 먼저 문맥/함수 소유권·첫 반환의 데이터 분리와 취소·Blob URL 회수 기준을 기록했습니다. 요청/저장 v1·native/Python 계약은 유지합니다.
+- `useTranscription.ts`: 문서·트랙·프로젝트/음원·입력 선택을 문맥으로 구분하고 layout 수명에서 소유권을 확정합니다. 현재 문맥에 속한 초안만 반환/렌더하며 이전 분석/조회·소스 선택·취소와 이탈 후 함수의 외부 작업을 차단합니다.
+- `useSeparation.ts`: 프로젝트/음원별 미리 듣기·안내/오류를 첫 반환부터 분리하고 같은 ID 재진입도 새 문맥으로 취급합니다. 이전 명령과 늦은 결과는 적용하지 않으며 기존 Blob URL 회수/부분 생성 실패 정리·현재 작업 취소를 유지합니다.
+- `useTranscription.test.tsx`, `useSeparation.test.tsx`: 12개 회귀를 추가했습니다. UI 구조/디자인·모델/가중치·원본/초안 저장·분리 파일·점수는 변경하지 않았습니다. 새 라이브러리와 다운로드도 없습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 초안 훅 **4개 실패**, 2.23초와 분리 훅 **3개 실패**, 2.19초를 재현했습니다. 각각 첫 반환의 이전 데이터, 이전 명령/같은 ID 복귀·새 작업 취소, 이탈 후 작업 시작을 검사했습니다. 로그 `ai-context-red-20261027.log`, `separation-context-red-20261027.log`.
+- 수정 후 초안/패널/서비스 **16개 성공**, 2.86초. 분리까지 대상 **27개 성공**, 추가 문서/입력 전환과 취소·URL 실패 정리 포함 최종 **32개/6파일 성공**, 3.08초.
+- `pnpm test`: **573개/117파일 성공**, 33.96초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. `pnpm build`: **성공**, Vite 1분25초/기존 큰 chunk 경고. 로그는 ignored `src-tauri/target/runtime-validation/ai-context-front-20261027.log`, `ai-context-build-20261027.log`에 보존합니다.
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**, 0.00초/컴파일10.81초. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**, 11.63초/기존 MSVC 링크 경고. 로그 `ai-context-bundle-20261027.log`, `ai-context-native-build-20261027.log`.
+- 새 원격/독립 ZIP과 전체 로컬 Rust/AI/도구·실제 모델 재분석·실제 앱/개인 음원/별도 OS는 **미실행** — native/Python/추론 입력 형식은 기존 검증 소스와 같으며 자체 fixture로 프론트 수명만 검사했습니다.
+
+### 4. 미구현 및 알려진 문제
+
+기존 취소는 실제 서비스의 종료 정책을 유지하며 이 변경으로 이미 실행 중인 native/모델 프로세스의 강제 즉시 종료를 추가하지 않습니다. 문맥 변경 때 이전 초안/미리 듣기를 숨기지만 로컬에 보존한 분석 결과·WAV는 삭제하지 않습니다. 새 모델 품질/리드·리듬 분리·고급 채점·별도 Windows 수용은 완료되지 않았습니다.
+
+### 5. 다음 작업 계획
+
+Windows 내장/실행 파일·Git/원격을 확정합니다. 이어 독립적인 F-08 입력 보완으로 이미 보존한 사용자 제공 기타 WAV를 기존 AI 카피에 전달하는 경로를 검토합니다. 기존 원본/분리 입력과 저장 문맥을 구분하고 소유권/무결성·길이/취소·사용자 검토를 재사용하며 자동 모델 설치나 실제 개인 음원 분석을 하지 않습니다.
+
 ## 후속 — 실제 설치 기능에 맞춘 안내 정리 (2026-10-26)
 
 ### 1. 작업 개요

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ScoreSession } from '../score/scoreSession';
 import type { ProjectController } from '../library/useProjects';
 import { prepareEditingDocument } from '../score/normalizedNotation';
@@ -29,8 +29,16 @@ export function useTranscription(
     [draft, setDraft] = useState<AiDraft | null>(null),
     [error, setError] = useState<string | null>(null),
     [notice, setNotice] = useState<string | null>(null);
-  useEffect(() => {
+  const context = useMemo(
+    () => ({ document, trackIndex, projectId, assetId, source }),
+    [document, trackIndex, projectId, assetId, source],
+  );
+  const owner = useRef(context);
+  const ownsContext = owner.current === context;
+  const visibleDraft = ownsContext ? draft : null;
+  useLayoutEffect(() => {
     const current = task.current;
+    owner.current = context;
     generation.current++;
     mounted.current = true;
     active.current = false;
@@ -42,11 +50,11 @@ export function useTranscription(
       mounted.current = false;
       current.cancel();
     };
-  }, [document, trackIndex, projectId, assetId, source]);
+  }, [context]);
   const preview = useMemo(() => {
-    if (!session || !draft) return { value: null, error: null };
+    if (!session || !visibleDraft) return { value: null, error: null };
     try {
-      return { value: draftPreview(session, draft), error: null };
+      return { value: draftPreview(session, visibleDraft), error: null };
     } catch (cause) {
       return {
         value: null,
@@ -56,9 +64,11 @@ export function useTranscription(
             : 'TAB 미리보기를 만들지 못했습니다. 아래 표를 확인하세요.',
       };
     }
-  }, [session, draft]);
+  }, [session, visibleDraft]);
   async function run(mode: 'analyze' | 'restore') {
     if (
+      !mounted.current ||
+      owner.current !== context ||
       !session ||
       !projectId ||
       !assetId ||
@@ -107,7 +117,12 @@ export function useTranscription(
         signal,
       );
     });
-    if (!mounted.current || epoch !== generation.current) return;
+    if (
+      !mounted.current ||
+      owner.current !== context ||
+      epoch !== generation.current
+    )
+      return;
     active.current = false;
     setBusy(false);
     if (result.status === 'ready') {
@@ -119,17 +134,22 @@ export function useTranscription(
     else setNotice('분석을 취소했습니다. 원본은 유지했습니다.');
   }
   return {
-    busy,
+    busy: ownsContext && busy,
     source,
-    selectSource: setSource,
-    draft,
-    error,
-    notice,
+    selectSource: (value: 'original' | 'guitar') => {
+      if (mounted.current && owner.current === context && !active.current)
+        setSource(value);
+    },
+    draft: visibleDraft,
+    error: ownsContext ? error : null,
+    notice: ownsContext ? notice : null,
     preview,
     native: transcriptionApi.available(),
     available: !!session && !!projectId && !!assetId && !project?.busy,
     analyze: () => run('analyze'),
     restore: () => run('restore'),
-    cancel: () => task.current.cancel(),
+    cancel: () => {
+      if (mounted.current && owner.current === context) task.current.cancel();
+    },
   };
 }
