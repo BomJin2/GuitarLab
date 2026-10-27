@@ -218,6 +218,37 @@ it('사용자 기타 선택을 바꾸면 이전 초안을 지우고 새 분석�
   expect(transcriptionApi.analyze).toHaveBeenCalledTimes(1);
 });
 
+it('사용자 목록 조회의 실제 종료까지 입력 전환을 막고 취소 조작을 유지한다', async () => {
+  let finish!: (value: ReturnType<typeof importedStemFixture>[]) => void;
+  let signal: AbortSignal | undefined;
+  vi.mocked(importedStemsApi.list).mockImplementationOnce(
+    (_project, current) => {
+      signal = current;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    },
+  );
+  render(<AiDraftPanel session={scoreEditingFixture()} project={project} />);
+  const source = screen.getByRole<HTMLSelectElement>('combobox', {
+    name: 'AI 분석 입력',
+  });
+  fireEvent.change(source, { target: { value: 'imported' } });
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타 목록 읽기' }),
+  );
+  const lockedDuringRead = source.disabled;
+  fireEvent.click(screen.getByRole('button', { name: '목록 조회 취소' }));
+  expect(signal?.aborted).toBe(true);
+  const lockedUntilFinished = source.disabled;
+  await act(async () => finish([importedStemFixture()]));
+  expect(lockedDuringRead).toBe(true);
+  expect(lockedUntilFinished).toBe(true);
+  expect(source.disabled).toBe(false);
+  expect(screen.queryByRole('option', { name: /사용자 리드.wav/ })).toBeNull();
+  expect(transcriptionApi.analyze).not.toHaveBeenCalled();
+});
+
 it('저장 기타가 없거나 실제 검출이 비면 음표를 만들거나 원본으로 자동 폴백하지 않는다', async () => {
   vi.mocked(separationApi.restore).mockResolvedValueOnce(null);
   render(<AiDraftPanel session={scoreEditingFixture()} project={project} />);

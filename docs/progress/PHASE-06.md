@@ -24,11 +24,14 @@
 - `cargo clippy --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**, 21.77초. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --all-features`: **256개 성공/29개 기본 제외**, 실행19.54초/컴파일34.51초이며 내장 자산/권한4개도 포함합니다. `cargo +1.90.0 check --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**, 16.45초.
 - `pnpm build`: **성공**, Vite1분24초/기존 큰 chunk 경고. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**, 12.86초/기존 MSVC 링크 경고. 새 원격/패키지는 후속입니다. 검증 로그는 ignored `src-tauri/target/runtime-validation/imported-ai-…-20261027.log`에 보존합니다.
 - 실제 모델 검사를 보강한 최종 소스의 Clippy **성공**, 6.51초·MSRV1.90 **성공**, 4.39초·Windows 빌드 **성공**, 12.27초입니다. 실제 모델 테스트의 검증 부분만 보강했으며 제품 로직·전체 기본 검사 실행 대상은 바꾸지 않았습니다.
+- 소스 `706f5133f38c2f58127f73ddd29a6a9e816d952d`의 [Windows40432536339](https://github.com/BomJin2/GuitarLab/actions/runs/40432536339)/job121953425756은 사후 정리까지 **전체 성공**입니다. 프론트581/117파일·기본Rust252/확장256(각29개 기본 제외)·예제1+1·AI113/도구143·Clippy/MSRV1.90을 실제 로그로 확인했습니다. 같은 소스의 독립 ZIP3,613파일/40,293,848바이트·CRC/SHA·새 추출·실제 PS5.1/최소 PATH Python3.12.15 두 번·Defender EXE/ZIP도 성공했습니다. 이 결과는 아래 취소 UI 보완 전 후보의 검증이며 해당 ZIP을 최신 후보로 혼동하지 않습니다.
+- 후속 취소 UI에서 목록 조회 중 입력 선택을 바꾸면 취소 버튼 영역이 숨을 수 있는 **1개 실패**(2.51초)를 재현했습니다. `AiDraftPanel.tsx` 한 조건과 회귀1개로 목록 조회의 실제 종료까지 입력 선택을 잠가 취소 조작을 유지했습니다. 대상 **16개 성공**,3.07초·전체 **582개/117파일 성공**,37.43초·타입/lint/포맷·Vite53.01초/내장4개(0.12초)·Windows12.62초 **성공**입니다. Rust/Python/worker는706f513과 동일하며 새 원격/최신 패키지는 후속입니다. 로그 `imported-ai-list-lock-…-20261027.log`.
+- [빠른 시작](../21-QUICKSTART.md)에 실제 버튼 순서와 원곡 시간축에 맞춘 파일 준비/다른 시작 시각의 별도 프로젝트 사용을 정리했습니다. 입력 선택을 위해 기존 원곡의 싱크를 자동 변경하지 않습니다.
 - 실제 새 UI·개인 기타/실제 연주 품질·앱 재실행 수용·별도 Windows는 **미실행** — 자체 fixture와 실제 자체 합성 모델 검사와 구분합니다. 기존 사용자 앱/프로젝트·설치 모델·입력/모니터/REC는 조작하지 않았습니다.
 
 ### 4. 미구현 및 알려진 문제
 
-원본 음원이 없는 프로젝트의 사용자 파일 단독 카피·60초 초과 분석·파일 일부 구간 선택은 이번 범위가 아닙니다. 파일 시작과 원곡이 다르면 현재 수동 싱크를 맞춰야 하며 믹스 offset/음량을 자동 적용하지 않습니다. 역할은 사용자 지정으로 두 기타 AI 분리나 실제 자동 카피 정확도를 보장하지 않습니다. 별도 OS/고급 점수·전체 출시 수용 경계는 유지합니다.
+원본 음원이 없는 프로젝트의 사용자 파일 단독 카피·60초 초과 분석·파일 일부 구간 선택은 이번 범위가 아닙니다. 원곡과 같은 시작 시각·시간축으로 파일을 준비해야 하며 믹스 offset/음량을 자동 적용하지 않습니다. 시작이 다른 파일은 원곡 시간축에 맞춰 준비하거나 별도 프로젝트의 원본 음원으로 사용해야 합니다. 역할은 사용자 지정으로 두 기타 AI 분리나 실제 자동 카피 정확도를 보장하지 않습니다. 별도 OS/고급 점수·전체 출시 수용 경계는 유지합니다.
 
 ### 5. 다음 작업 계획
 

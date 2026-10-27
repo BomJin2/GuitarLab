@@ -47,7 +47,7 @@ export function AiDraftPanel({
         <select
           aria-label="AI 분석 입력"
           value={state.source}
-          disabled={state.busy}
+          disabled={state.busy || sources.busy}
           onChange={(event) => {
             const value = event.target.value;
             if (
