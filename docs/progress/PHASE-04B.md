@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일 2026-10-27. 프로젝트/기준 반주/저장 악보 revision 변경의 첫 반환에 이전 믹스가 노출되고 이전 조회·저장 함수가 다시 사용되는 경계를 수정했습니다. 대상32개·624프론트/타입/lint/포맷·웹/Windows 빌드는 성공이며 Git/원격·독립 패키지 확정은 후속입니다. 기존 Phase4B 기본 수용과 이번 후속의 실제 앱 미실행은 구분합니다.
+작업·검증 완료일 2026-10-27. 프로젝트/기준 반주/저장 악보 revision 변경의 첫 반환에 이전 믹스가 노출되고 이전 조회·저장 함수가 다시 사용되는 경계를 수정했습니다. 대상32개·624프론트/타입/lint/포맷·웹/Windows 빌드·Git/원격·독립 패키지 검증을 완료했습니다. 기존 Phase4B 기본 수용과 이번 후속의 실제 앱 미실행은 구분합니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -19,6 +19,8 @@
 - 초기 수정의 대상1개 실패는 새 소유권 검사에 걸린 기존 외부 프로젝트 테이크 fixture였으며 이를 올바른 새 프로젝트 목록으로 수정해 **28개 성공**,3.95초입니다. 이어 이전 취소/외부 조회·해제 목록 회귀를 보강했습니다.
 - 최종 `pnpm exec vitest run src/features/performance/useProjectMix.test.tsx src/features/performance/MixPanel.test.tsx src/features/performance/TakeMixPlayer.test.ts`: **32개/3파일 성공**,5.62초. 현재 준비/REC 참조·취소 후 실제 종료·출력/명시적 저장·REC 중 소스 잠금과 청취 음량 조절도 유지됩니다.
 - `pnpm typecheck`, `pnpm lint`: **성공**. `pnpm test`: **624개/119파일 성공**,56.53초. `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite2분22초/기존 큰 chunk 안내. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,16.94초/기존 MSVC 링크 안내입니다. Git/새 원격·독립 패키지 검사는 후속이며 로그 `mix-context-…-20261027.log`에 보존합니다.
+- 소스 `1586e90b839a6193c4edb62e78c280cd615b4504`를 main에 push했습니다. 새 독립 ZIP3,613파일/40,293,961바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 두 번이 성공했고 앱은 실행하지 않았습니다. [Windows40498741556](https://github.com/BomJin2/GuitarLab/actions/runs/40498741556)/job122170750934은 진행 중입니다. 지문/영수증·보안 검사와 미실행은 [Phase8 첫 절](PHASE-08.md)을 따릅니다.
+- 최종 실제 원격 로그를 확인해 사후 정리까지 **전체 성공**으로 확정했습니다. 프론트624/119파일(91.12초), 기본Rust252/확장256(76.94/55.36초·각29개 기본 제외), 예제1+1·AI113(2.46초)/도구143(20.577초)·Clippy/MSRV1.90 성공입니다. 같은 소스의 EXE/ZIP Defender도 위협 없음/지문 불변으로 성공했습니다. 위 진행 중은 확정 전 이력이며 이후 제품 소스/의존성 변경 없이 결과 문서만 확정합니다.
 - 실제 새 GUI·개인 믹스/청취·오버더빙 REC·별도 OS는 **미실행** — 합성 fixture/모의 파일 API를 사용하며 사용자 앱/녹음·개인 DB/파일을 조작하지 않았습니다. 새 모델 설치/분석·네트워크 음원 전송도 없습니다. 전체 native/Python 로컬 재실행은 **미실행** — 기존 검증 엔진과 동일하며 새 소스의 원격 회귀와 구분합니다.
 
 ### 4. 미구현 및 알려진 문제
@@ -27,7 +29,7 @@
 
 ### 5. 다음 작업 계획
 
-전체 프론트/포맷·웹/내장/Windows와 새 소스의 Git/원격을 확정합니다. 같은 엔진의 성공 검사를 반복하거나 개인 파일로 검증을 대신하지 않으며 독립 ZIP 결과·실제 앱 미실행을 구분해 문서화합니다.
+이 후속의 전체/빌드·Git/원격·독립 ZIP 검증과 문서화를 완료했습니다. 다음 실제 GUI/장치·별도 OS·독립 주법 품질/배포 범위 수용은 진행 요약의 남은 조건을 따릅니다. 같은 소스의 성공 검사를 반복하거나 개인 파일로 검증을 대신하지 않으며 현재 원본/저장 믹스는 유지합니다.
 
 ## 1. 작업 개요
 
