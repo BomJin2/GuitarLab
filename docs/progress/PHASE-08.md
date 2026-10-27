@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## 사용자 기타 AI 입력 후보의 독립 패키지 — 2026-10-27
+
+### 1. 작업 개요
+
+작업·검증 완료일 2026-10-27. 사용자 제공 기타 WAV의 AI 입력과 목록 취소 UI를 포함한 소스 `9e81b3e18f7e8e7076ed970778415dae1de46eb3`의 Windows 실행 파일·독립 ZIP·원격 회귀를 확인했습니다. 이 후보의 검증은 완료이며 Phase8 전체 출시 수용은 진행 중입니다.
+
+### 2. 구현 및 변경 사항
+
+제품 파일·계약·오류 수정은 [Phase6 첫 절](PHASE-06.md)을 따릅니다. 기존 패키지 검증기를 재사용한 `imported-ai-final-package-20261027.py`와 Defender 보조 도구는 정확한 커밋/작업 트리·고정 runtime·EXE 지문을 확인하고 자체 UUID 폴더/ZIP/추출/영수증만 생성했습니다. 보조 도구와 아래 산출물은 ignored `src-tauri/target/runtime-validation/`에 보존합니다. 일반 후보 포인터·사용자 앱/프로젝트·개인 음원은 변경하지 않았습니다.
+
+### 3. 테스트 결과
+
+- 로컬 최종 프론트 **582개/117파일**, 타입/lint/포맷·Vite53.01초·내장 자산/권한 **4개**·Windows 빌드12.62초 **성공**. 이 UI 후속의 Rust/Python/도구는 직전706f513과 동일하며 해당 전체 Rust256개/29개 기본 제외·Clippy/MSRV 성공을 유지합니다.
+- [Windows40434282512](https://github.com/BomJin2/GuitarLab/actions/runs/40434282512)/job121959126180은 사후 정리까지 **전체 성공**입니다. 실제 로그에서 프론트582·기본Rust252/확장256(각29개 기본 제외)·예제1+1·AI113/도구143·Clippy/MSRV1.90을 확인했습니다.
+- EXE **41,244,160바이트**, SHA `9daf94df5d7ebfe3403ace37dd022d8665bc7f27dbe7eb659241503538cc85fa`. ZIP **3,613파일/40,293,985바이트**, SHA `080322bb062987744ca7f35bd737e04b16bd2dfbcc76fbe10b893f356da9f59a`입니다. 전체 CRC/SHA·새 추출과 실제 기본 PowerShell5.1/최소 PATH Python3.12.15 검사 두 번 **성공**, exit0/`VERIFIED_NOT_LAUNCHED`입니다.
+- ZIP `validation-packages/c08afead-1e95-4d0c-9524-208f62907640/GuitarLab-validation.zip`, 후보 `imported-ai-final-candidate-6a686750-44a0-4e77-95b6-f43c7a62c4ff.json`, 영수증 `imported-ai-final-package-receipt-b3b11ec7-49ad-4109-9678-e23d151be13d.json`, 추출 `imported-ai-final-roundtrip-6a00fe62-57f3-470a-acec-3d1d6339ab79`입니다.
+- `scan-imported-ai-final-candidate-20261027.ps1`: 자체 EXE/ZIP 두 파일만 `-DisableRemediation`으로 검사해 각 exit0/위협 없음/전후 SHA 동일 **성공**. Defender4.18.26090.9·정의1.461.215.0이며 실행 파일은 **NotSigned**입니다. 영수증 `imported-ai-final-defender-f39a170e-4b5b-4b39-8314-c29bfe6c319f.json`. 전역 보안 설정은 변경하지 않았습니다.
+- 자체8음의 native 입력·초안 복원과 이미 승인 설치된 Python3.12.15·Basic Pitch0.4.0에서 자체 float32 WAV의 실제8음 추론 **성공**입니다. 상세 명령·보조 도구 오류/해결·범위/영수증은 Phase6 첫 절을 따릅니다. ZIP에는 기본 runtime만 포함하며 설치 모델 포함 검증이나 다른 OS의 추론을 뜻하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 새 GUI의 파일 선택/분석/적용·재실행 수용, 개인 기타 정확도/실제 청취·모델 포함 별도 Windows10/11·다른 백신·설치/제거 재수용은 **미실행**입니다. 서명/최종 고지 검토·실제 데이터 교체/영구 삭제·고급 판정 품질 등 기존 남은 조건을 유지합니다. GitHub Windows Server 성공을 깨끗한 소비자 Windows10/11 수용으로 대체하지 않습니다.
+
+### 5. 다음 작업 계획
+
+이 후보의 자동 검사·패키지 검증과 결과 문서화를 확정합니다. 다음 별도 OS/서명·실제 Tauri/장치·독립 품질 수용은 [진행 요약](README.md)의 재개 기준을 따릅니다. 이후 결과 문서만 수정하면 이9e81b3e 패키지를 다시 만들거나 같은 소스 검사를 반복하지 않습니다. 기존 설치/원본·프로젝트는 보존합니다.
+
 ## 결과 조회 후보의 독립 패키지 — 2026-10-27
 
 ### 1. 작업 개요
