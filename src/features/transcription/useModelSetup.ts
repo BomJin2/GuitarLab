@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { LatestTask } from '../../shared/latestTask';
 import { logDiagnostic } from '../../shared/logger';
@@ -22,7 +22,13 @@ export function useModelSetup() {
   const cancellation = useRef<AbortController | null>(null);
   const mounted = useRef(false);
   const native = modelSetupApi.available();
-  useEffect(() => {
+  const context = useMemo(() => ({ modelId }), [modelId]);
+  const owner = useRef<typeof context | null>(context);
+  const ownsContext = () => mounted.current && owner.current === context;
+  useLayoutEffect(() => {
+    owner.current = context;
+  }, [context]);
+  useLayoutEffect(() => {
     const current = task.current;
     mounted.current = true;
     const subscription = native
@@ -47,7 +53,8 @@ export function useModelSetup() {
   return {
     modelId,
     selectModel: (id: AiModelId) => {
-      if (!operation.current) {
+      if (ownsContext() && !operation.current) {
+        if (id !== modelId) owner.current = null;
         setModelId(id);
         setResult(null);
         setError(null);
@@ -61,11 +68,12 @@ export function useModelSetup() {
     notice,
     native,
     cancel: () => {
+      if (!ownsContext() || !operation.current) return;
       setNotice('설치 취소와 새 임시 환경 정리를 기다리고 있습니다.');
       cancellation.current?.abort();
     },
     install: async () => {
-      if (!native || operation.current) return;
+      if (!ownsContext() || !native || operation.current) return;
       operation.current = true;
       setBusy(true);
       setStage(setupStages[0]);
@@ -92,7 +100,7 @@ export function useModelSetup() {
       });
       cancellation.current = null;
       operation.current = false;
-      if (!mounted.current) return;
+      if (!ownsContext()) return;
       setBusy(false);
       if (outcome.status === 'ready') {
         setResult(outcome.value);

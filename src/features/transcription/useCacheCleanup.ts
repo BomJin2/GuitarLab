@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { LatestTask } from '../../shared/latestTask';
 import {
   cacheCleanupApi,
@@ -19,23 +19,32 @@ export function useCacheCleanup() {
     operation = useRef(false),
     mounted = useRef(false);
   const native = cacheCleanupApi.available();
-  useEffect(() => {
+  const approval = useRef(false);
+  const latestUsage = useRef<CacheUsage | null>(null);
+  const context = useMemo(() => ({ modelId }), [modelId]);
+  const owner = useRef<typeof context | null>(context);
+  const ownsContext = () => mounted.current && owner.current === context;
+  useLayoutEffect(() => {
+    owner.current = context;
     mounted.current = true;
     const current = task.current;
     return () => {
       mounted.current = false;
       current.cancel();
     };
-  }, []);
+  }, [context]);
   async function run(remove: boolean) {
+    const selected = latestUsage.current;
     if (
+      !ownsContext() ||
       !native ||
       operation.current ||
-      (remove && (!consent || !usage || usage.files === 0))
+      (remove && (!approval.current || !selected || selected.files === 0))
     )
       return;
-    const selected = usage;
     operation.current = true;
+    approval.current = false;
+    latestUsage.current = null;
     setBusy(true);
     setCanceling(false);
     setPercent(0);
@@ -48,7 +57,7 @@ export function useCacheCleanup() {
           selected,
           signal,
           (value) => {
-            if (mounted.current) setPercent(value);
+            if (ownsContext() && !signal.aborted) setPercent(value);
           },
         );
         return {
@@ -59,10 +68,11 @@ export function useCacheCleanup() {
       return { usage: await cacheCleanupApi.inspect(modelId), notice: null };
     });
     operation.current = false;
-    if (!mounted.current) return;
+    if (!ownsContext()) return;
     setBusy(false);
     setCanceling(false);
     if (outcome.status === 'ready') {
+      latestUsage.current = outcome.value.usage;
       setUsage(outcome.value.usage);
       setNotice(outcome.value.notice);
     } else if (outcome.status === 'error')
@@ -76,15 +86,23 @@ export function useCacheCleanup() {
     modelId,
     usage,
     consent,
-    setConsent,
+    setConsent: (value: boolean) => {
+      if (!ownsContext() || operation.current || !latestUsage.current?.files)
+        return;
+      approval.current = value;
+      setConsent(value);
+    },
     busy,
     canceling,
     percent,
     notice,
     native,
     selectModel(id: AiModelId) {
-      if (operation.current) return;
+      if (!ownsContext() || operation.current) return;
+      if (id !== modelId) owner.current = null;
       setModelId(id);
+      approval.current = false;
+      latestUsage.current = null;
       setUsage(null);
       setConsent(false);
       setNotice(null);
@@ -93,7 +111,7 @@ export function useCacheCleanup() {
     inspect: () => run(false),
     clear: () => run(true),
     cancel() {
-      if (operation.current) {
+      if (ownsContext() && operation.current) {
         setCanceling(true);
         task.current.cancel();
       }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { LatestTask } from '../../shared/latestTask';
 import { aiRuntimeError } from './runtime';
 import {
@@ -16,14 +16,18 @@ export function useModelInstallation() {
   const operation = useRef(false);
   const mounted = useRef(false);
   const task = useRef(new LatestTask());
-  useEffect(() => {
+  const context = useMemo(() => ({ model }), [model]);
+  const owner = useRef<typeof context | null>(context);
+  const ownsContext = () => mounted.current && owner.current === context;
+  useLayoutEffect(() => {
     const current = task.current;
+    owner.current = context;
     mounted.current = true;
     return () => {
       mounted.current = false;
       current.cancel();
     };
-  }, []);
+  }, [context]);
   return {
     model,
     result,
@@ -32,15 +36,23 @@ export function useModelInstallation() {
     busy,
     native: modelInstallationApi.available(),
     select: (value: AiModelId) => {
-      if (operation.current) return;
+      if (!ownsContext() || operation.current) return;
+      if (value !== model) owner.current = null;
       setModel(value);
       setResult(null);
       setError(null);
       setMessage(null);
     },
-    cancel: () => task.current.cancel(),
+    cancel: () => {
+      if (ownsContext()) task.current.cancel();
+    },
     verify: async () => {
-      if (!modelInstallationApi.available() || operation.current) return;
+      if (
+        !ownsContext() ||
+        !modelInstallationApi.available() ||
+        operation.current
+      )
+        return;
       operation.current = true;
       setBusy(true);
       setResult(null);
@@ -49,8 +61,8 @@ export function useModelInstallation() {
       const outcome = await task.current.run((signal) =>
         modelInstallationApi.verify(model, signal),
       );
-      if (!mounted.current) return;
       operation.current = false;
+      if (!ownsContext()) return;
       setBusy(false);
       if (outcome.status === 'ready') setResult(outcome.value);
       else if (outcome.status === 'error')

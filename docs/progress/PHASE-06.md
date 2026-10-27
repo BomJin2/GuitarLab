@@ -1,5 +1,36 @@
 # Phase 6 — AI 기타 카피 및 stem 분리
 
+## 후속 — 모델 관리의 최신 동의·명령 수명 보호 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 모델 다운로드와 캐시 정리가 이전 렌더의 동의를 재사용하고, 이전 모델/화면의 명령이 외부 작업을 시작하는 문제를 자동 재현해 보완합니다. 현재 대상/타입/lint는 성공이며 전체 회귀·웹/Windows 빌드·Git 확정은 진행 중입니다. Phase6 전체의 별도 OS·AI 품질 수용은 미완료로 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/09-TEST-PLAN.md`: 현재 선택의 동의 한 번 소비·선택/화면 수명별 명령 제한·기존 설치 취소 정책 보존을 먼저 기록했습니다. IPC v1/DB/worker·설치/다운로드 native 코드는 변경하지 않습니다.
+- `useModelDownload.ts`: 동의의 최신값을 명령 실행 시 확인·소비하고 이전 모델/화면의 실행·동의·선택/취소 함수를 차단합니다. 명시적 재동의와 기존 취소/종료 대기·캐시 재사용은 유지합니다.
+- `useCacheCleanup.ts`: 최신 조회와 동의를 함께 확인하며 조회/정리 시작 때 동의를 소비합니다. 이전 함수에 저장된 revision으로 지우지 않고 현재 조회의 revision을 사용하며 모델 변경/화면 이탈 뒤 작업을 시작하지 않습니다. 설치 모델/개인 자료·native의 정확한 삭제 대상 검증은 그대로 유지합니다.
+- `useModelSetup.ts`, `useModelInstallation.ts`: 모델 선택 문맥·mount 수명에서 실행/선택/취소를 검증합니다. 모델 변경 시 같은 이벤트 안에서도 이전 명령을 즉시 무효화합니다. 작업 중 중복 방지·설치 취소 후 정리 대기·이미 활성화된 성공 응답 보존을 유지합니다.
+- `modelManagementLifecycle.test.tsx`: 모의 API로23개 회귀를 추가했습니다. 새 라이브러리·실제 네트워크/설치·캐시 삭제·개인 음원 분석·사용자 앱 조작은 없습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 동의 해제/소비·이전 모델/같은 모델 복귀·화면 이탈의 **13개 실패**,14.12초를 재현했습니다. 초기 수정 후 기존 패널 포함 **25개 성공**,2.67초입니다. 로그 `model-command-lifecycle-red-20261027.log`, `model-command-lifecycle-target-20261027.log`.
+- 이전 취소가 새 작업을 막지 않는4개·최신 캐시 revision/동의2개를 추가해 **31개 성공**,2.96초입니다. 이어 모델 변경과 같은 이벤트 안의 실행 **4개 실패**,2.30초(나머지19개는 필터 제외)를 재현했고 선택 명령에서 이전 소유권을 즉시 무효화했습니다.
+- 최종 대상 `pnpm exec vitest run src/features/transcription/modelManagementLifecycle.test.tsx src/features/transcription/ModelDownloadPanel.test.tsx src/features/transcription/ModelSetupPanel.test.tsx src/features/transcription/ModelInstallationPanel.test.tsx src/features/transcription/CacheCleanupPanel.test.tsx`: **35개/5파일 성공**,2.76초. 최신 동의·소비/재동의·조회 갱신·취소·실제 종료 대기·정상 성공/실패를 포함합니다.
+- `pnpm typecheck`, `pnpm lint`: **성공**. 첫 lint의 테스트 미사용 인자2개와 확장 후 Prettier 실패는 해당 테스트의 불필요한 인자를 제거하고 포맷해 해결했습니다. 중간 전체601개/118파일은 성공했으나 마지막4개 경계를 보강하기 전 결과이므로 최종 결과와 구분합니다.
+- `pnpm test`: 최종 **605개/118파일 성공**,35.15초. `pnpm format:check`: **성공**. 웹·내장/Windows 빌드는 진행 중이며 실행 결과를 이어 기록합니다. 로그는 ignored `src-tauri/target/runtime-validation/model-command-lifecycle-…-20261027.log`에 보존합니다.
+- 실제 새 앱·네트워크 다운로드/모델 설치·캐시 삭제·별도 Windows 수용은 **미실행** — 명령 수명 검증은 모의 API를 사용하며 기존 설치/사용자 자료를 변경하지 않습니다. 전체 native/Python 로컬 재실행은 **미실행** — 해당 엔진/프로토콜과 의존성 변경이 없습니다.
+
+### 4. 미구현 및 알려진 문제
+
+동의를 취소하면 이미 시작한 작업을 자동 취소하는 정책을 새로 만들지 않습니다. 작업 시작 때 동의를 소비하며 진행 중에는 기존 취소 버튼/종료 대기를 사용합니다. 캐시 삭제 취소 시 이미 삭제한 파일은 복구하지 않는 기존 안내와 원본 보존 정책을 유지합니다. 실제 GUI·별도 OS·고급 판정/특화 분리·전체 출시 수용은 별도입니다.
+
+### 5. 다음 작업 계획
+
+최종 전체 프론트·포맷/웹·내장/Windows 빌드를 확인하고 Git/원격 회귀와 결과 문서를 확정합니다. 원격에선 기존 native/Python/도구도 회귀 검사하며 실제 모델 재설치·개인 파일/사용자 앱 조작을 검증 대신 시작하지 않습니다.
+
 ## 후속 — 사용자 제공 기타 WAV를 AI 카피 (2026-10-27)
 
 ### 1. 작업 개요
