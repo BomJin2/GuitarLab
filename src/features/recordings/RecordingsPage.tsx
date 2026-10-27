@@ -1,75 +1,45 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { ProjectController } from '../library/useProjects';
-import {
-  recordingApi,
-  recordingError,
-  comparisonWarnings,
-  type RecordedTake,
-} from './recordings';
+import { comparisonWarnings, type RecordedTake } from './recordings';
 import { TakeReplay } from './TakeReplay';
 import { RecordedPitchesPanel } from './RecordedPitchesPanel';
 import { TakeExportPanel } from './TakeExportPanel';
-import { LatestTask } from '../../shared/latestTask';
-import type { JobSnapshot } from '../library/projects';
-export function RecordingsPage({ project }: { project: ProjectController }) {
+import { useRecordedTakes } from './useRecordedTakes';
+export function RecordingsPage({
+  project,
+}: {
+  project: Pick<ProjectController, 'details' | 'busy'>;
+}) {
   const projectId = project.details?.project.id;
-  const [takes, setTakes] = useState<RecordedTake[]>([]);
+  const {
+    takes,
+    loaded,
+    busy,
+    error,
+    notice,
+    job,
+    refresh,
+    recover,
+    update,
+    cancel,
+    canCancel,
+    canceling,
+    recovering,
+  } = useRecordedTakes(projectId, project.busy);
   const [a, setA] = useState('');
   const [b, setB] = useState('');
   const [side, setSide] = useState<'A' | 'B'>('A');
   const [playRequest, setPlayRequest] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [job, setJob] = useState<JobSnapshot | null>(null);
-  const generation = useRef(0);
-  const mounted = useRef(false);
-  const task = useRef(new LatestTask());
-  const refresh = useCallback(async () => {
-    if (!projectId) return;
-    const current = ++generation.current;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await recordingApi.list(projectId);
-      if (mounted.current && generation.current === current) setTakes(result);
-    } catch (cause) {
-      if (mounted.current && generation.current === current)
-        setError(recordingError(cause));
-    } finally {
-      if (mounted.current && generation.current === current) setBusy(false);
-    }
-  }, [projectId]);
-  useEffect(() => {
-    mounted.current = true;
-    setTakes([]);
+  useLayoutEffect(() => {
     setA('');
     setB('');
     setSide('A');
-    void refresh();
-    const current = task.current;
-    const listGeneration = generation;
-    return () => {
-      mounted.current = false;
-      listGeneration.current++;
-      current.cancel();
-    };
-  }, [refresh]);
+  }, [projectId]);
   const takeA = takes.find((t) => t.id === a) ?? null;
   const takeB = takes.find((t) => t.id === b) ?? null;
   const selected = side === 'A' ? takeA : takeB;
   const peer = side === 'A' ? takeB : takeA;
   const warnings = takeA && takeB ? comparisonWarnings(takeA, takeB) : [];
-  async function recover(take: RecordedTake) {
-    setBusy(true);
-    setError(null);
-    const result = await task.current.run((signal) =>
-      recordingApi.recover(take.projectId, take.id, signal, setJob),
-    );
-    if (!mounted.current) return;
-    setBusy(false);
-    if (result.status === 'error') setError(recordingError(result.error));
-    else if (result.status === 'ready') void refresh();
-  }
   return (
     <>
       <h1>녹음 테이크</h1>
@@ -88,10 +58,19 @@ export function RecordingsPage({ project }: { project: ProjectController }) {
             <p role="status">
               테이크 처리 중{' '}
               {job ? `${job.completedBytes}/${job.totalBytes}` : ''}
-              <button onClick={() => task.current.cancel()}>복구 취소</button>
+              {(canCancel || canceling) && (
+                <button disabled={canceling} onClick={cancel}>
+                  {canceling
+                    ? '취소 정리 중'
+                    : recovering
+                      ? '복구 취소'
+                      : '목록 조회 취소'}
+                </button>
+              )}
             </p>
           )}
           {error && <p role="alert">{error}</p>}
+          {notice && <p role="status">{notice}</p>}
           <div className="toolbar">
             <label>
               A 테이크
@@ -173,7 +152,7 @@ export function RecordingsPage({ project }: { project: ProjectController }) {
               take={selected}
             />
           )}
-          {takes.length === 0 && (
+          {loaded && !busy && takes.length === 0 && (
             <p>저장된 테이크가 없습니다. 연주 화면에서 REC를 눌러주세요.</p>
           )}
           <div className="project-list">
@@ -183,18 +162,9 @@ export function RecordingsPage({ project }: { project: ProjectController }) {
                 take={take}
                 busy={busy}
                 onRecover={() => void recover(take)}
-                onSave={async (name, memo, offset) => {
-                  setBusy(true);
-                  setError(null);
-                  try {
-                    await recordingApi.update(take, name, memo, offset);
-                    await refresh();
-                  } catch (cause) {
-                    if (mounted.current) setError(recordingError(cause));
-                  } finally {
-                    if (mounted.current) setBusy(false);
-                  }
-                }}
+                onSave={(name, memo, offset) =>
+                  update(take, name, memo, offset)
+                }
               />
             ))}
           </div>

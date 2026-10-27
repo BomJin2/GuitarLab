@@ -1,5 +1,35 @@
 # Phase 4A — 입력 녹음과 다시 듣기
 
+## 후속 — 녹음 목록·정보 저장·복구의 문맥 보호 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 녹음 페이지의 파일 작업을 화면에서 분리하고 프로젝트 전환/이탈 뒤 이전 목록·저장/복구 명령과 취소 종료 경계를 보완했습니다. 대상24개·전체642프론트/타입/lint/포맷은 성공이며 웹/Windows·Git/원격 확정은 진행 중입니다. 기존 Phase4A 기본 수용과 이번 후속의 실제 앱 미실행은 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 `docs/12-API-CONTRACTS.md`, `docs/09-TEST-PLAN.md`에 문맥/명령·논리 조회 취소/복구 종료·원본 보존을 기록했습니다. `docs/17`에 화면/컨트롤러 분리와 상태 표시를 반영했습니다. 기존 IPC v1·DB/원본·녹음/모델 엔진은 변경하지 않습니다.
+- `useRecordedTakes.ts`: 기존 페이지의 목록/정보 저장/복구를 옮겼습니다. 프로젝트 문맥의 첫 반환과 이전 명령/같은 ID 복귀·이탈을 보호하고 현재 잠금·목록의 실제 테이크 소유권/상태·정보 저장/복구의 중복을 확인합니다. 취소/전환 뒤 실제 쓰기 종료까지 잠금을 유지하고 현재 조회만 표시합니다.
+- `recordings.ts`: 복구만 기존 StorageJob의 `waitForCancellation:true`를 사용해 실제 terminal까지 확인합니다. `useRecordedTakes`는 취소 뒤 실제 오류를 숨기지 않고 이미 완료된 복구본은 유지/재조회합니다. 이미 보낸 직접 정보 저장은 취소했다고 표시하지 않습니다.
+- `RecordingsPage.tsx`: A/B·폼/재생 표시만 남기고 파일 명령을 컨트롤러에 전달합니다. 프로젝트 변경 때 선택/재생 패널을 해제하고 목록이 성공한 뒤에만 빈 목록을 안내합니다. 조회 취소·복구 취소/정리 중·실제 저장 안내를 구분하며 기존 청취/출력/분석·디자인 값은 유지합니다.
+- `useRecordedTakes.test.tsx`, `RecordingsPage.test.tsx`, `recordingRecovery.test.ts`:18개 회귀를 추가했습니다. 모의 파일 API/DEMO 청취 표시와 가짜 타이머만 사용하며 실제 개인 WAV/DB를 읽거나 복구하지 않았습니다.
+
+### 3. 테스트 결과
+
+- 기존 동작을 컨트롤러로 옮긴 뒤 초기 **10개 실패**,3.57초를 재현했습니다. 프로젝트 첫 반환/이전 함수·외부 테이크/목록·중복 작업·늦은 저장 오류와 실제 복구 취소 종료를 검사했습니다. 로그 `take-list-context-red-20261027.log`. 초기 수정 후 **10개 성공**,3.50초입니다.
+- 정상 저장/원본 객체 불변·목록 취소/재시도·취소 후 오류/완료 복구본·이전 취소·프로젝트 전환 중 실제 종료 대기를 보강했습니다. 기존 replay/출력까지 `pnpm exec vitest run src/features/recordings/useRecordedTakes.test.tsx src/features/recordings/RecordingsPage.test.tsx src/features/recordings/recordingRecovery.test.ts src/features/recordings/TakeReplay.test.tsx src/features/recordings/TakeExportPanel.test.tsx`: **24개/5파일 성공**,4.49초입니다.
+- `pnpm test`: **642개/122파일 성공**,45.73초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. 첫 lint의 ref cleanup 경고는 기존 패턴처럼 effect 안에 ref 별칭을 두어 해결했습니다. UI 검사에서 A/B의 같은 옵션을 단일 요소로 찾던1개 실패는 A 선택칸 안으로 조회를 좁혀 해결했습니다. 로그 `take-list-context-target-final-20261027.log`, `take-list-context-front-20261027.log`.
+- 웹/내장/Windows·새 Git/원격·독립 패키지는 진행 중이며 실제 결과를 이어 기록합니다. 보조 로그/산출물은 ignored `src-tauri/target/runtime-validation/`에 보존합니다.
+- 실제 새 GUI·개인 메타데이터 저장/복구·청취/REC·별도 OS는 **미실행** — 합성 metadata/모의 API로 수명을 확인하며 사용자 앱/개인 자료·입력/모니터·설치 모델은 조작하지 않았습니다. 전체 로컬 native/Python/도구 재실행은 **미실행** — 해당 엔진/의존성 변경이 없으며 새 소스의 원격 회귀와 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+목록 조회는 이미 보낸 직접 읽기 명령을 강제 중단하지 않고 결과 적용만 취소합니다. 정보 저장은 이미 보낸 native 쓰기를 rollback하거나 취소할 수 없으며 실제 응답까지 기다립니다. 복구 취소와 완료가 경합하면 새 복구본을 삭제하지 않습니다. 원본 파일 삭제/덮어쓰기·완전 복원/고급 주법·별도 Windows 수용은 이번 범위가 아닙니다.
+
+### 5. 다음 작업 계획
+
+최종 웹/내장/Windows·Git/원격과 독립 패키지를 확인하고 정확한 결과/미실행을 확정합니다. 사용자 앱을 임의로 재실행하거나 개인 파일로 검증을 대신하지 않으며 이미 성공한 엔진 검사를 새 변경 없이 반복하지 않습니다.
+
 ## 후속 — 녹음 최대 입력 안내 (2026-10-26)
 
 ### 1. 작업 개요

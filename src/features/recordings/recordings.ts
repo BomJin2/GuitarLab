@@ -286,6 +286,7 @@ export const recordingApi = {
         { projectId, takeId },
         signal,
         progress,
+        { waitForCancellation: true },
       ),
     );
     const take = decodeTake(value.take);
