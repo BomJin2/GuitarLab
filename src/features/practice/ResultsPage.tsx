@@ -1,16 +1,15 @@
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useEffect, useMemo, useState } from 'react';
 import type { ProjectController } from '../library/useProjects';
-import { projectError } from '../library/projects';
 import {
-  recordApi,
   bestComparable,
   previousComparable,
   measureResults,
   timingHistogram,
   type StoredAttempt,
-  type StoredEvent,
 } from './records';
+import { usePracticeEvents } from './usePracticeEvents';
+import { usePracticeRecords } from './usePracticeRecords';
 const statusText: Record<StoredAttempt['state'], string> = {
   RUNNING: '진행 중',
   FINISHED: '완료',
@@ -20,75 +19,23 @@ const statusText: Record<StoredAttempt['state'], string> = {
 };
 export function ResultsPage({ project }: { project: ProjectController }) {
   const [projectId, setProjectId] = useState(project.details?.project.id ?? '');
-  const [records, setRecords] = useState<StoredAttempt[]>([]);
-  const [selectedId, setSelectedId] = useState('');
-  const [events, setEvents] = useState<StoredEvent[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [eventBusy, setEventBusy] = useState(false);
-  const [loaded, setLoaded] = useState(0);
-  const [refresh, setRefresh] = useState(0);
-  const [cancelled, setCancelled] = useState(false);
+  const { records, busy, error, refresh } = usePracticeRecords(
+    project.native,
+    projectId,
+  );
+  const [selection, setSelection] = useState<{
+    records: StoredAttempt[];
+    id: string;
+  } | null>(null);
   useEffect(() => {
     if (!projectId && project.projects[0]) setProjectId(project.projects[0].id);
   }, [projectId, project.projects]);
-  useEffect(() => {
-    const controller = new AbortController();
-    let canceled = false;
-    setRecords([]);
-    setSelectedId('');
-    setError(null);
-    if (!project.native || !projectId) return;
-    setBusy(true);
-    void recordApi
-      .list(projectId, controller.signal)
-      .then((values) => {
-        if (!canceled) {
-          setRecords(values);
-          setSelectedId(values[0]?.attemptId ?? '');
-        }
-      })
-      .catch((cause) => {
-        if (!canceled) setError(projectError(cause));
-      })
-      .finally(() => {
-        if (!canceled) setBusy(false);
-      });
-    return () => {
-      canceled = true;
-      controller.abort();
-    };
-  }, [project.native, projectId, refresh]);
-  const selected = records.find((r) => r.attemptId === selectedId);
-  useEffect(() => {
-    const controller = new AbortController();
-    let canceled = false;
-    setEvents([]);
-    setLoaded(0);
-    setError(null);
-    if (!selected || cancelled) {
-      setEventBusy(false);
-      return;
-    }
-    setEventBusy(true);
-    void recordApi
-      .events(selected, controller.signal, (count) => {
-        if (!canceled) setLoaded(count);
-      })
-      .then((values) => {
-        if (!canceled) setEvents(values);
-      })
-      .catch((cause) => {
-        if (!canceled) setError(projectError(cause));
-      })
-      .finally(() => {
-        if (!canceled) setEventBusy(false);
-      });
-    return () => {
-      canceled = true;
-      controller.abort();
-    };
-  }, [selected, cancelled]);
+  const selected =
+    (selection?.records === records
+      ? records.find((r) => r.attemptId === selection.id)
+      : undefined) ?? records[0];
+  const eventRead = usePracticeEvents(selected);
+  const events = eventRead.events;
   const measures = useMemo(() => measureResults(events), [events]);
   const bins = useMemo(() => timingHistogram(events), [events]);
   const best = selected ? bestComparable(records, selected) : null;
@@ -113,7 +60,6 @@ export function ResultsPage({ project }: { project: ProjectController }) {
             disabled={busy}
             onChange={(e) => {
               setProjectId(e.target.value);
-              setCancelled(false);
             }}
           >
             <option value="">프로젝트 선택</option>
@@ -124,33 +70,30 @@ export function ResultsPage({ project }: { project: ProjectController }) {
             ))}
           </select>
         </label>
-        <button
-          disabled={!project.native || busy}
-          onClick={() => {
-            setRefresh((v) => v + 1);
-            setCancelled(false);
-          }}
-        >
+        <button disabled={!project.native || busy} onClick={refresh}>
           기록 새로고침
         </button>
       </div>
       {busy && <p role="status">저장 기록을 읽는 중입니다.</p>}
       {error && <p role="alert">{error}</p>}
-      {!busy && records.length === 0 && (
-        <EmptyState
-          title="아직 저장된 연습 기록이 없습니다"
-          description="프로젝트 악보를 저장한 뒤 채점을 시작하면 실제 시도·판정이 기록됩니다."
-        />
-      )}
+      {project.native &&
+        projectId &&
+        !busy &&
+        !error &&
+        records.length === 0 && (
+          <EmptyState
+            title="아직 저장된 연습 기록이 없습니다"
+            description="프로젝트 악보를 저장한 뒤 채점을 시작하면 실제 시도·판정이 기록됩니다."
+          />
+        )}
       {records.length > 0 && (
         <label>
           연습 시도{' '}
           <select
             aria-label="저장된 연습 시도"
-            value={selectedId}
+            value={selected?.attemptId ?? ''}
             onChange={(e) => {
-              setSelectedId(e.target.value);
-              setCancelled(false);
+              setSelection({ records, id: e.target.value });
             }}
           >
             {records.map((r) => (
@@ -229,13 +172,22 @@ export function ResultsPage({ project }: { project: ProjectController }) {
               </p>
             </details>
           </section>
-          {eventBusy && (
+          {eventRead.status === 'LOADING' && (
             <p role="status">
-              전체 판정 읽는 중 · {loaded}/{selected.snapshot.eventSequence}
-              <button onClick={() => setCancelled(true)}>기록 조회 취소</button>
+              전체 판정 읽는 중 · {eventRead.loaded}/
+              {selected.snapshot.eventSequence}
+              <button onClick={eventRead.cancel}>기록 조회 취소</button>
             </p>
           )}
-          {!eventBusy && !cancelled && !error && (
+          {eventRead.status === 'CANCELLED' && (
+            <p role="status">판정 조회를 취소했습니다.</p>
+          )}
+          {eventRead.error && <p role="alert">{eventRead.error}</p>}
+          {(eventRead.status === 'CANCELLED' ||
+            eventRead.status === 'ERROR') && (
+            <button onClick={eventRead.retry}>판정 다시 읽기</button>
+          )}
+          {eventRead.status === 'READY' && (
             <>
               <section className="panel">
                 <h2>마디별 정확도</h2>

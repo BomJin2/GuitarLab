@@ -155,3 +155,36 @@ it('조회 상한을 snapshot에 고정하고 누락·중복 최종 판정·총�
     ),
   ).rejects.toThrow('ARCHIVE_EVENT_GAP');
 });
+
+it('진행 중 취소하면 다음 판정 페이지를 요청하지 않는다', async () => {
+  const record = recordFixture();
+  const controller = new AbortController();
+  vi.mocked(invoke).mockResolvedValueOnce({
+    schemaVersion: 1,
+    events: events(),
+  });
+  await expect(
+    recordApi.events(
+      { ...record, snapshot: { ...record.snapshot, eventSequence: 2 } },
+      controller.signal,
+      () => controller.abort(),
+    ),
+  ).rejects.toMatchObject({ name: 'AbortError' });
+  expect(invoke).toHaveBeenCalledTimes(1);
+});
+
+it('native 응답 대기 중 취소하면 응답과 진행률을 적용하지 않는다', async () => {
+  const record = recordFixture();
+  const controller = new AbortController();
+  const progress = vi.fn();
+  let finish!: (value: unknown) => void;
+  vi.mocked(invoke).mockImplementationOnce(
+    () => new Promise((resolve) => (finish = resolve)),
+  );
+  const pending = recordApi.events(record, controller.signal, progress);
+  controller.abort();
+  finish({ schemaVersion: 1, events: events() });
+  await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  expect(progress).not.toHaveBeenCalled();
+  expect(invoke).toHaveBeenCalledTimes(1);
+});
