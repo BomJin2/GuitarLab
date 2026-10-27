@@ -26,6 +26,8 @@ pub struct TranscribeRequest {
     pub asset_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stem_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_stem_id: Option<String>,
     pub tuning_midi: [u8; 6],
     pub sync_anchors: Vec<SyncAnchor>,
     pub grid: u32,
@@ -37,7 +39,11 @@ impl TranscribeRequest {
         if let Some(stem_id) = &self.stem_id {
             validate_uuid(stem_id)?;
         }
+        if let Some(id) = &self.imported_stem_id {
+            validate_uuid(id)?;
+        }
         if self.schema_version != 1
+            || (self.stem_id.is_some() && self.imported_stem_id.is_some())
             || self.tuning_midi.iter().any(|p| *p > 127)
             || ![60, 120, 240, 480, 960].contains(&self.grid)
             || !(2..=256).contains(&self.sync_anchors.len())
@@ -56,6 +62,45 @@ impl TranscribeRequest {
             }
         }
         Ok(())
+    }
+}
+
+pub(super) fn read_selected_stem(
+    store: &ProjectStore,
+    request: &TranscribeRequest,
+    cancel: &AtomicBool,
+) -> Result<(Vec<u8>, f64), AppError> {
+    request.validate()?;
+    canceled(cancel)?;
+    if let Some(id) = &request.imported_stem_id {
+        let metadata = store.imported_stem_metadata(&request.project_id, id)?;
+        if metadata.duration_ms > 60000.0 || metadata.bytes > 64 * 1024 * 1024 {
+            return Err(error("AI_INPUT_INVALID"));
+        }
+        let (metadata, bytes) = store.read_imported_guitar_stem(&request.project_id, id, cancel)?;
+        if metadata.duration_ms > 60000.0 || metadata.bytes > 64 * 1024 * 1024 {
+            return Err(error("AI_INPUT_INVALID"));
+        }
+        Ok((bytes, metadata.duration_ms))
+    } else if let Some(id) = &request.stem_id {
+        let bytes = super::stem_store::read_guitar_stem(
+            store,
+            &request.project_id,
+            &request.asset_id,
+            id,
+            cancel,
+        )?;
+        let samples = bytes
+            .len()
+            .checked_sub(44)
+            .ok_or_else(|| error("AI_INPUT_INVALID"))?;
+        let duration = samples as f64 / 8.0 / 44100.0 * 1000.0;
+        if duration > 60000.0 {
+            return Err(error("AI_INPUT_INVALID"));
+        }
+        Ok((bytes, duration))
+    } else {
+        Err(AppError::invalid())
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -192,14 +237,8 @@ pub fn transcribe_asset_with_resources(
     if asset.kind != AssetKind::Original {
         return Err(error("AI_INPUT_INVALID"));
     }
-    let bytes = if let Some(stem_id) = &request.stem_id {
-        super::stem_store::read_guitar_stem(
-            store,
-            &request.project_id,
-            &request.asset_id,
-            stem_id,
-            cancel,
-        )?
+    let bytes = if request.stem_id.is_some() || request.imported_stem_id.is_some() {
+        read_selected_stem(store, request, cancel)?.0
     } else {
         if asset.bytes > 64 * 1024 * 1024 || !asset.name.to_ascii_lowercase().ends_with(".wav") {
             return Err(error("AI_INPUT_INVALID"));
@@ -280,6 +319,9 @@ pub fn transcribe_asset_with_resources(
         if let Some(stem_id) = &request.stem_id {
             result["stemId"] = json!(stem_id);
         }
+        if let Some(id) = &request.imported_stem_id {
+            result["importedStemId"] = json!(id);
+        }
         super::drafts::save(store, request, &result, job_id, cancel)?;
         Ok(result)
     })();
@@ -304,6 +346,7 @@ mod tests {
             project_id,
             asset_id,
             stem_id: None,
+            imported_stem_id: None,
             tuning_midi: [64, 59, 55, 50, 45, 40],
             sync_anchors: vec![
                 SyncAnchor {
@@ -377,6 +420,74 @@ mod tests {
         bad["path"] = json!("C:/outside.wav");
         assert!(serde_json::from_value::<TranscribeRequest>(bad).is_err());
     }
+    #[test]
+    #[ignore = "사용자가 승인 설치한 Basic Pitch 개발 모델 환경이 필요합니다"]
+    fn real_model_imported_eight_notes_restore_without_changing_input() {
+        let fixture = Fixture::new();
+        let project = fixture.project();
+        let original = include_bytes!("../../../public/fixtures/sine.wav");
+        let source = fixture.store.root.join("자체 사용자 기타.wav");
+        fs::write(&source, original).expect("자체 원본");
+        let backing = fixture.store.root.join("자체 무음 원곡.wav");
+        let mut backing_bytes = wave::header(8000, 32000).expect("자체 무음").to_vec();
+        backing_bytes.resize(58 + 32000 * 4, 0);
+        fs::write(&backing, &backing_bytes).expect("다른 원곡");
+        let cancel = AtomicBool::new(false);
+        let asset = fixture
+            .store
+            .import_asset(
+                &project,
+                &backing,
+                AssetKind::Original,
+                AssetStorage::Managed,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("프로젝트 원본")
+            .asset;
+        let stem = fixture
+            .store
+            .import_guitar_stem(
+                &project,
+                crate::storage::project_model::GuitarPartRole::Lead,
+                &source,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("사용자 기타");
+        let original_sha = asset.sha256.clone();
+        let mut request = request(project, asset.id);
+        request.imported_stem_id = Some(stem.id.clone());
+        let id = uuid::Uuid::new_v4().to_string();
+        let result = transcribe_asset(&fixture.store, &request, &id, &cancel)
+            .expect("실제 사용자 입력 분석");
+        assert_eq!(result["notes"].as_array().expect("음표").len(), 8);
+        assert_eq!(
+            result["notes"]
+                .as_array()
+                .expect("음표")
+                .iter()
+                .map(|note| note["pitchMidi"].as_u64().expect("음정"))
+                .collect::<Vec<_>>(),
+            vec![64, 67, 69, 71, 64, 67, 69, 71]
+        );
+        assert_eq!(result["importedStemId"], stem.id);
+        assert_eq!(result["inputSha256"], hash(original));
+        assert_ne!(result["inputSha256"], original_sha);
+        assert_eq!(
+            super::super::drafts::restore(&fixture.store, &request, &cancel).expect("초안 복원")
+                ["draft"],
+            result
+        );
+        assert!(!fixture
+            .store
+            .root
+            .join(format!("projects/{}/analysis/{id}", request.project_id))
+            .exists());
+        assert_eq!(fs::read(source).expect("원본 보존"), original);
+        assert_eq!(fs::read(backing).expect("원곡 보존"), backing_bytes);
+    }
+
     #[test]
     #[ignore = "사용자가 승인 설치한 Basic Pitch 개발 모델 환경이 필요합니다"]
     fn real_model_eight_synthetic_notes_keep_original_and_cleanup_job() {

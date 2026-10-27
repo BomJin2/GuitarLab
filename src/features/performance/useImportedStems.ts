@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { GuitarPartRole } from '../../entities/score';
 import { isGuitarPartRole } from '../../entities/guitarRoles';
 import { LatestTask } from '../../shared/latestTask';
@@ -26,9 +26,14 @@ export function useImportedStems(
     epoch = useRef(0),
     operation = useRef(false),
     mounted = useRef(false);
-  useEffect(() => {
+  const context = useMemo(() => ({ projectId }), [projectId]);
+  const owner = useRef(context);
+  const latestLocked = useRef(locked);
+  const ownsContext = owner.current === context;
+  useLayoutEffect(() => {
     const current = task.current;
     const generation = epoch;
+    owner.current = context;
     mounted.current = true;
     generation.current++;
     current.cancel();
@@ -43,8 +48,9 @@ export function useImportedStems(
       generation.current++;
       current.cancel();
     };
-  }, [projectId]);
-  useEffect(() => {
+  }, [context]);
+  useLayoutEffect(() => {
+    latestLocked.current = locked;
     if (locked) {
       task.current.cancel();
       setPreview(null);
@@ -58,8 +64,10 @@ export function useImportedStems(
   );
   async function run(mode: 'import' | 'list' | 'read', id = '') {
     if (
+      !mounted.current ||
+      owner.current !== context ||
       !projectId ||
-      locked ||
+      latestLocked.current ||
       operation.current ||
       !importedStemsApi.available()
     )
@@ -127,16 +135,22 @@ export function useImportedStems(
     }
   }
   return {
-    role,
-    items,
-    preview,
+    role: ownsContext ? role : 'UNKNOWN',
+    items: ownsContext ? items : [],
+    preview: ownsContext && !locked ? preview : null,
     busy,
-    error,
-    notice,
-    job,
+    error: ownsContext ? error : null,
+    notice: ownsContext ? notice : null,
+    job: ownsContext ? job : null,
     available: !!projectId && !locked && importedStemsApi.available(),
     changeRole(value: string) {
-      if (isGuitarPartRole(value)) {
+      if (
+        mounted.current &&
+        owner.current === context &&
+        !latestLocked.current &&
+        !operation.current &&
+        isGuitarPartRole(value)
+      ) {
         task.current.cancel();
         setRole(value);
       }
@@ -144,6 +158,8 @@ export function useImportedStems(
     import: () => run('import'),
     refresh: () => run('list'),
     read: (id: string) => run('read', id),
-    cancel: () => task.current.cancel(),
+    cancel: () => {
+      if (mounted.current && owner.current === context) task.current.cancel();
+    },
   };
 }

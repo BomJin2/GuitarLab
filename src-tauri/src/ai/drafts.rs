@@ -29,16 +29,30 @@ fn validate_result(
     cancel: &AtomicBool,
 ) -> Result<(), AppError> {
     let invalid = || error("AI_OUTPUT_INVALID");
-    if !result
-        .as_object()
-        .is_some_and(|o| o.len() == if request.stem_id.is_some() { 11 } else { 10 })
-        || result["schemaVersion"] != 1
+    if !result.as_object().is_some_and(|o| {
+        o.len()
+            == if request.stem_id.is_some() || request.imported_stem_id.is_some() {
+                11
+            } else {
+                10
+            }
+    }) || result["schemaVersion"] != 1
         || result["projectId"] != request.project_id
         || result["assetId"] != request.asset_id
         || result["modelId"] != "basic-pitch"
         || result["modelVersion"] != "0.4.0"
         || result["status"] != "AI_DRAFT"
         || result["confidenceMeaning"] != "MEAN_NOTE_ACTIVATION"
+        || result.get("stemId").is_some() != request.stem_id.is_some()
+        || result.get("importedStemId").is_some() != request.imported_stem_id.is_some()
+        || request
+            .stem_id
+            .as_ref()
+            .is_some_and(|id| result["stemId"] != *id)
+        || request
+            .imported_stem_id
+            .as_ref()
+            .is_some_and(|id| result["importedStemId"] != *id)
     {
         return Err(invalid());
     }
@@ -47,18 +61,8 @@ fn validate_result(
         .iter()
         .find(|a| a.id == request.asset_id && a.kind == AssetKind::Original)
         .ok_or_else(invalid)?;
-    if let Some(stem_id) = &request.stem_id {
-        if result["stemId"] != *stem_id {
-            return Err(invalid());
-        }
-        let bytes = super::stem_store::read_guitar_stem(
-            store,
-            &request.project_id,
-            &request.asset_id,
-            stem_id,
-            cancel,
-        )?;
-        let duration = (bytes.len() - 44) as f64 / 8.0 / 44100.0 * 1000.0;
+    if request.stem_id.is_some() || request.imported_stem_id.is_some() {
+        let (bytes, duration) = super::transcription::read_selected_stem(store, request, cancel)?;
         if result["inputSha256"] != hash(&bytes)
             || result["durationMs"]
                 .as_f64()
@@ -139,14 +143,8 @@ pub fn restore(
         validate_result(store, request, &value, cancel)?;
         value
     } else {
-        if let Some(stem_id) = &request.stem_id {
-            super::stem_store::read_guitar_stem(
-                store,
-                &request.project_id,
-                &request.asset_id,
-                stem_id,
-                cancel,
-            )?;
+        if request.stem_id.is_some() || request.imported_stem_id.is_some() {
+            super::transcription::read_selected_stem(store, request, cancel)?;
         }
         Value::Null
     };
@@ -184,6 +182,7 @@ mod tests {
             project_id: project,
             asset_id: asset.id,
             stem_id: None,
+            imported_stem_id: None,
             tuning_midi: [64, 59, 55, 50, 45, 40],
             sync_anchors: vec![
                 SyncAnchor {
@@ -307,6 +306,170 @@ mod tests {
             "AI_OUTPUT_INVALID"
         );
     }
+    #[test]
+    fn imported_input_has_its_own_draft_context_and_preserves_original() {
+        let (f, mut request, mut result) = fixture();
+        let cancel = AtomicBool::new(false);
+        let source = f.store.root.join("자체.wav");
+        let original = std::fs::read(&source).expect("자체 원본");
+        let stem = f
+            .store
+            .import_guitar_stem(
+                &request.project_id,
+                crate::storage::project_model::GuitarPartRole::Lead,
+                &source,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("사용자 파일 보존");
+        let original_request = serde_json::to_value(&request).expect("기존 문맥");
+        assert!(original_request.get("importedStemId").is_none());
+        save(
+            &f.store,
+            &request,
+            &result,
+            &uuid::Uuid::new_v4().to_string(),
+            &cancel,
+        )
+        .expect("원본 초안");
+        let original_result = result.clone();
+        request.imported_stem_id = Some(stem.id.clone());
+        result["importedStemId"] = json!(stem.id);
+        result["inputSha256"] = json!(stem.sha256);
+        result["durationMs"] = json!(stem.duration_ms);
+        assert!(restore(&f.store, &request, &cancel).expect("새 문맥")["draft"].is_null());
+        let (bytes, duration) =
+            super::super::transcription::read_selected_stem(&f.store, &request, &cancel)
+                .expect("입력 검증");
+        assert_eq!(bytes, original);
+        assert_eq!(duration, stem.duration_ms);
+        save(
+            &f.store,
+            &request,
+            &result,
+            &uuid::Uuid::new_v4().to_string(),
+            &cancel,
+        )
+        .expect("사용자 파일 초안");
+        assert_eq!(
+            restore(&f.store, &request, &cancel).expect("사용자 초안 복원")["draft"],
+            result
+        );
+        request.imported_stem_id = None;
+        assert_eq!(
+            serde_json::to_value(&request).expect("기존 직렬화"),
+            original_request
+        );
+        assert_eq!(
+            restore(&f.store, &request, &cancel).expect("원본 초안 보존")["draft"],
+            original_result
+        );
+        assert_eq!(std::fs::read(source).expect("원본 비교"), original);
+    }
+
+    #[test]
+    fn imported_input_rejects_foreign_source_conflicting_ids_and_cancellation() {
+        let (f, mut request, _) = fixture();
+        let cancel = AtomicBool::new(false);
+        let foreign = f.project();
+        let stem = f
+            .store
+            .import_guitar_stem(
+                &foreign,
+                crate::storage::project_model::GuitarPartRole::Lead,
+                &f.store.root.join("자체.wav"),
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("다른 프로젝트 파일");
+        request.imported_stem_id = Some(stem.id.clone());
+        assert_eq!(
+            super::super::transcription::read_selected_stem(&f.store, &request, &cancel)
+                .expect_err("소유권 거부")
+                .code,
+            "IMPORTED_STEM_NOT_FOUND"
+        );
+        request.stem_id = Some(stem.id);
+        assert!(request.validate().is_err());
+        request.stem_id = None;
+        request.imported_stem_id = Some("../outside.wav".into());
+        assert!(request.validate().is_err());
+        request.imported_stem_id = Some(uuid::Uuid::new_v4().to_string());
+        assert_eq!(
+            super::super::transcription::read_selected_stem(
+                &f.store,
+                &request,
+                &AtomicBool::new(true)
+            )
+            .expect_err("취소")
+            .code,
+            "CANCELED"
+        );
+    }
+
+    #[test]
+    fn imported_input_checks_duration_before_reading_and_rejects_modified_pcm() {
+        let (f, mut request, _) = fixture();
+        let cancel = AtomicBool::new(false);
+        let source = f.store.root.join("자체.wav");
+        let original = std::fs::read(&source).expect("기준");
+        let stem = f
+            .store
+            .import_guitar_stem(
+                &request.project_id,
+                crate::storage::project_model::GuitarPartRole::Lead,
+                &source,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("짧은 파일");
+        let managed = f.store.root.join(format!(
+            "projects/{}/imported-stems/{}.wav",
+            request.project_id, stem.id
+        ));
+        let mut changed = original.clone();
+        let last = changed.last_mut().expect("PCM");
+        *last ^= 1;
+        std::fs::write(managed, changed).expect("자체 복사본 손상 주입");
+        request.imported_stem_id = Some(stem.id);
+        assert_eq!(
+            restore(&f.store, &request, &cancel)
+                .expect_err("손상 거부")
+                .code,
+            "IMPORTED_STEM_INVALID"
+        );
+        let frames = 8000 * 61;
+        let mut long = crate::recording::wave::header(8000, frames)
+            .expect("자체 긴 WAV")
+            .to_vec();
+        long.resize(58 + frames as usize * 4, 0);
+        let path = f.store.root.join("자체 61초.wav");
+        std::fs::write(&path, long).expect("긴 입력");
+        let stem = f
+            .store
+            .import_guitar_stem(
+                &request.project_id,
+                crate::storage::project_model::GuitarPartRole::Lead,
+                &path,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .expect("긴 파일 보존");
+        std::fs::remove_file(f.store.root.join(format!(
+            "projects/{}/imported-stems/{}.wav",
+            request.project_id, stem.id
+        )))
+        .expect("읽기 전 한도 검사 확인용 자체 파일 제거");
+        request.imported_stem_id = Some(stem.id);
+        assert_eq!(
+            restore(&f.store, &request, &cancel)
+                .expect_err("파일 열기 전 길이 거부")
+                .code,
+            "AI_INPUT_INVALID"
+        );
+        assert_eq!(std::fs::read(source).expect("원본 보존"), original);
+    }
+
     #[test]
     fn version_three_migrates_without_changing_project_or_asset_and_limits_growth() {
         let (f, request, result) = fixture();

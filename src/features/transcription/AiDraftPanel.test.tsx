@@ -21,6 +21,17 @@ import { Context } from '../player/playerContextValue';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { separationApi, type SeparationPreview } from './separation';
 import { separationFixture } from '../../test/separationFixture';
+import { importedStemFixture } from '../../test/importedStemFixture';
+import { importedStemsApi } from '../performance/importedStems';
+vi.mock('../performance/importedStems', async (original) => ({
+  ...(await original<typeof import('../performance/importedStems')>()),
+  importedStemsApi: {
+    available: () => true,
+    import: vi.fn(),
+    list: vi.fn(),
+    read: vi.fn(),
+  },
+}));
 vi.mock('./separation', () => ({ separationApi: { restore: vi.fn() } }));
 vi.mock('./transcription', async (original) => ({
   ...(await original<typeof import('./transcription')>()),
@@ -87,6 +98,124 @@ it('명시적 전체 기타 선택에서만 저장 UUID를 조회하고 원본�
     expect.any(AbortSignal),
   );
   expect(separationApi.restore).toHaveBeenCalledTimes(1);
+});
+
+it('사용자 파일을 명시적으로 목록·선택한 뒤에만 분석하고 별도 출처의 초안을 복원한다', async () => {
+  const stem = importedStemFixture();
+  const draft = { ...transcriptionFixture(), importedStemId: stem.id };
+  vi.mocked(importedStemsApi.list).mockResolvedValue([stem]);
+  vi.mocked(transcriptionApi.analyze).mockResolvedValue(draft);
+  vi.mocked(transcriptionApi.restore).mockResolvedValue(draft);
+  const session = scoreEditingFixture();
+  const before = JSON.stringify(session.document);
+  render(<AiDraftPanel session={session} project={project} />);
+  fireEvent.change(screen.getByRole('combobox', { name: 'AI 분석 입력' }), {
+    target: { value: 'imported' },
+  });
+  expect(importedStemsApi.list).not.toHaveBeenCalled();
+  expect(
+    screen
+      .getByRole('button', { name: '사용자 기타를 AI 카피' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타 목록 읽기' }),
+  );
+  await screen.findByRole('option', { name: /사용자 리드.wav/ });
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'AI 카피할 사용자 기타' }),
+    { target: { value: stem.id } },
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타를 AI 카피' }),
+  );
+  await screen.findByText(`입력: 사용자 제공 기타 · ${stem.id}`);
+  expect(transcriptionApi.analyze).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      importedStemId: stem.id,
+      assetId: transcriptionRequest.assetId,
+    }),
+    expect.any(AbortSignal),
+  );
+  expect(
+    vi.mocked(transcriptionApi.analyze).mock.calls[0]?.[0].stemId,
+  ).toBeUndefined();
+  fireEvent.click(
+    screen.getByRole('button', { name: '저장된 AI 초안 불러오기' }),
+  );
+  await screen.findByText(`입력: 사용자 제공 기타 · ${stem.id}`);
+  expect(transcriptionApi.restore).toHaveBeenCalledWith(
+    expect.objectContaining({ importedStemId: stem.id }),
+    expect.any(AbortSignal),
+  );
+  expect(importedStemsApi.import).not.toHaveBeenCalled();
+  expect(importedStemsApi.read).not.toHaveBeenCalled();
+  expect(separationApi.restore).not.toHaveBeenCalled();
+  expect(JSON.stringify(session.document)).toBe(before);
+});
+
+it('60초를 넘는 사용자 기타를 선택해도 분석을 시작하지 않는다', async () => {
+  const stem = {
+    ...importedStemFixture(),
+    durationMs: 61000,
+    frames: 48000 * 61,
+    bytes: 48000 * 61 * 4 + 58,
+  };
+  vi.mocked(importedStemsApi.list).mockResolvedValue([stem]);
+  render(<AiDraftPanel session={scoreEditingFixture()} project={project} />);
+  fireEvent.change(screen.getByRole('combobox', { name: 'AI 분석 입력' }), {
+    target: { value: 'imported' },
+  });
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타 목록 읽기' }),
+  );
+  await screen.findByRole('option', { name: /사용자 리드.wav/ });
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'AI 카피할 사용자 기타' }),
+    { target: { value: stem.id } },
+  );
+  expect(
+    screen
+      .getByRole('button', { name: '사용자 기타를 AI 카피' })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+  expect(transcriptionApi.analyze).not.toHaveBeenCalled();
+});
+
+it('사용자 기타 선택을 바꾸면 이전 초안을 지우고 새 분석을 자동 시작하지 않는다', async () => {
+  const first = importedStemFixture();
+  const second = {
+    ...first,
+    id: crypto.randomUUID(),
+    name: '다른 사용자 파일.wav',
+  };
+  vi.mocked(importedStemsApi.list).mockResolvedValue([first, second]);
+  vi.mocked(transcriptionApi.analyze).mockResolvedValue({
+    ...transcriptionFixture(),
+    importedStemId: first.id,
+  });
+  render(<AiDraftPanel session={scoreEditingFixture()} project={project} />);
+  fireEvent.change(screen.getByRole('combobox', { name: 'AI 분석 입력' }), {
+    target: { value: 'imported' },
+  });
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타 목록 읽기' }),
+  );
+  await screen.findByRole('option', { name: /다른 사용자 파일.wav/ });
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'AI 카피할 사용자 기타' }),
+    { target: { value: first.id } },
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: '사용자 기타를 AI 카피' }),
+  );
+  await screen.findByText(`입력: 사용자 제공 기타 · ${first.id}`);
+  fireEvent.change(
+    screen.getByRole('combobox', { name: 'AI 카피할 사용자 기타' }),
+    { target: { value: second.id } },
+  );
+  expect(screen.queryByText(/AI 초안 · 1음/)).toBeNull();
+  expect(transcriptionApi.analyze).toHaveBeenCalledTimes(1);
 });
 
 it('저장 기타가 없거나 실제 검출이 비면 음표를 만들거나 원본으로 자동 폴백하지 않는다', async () => {

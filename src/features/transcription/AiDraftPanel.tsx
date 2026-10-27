@@ -6,6 +6,8 @@ import { useTranscription } from './useTranscription';
 import { useState } from 'react';
 import type { AiDraft } from './transcription';
 import type { ScoreEditingController } from '../score/useScoreEditing';
+import { useImportedStems } from '../performance/useImportedStems';
+import { guitarRoleLabels } from '../../entities/guitarRoles';
 
 export function AiDraftPanel({
   session,
@@ -16,7 +18,21 @@ export function AiDraftPanel({
   project?: Pick<ProjectController, 'details' | 'audioAssetId' | 'busy'>;
   editor?: ScoreEditingController;
 }) {
-  const state = useTranscription(session, project);
+  const projectId = project?.details?.project.id;
+  const sources = useImportedStems(projectId, !!project?.busy);
+  const [selection, setSelection] = useState<{
+    projectId: string;
+    id: string;
+  } | null>(null);
+  const selectedImported =
+    selection?.projectId === projectId
+      ? sources.items.find((item) => item.id === selection?.id)
+      : undefined;
+  const state = useTranscription(
+    session,
+    project ? { ...project, busy: project.busy || sources.busy } : undefined,
+    selectedImported,
+  );
   const [reviewed, setReviewed] = useState<AiDraft | null>(null);
   return (
     <section className="panel" aria-label="AI 카피 초안">
@@ -34,14 +50,63 @@ export function AiDraftPanel({
           disabled={state.busy}
           onChange={(event) => {
             const value = event.target.value;
-            if (value === 'original' || value === 'guitar')
+            if (
+              value === 'original' ||
+              value === 'guitar' ||
+              value === 'imported'
+            )
               state.selectSource(value);
           }}
         >
           <option value="original">프로젝트 원본 WAV</option>
           <option value="guitar">저장된 최신 전체 기타</option>
+          <option value="imported">사용자 제공 기타 WAV</option>
         </select>
       </label>
+      {state.source === 'imported' && (
+        <div>
+          <button
+            disabled={!sources.available || sources.busy || state.busy}
+            onClick={() => void sources.refresh()}
+          >
+            사용자 기타 목록 읽기
+          </button>
+          <label>
+            AI 카피할 사용자 기타
+            <select
+              aria-label="AI 카피할 사용자 기타"
+              value={selectedImported?.id ?? ''}
+              disabled={sources.busy || state.busy || !!project?.busy}
+              onChange={(event) => {
+                if (projectId)
+                  setSelection({ projectId, id: event.target.value });
+              }}
+            >
+              <option value="">파일 선택</option>
+              {sources.items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {guitarRoleLabels[item.role]} ·{' '}
+                  {(item.durationMs / 1000).toFixed(2)}초
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>
+            ‘연주’에서 이미 보존한 기타 파일만 읽습니다. 파일 자체의 0ms부터
+            기존 수동 싱크로 분석하며 믹스 offset·음량은 적용하지 않습니다.
+            원곡과 파일 시작이 다르면 먼저 싱크를 맞춰주세요. 역할은 사용자
+            지정이며 AI 파트 분리가 아닙니다.
+          </p>
+          {sources.busy && (
+            <p role="status">
+              사용자 기타 목록 읽는 중{' '}
+              <button onClick={sources.cancel}>목록 조회 취소</button>
+            </p>
+          )}
+          {sources.error && <p role="alert">{sources.error}</p>}
+          {sources.notice && <p role="status">{sources.notice}</p>}
+        </div>
+      )}
       {state.source === 'guitar' && (
         <p>
           이미 저장된 전체 기타만 사용하며 새로 분리하지 않습니다. 새 분리
@@ -53,9 +118,11 @@ export function AiDraftPanel({
         disabled={!state.native || !state.available || state.busy}
         onClick={() => void state.analyze()}
       >
-        {state.source === 'guitar'
-          ? '저장 전체 기타를 AI 카피'
-          : '프로젝트 WAV를 AI 카피'}
+        {state.source === 'imported'
+          ? '사용자 기타를 AI 카피'
+          : state.source === 'guitar'
+            ? '저장 전체 기타를 AI 카피'
+            : '프로젝트 WAV를 AI 카피'}
       </button>
       <button
         disabled={!state.native || !state.available || state.busy}
@@ -65,13 +132,14 @@ export function AiDraftPanel({
       </button>
       {!state.available && (
         <p>
-          프로젝트 음원과 악보를 먼저 불러오세요. 현재는60초/64MiB 이하
-          PCM16/float32 WAV만 지원합니다.
+          프로젝트 음원과 악보를 먼저 불러오세요. 사용자 제공 입력은 목록에서
+          파일도 선택하세요. 현재는60초/64MiB 이하 PCM16/float32 WAV만
+          지원합니다.
         </p>
       )}
       {state.busy && (
         <p role="status">
-          AI 작업 중 · 첫 모델 시작은 시간이 걸릴 수 있습니다.{' '}
+          AI 입력·초안 작업 중 · 모델 실행 시 첫 시작은 시간이 걸릴 수 있습니다.{' '}
           <button onClick={state.cancel}>AI 분석 취소</button>
         </p>
       )}
@@ -84,9 +152,11 @@ export function AiDraftPanel({
             {state.draft.modelVersion} · 로컬 초안 보존됨
           </p>
           <p>
-            {state.draft.stemId
-              ? `입력: 저장 전체 기타 · ${state.draft.stemId}`
-              : '입력: 프로젝트 원본 WAV'}
+            {state.draft.importedStemId
+              ? `입력: 사용자 제공 기타 · ${state.draft.importedStemId}`
+              : state.draft.stemId
+                ? `입력: 저장 전체 기타 · ${state.draft.stemId}`
+                : '입력: 프로젝트 원본 WAV'}
           </p>
           <p>
             활성도는 모델의 평균 note activation이며 정답 확률이 아닙니다.

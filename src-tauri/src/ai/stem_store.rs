@@ -438,6 +438,7 @@ mod tests {
             project_id: r.project_id.clone(),
             asset_id: r.asset_id.clone(),
             stem_id: None,
+            imported_stem_id: None,
             tuning_midi: [64, 59, 55, 50, 45, 40],
             sync_anchors: vec![
                 SyncAnchor {

@@ -11,6 +11,40 @@ vi.mock('../library/projects', async (original) => ({
   runStorageJob: vi.fn(),
 }));
 
+it('사용자 기타 입력의 ID·응답을 분리하고 잘못된 조합은 IPC 전에 거부한다', async () => {
+  const importedStemId = '00000000-0000-4000-8000-000000000040';
+  const request = { ...transcriptionRequest, importedStemId };
+  const draft = {
+    ...transcriptionFixture(),
+    importedStemId,
+    inputSha256: 'd'.repeat(64),
+  };
+  expect(decodeAiDraft(draft, request)).toEqual(draft);
+  for (const [value, context] of [
+    [draft, transcriptionRequest],
+    [transcriptionFixture(), request],
+    [{ ...draft, importedStemId: crypto.randomUUID() }, request],
+    [draft, { ...request, stemId: importedStemId }],
+  ] as const)
+    expect(() => decodeAiDraft(value, context)).toThrow('AI_OUTPUT_INVALID');
+  const signal = new AbortController().signal;
+  vi.mocked(runStorageJob).mockResolvedValueOnce(draft);
+  expect(await transcriptionApi.analyze(request, signal)).toEqual(draft);
+  vi.mocked(runStorageJob).mockResolvedValueOnce({ schemaVersion: 1, draft });
+  expect(await transcriptionApi.restore(request, signal)).toEqual(draft);
+  const before = vi.mocked(runStorageJob).mock.calls.length;
+  await expect(
+    transcriptionApi.analyze({ ...request, stemId: importedStemId }, signal),
+  ).rejects.toThrow('AI_INPUT_INVALID');
+  await expect(
+    transcriptionApi.restore(
+      { ...request, importedStemId: '../file.wav' },
+      signal,
+    ),
+  ).rejects.toThrow('AI_INPUT_INVALID');
+  expect(runStorageJob).toHaveBeenCalledTimes(before);
+});
+
 it('STEM 입력과 원본 응답을 분리하고 정확한 UUID를 분석·복원에 전달한다', async () => {
   const stemId = '00000000-0000-4000-8000-000000000099';
   const request = { ...transcriptionRequest, stemId };

@@ -147,3 +147,90 @@ it('취소/프로젝트 전환/잠금/이탈은 native 완료까지 기다리고
     await pending;
   });
 });
+
+it('프로젝트 전환의 첫 반환부터 이전 목록과 역할을 숨긴다', async () => {
+  vi.mocked(importedStemsApi.list).mockResolvedValue([stem]);
+  const observations: ReturnType<typeof useImportedStems>[] = [];
+  const { result, rerender } = renderHook(
+    (value: string) => {
+      const state = useImportedStems(value, false);
+      observations.push(state);
+      return state;
+    },
+    { initialProps: projectId },
+  );
+  act(() => result.current.changeRole('LEAD'));
+  await act(async () => result.current.refresh());
+  expect(result.current.items).toHaveLength(1);
+  observations.length = 0;
+  rerender(id);
+  expect(observations.length).toBeGreaterThan(0);
+  expect(
+    observations.every(
+      (value) => value.items.length === 0 && value.role === 'UNKNOWN',
+    ),
+  ).toBe(true);
+});
+
+it('이전 명령과 잠금 전에 보관한 함수가 새 조회나 잠금을 우회하지 않는다', async () => {
+  const { result, rerender, unmount } = renderHook(
+    (value: { id: string; locked: boolean }) =>
+      useImportedStems(value.id, value.locked),
+    { initialProps: { id: projectId, locked: false } },
+  );
+  const old = result.current;
+  rerender({ id, locked: false });
+  await act(async () => {
+    await old.import();
+    await old.refresh();
+    await old.read(id);
+    old.changeRole('LEAD');
+  });
+  expect(result.current.role).toBe('UNKNOWN');
+  const beforeLock = result.current;
+  rerender({ id, locked: true });
+  await act(async () => {
+    await beforeLock.import();
+    await beforeLock.refresh();
+    await beforeLock.read(id);
+  });
+  rerender({ id, locked: false });
+  const last = result.current;
+  unmount();
+  await act(async () => {
+    await last.import();
+    await last.refresh();
+    await last.read(id);
+  });
+  expect(importedStemsApi.import).not.toHaveBeenCalled();
+  expect(importedStemsApi.list).not.toHaveBeenCalled();
+  expect(importedStemsApi.read).not.toHaveBeenCalled();
+});
+
+it('이전 취소 명령은 새 프로젝트의 목록 조회를 취소하지 않는다', async () => {
+  let finish!: (value: ImportedGuitarStem[]) => void;
+  vi.mocked(importedStemsApi.list).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { result, rerender } = renderHook(
+    (value: string) => useImportedStems(value, false),
+    { initialProps: projectId },
+  );
+  const oldCancel = result.current.cancel;
+  rerender(id);
+  let pending!: Promise<void>;
+  act(() => {
+    pending = result.current.refresh();
+  });
+  act(oldCancel);
+  const aborted = vi.mocked(importedStemsApi.list).mock.calls[0]?.[1].aborted;
+  await act(async () => {
+    finish([{ ...stem, projectId: id }]);
+    await pending;
+  });
+  expect(aborted).toBe(false);
+  expect(result.current.items[0]?.projectId).toBe(id);
+});

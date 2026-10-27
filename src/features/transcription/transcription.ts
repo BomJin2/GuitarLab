@@ -40,6 +40,7 @@ export type AiDraft = {
   projectId: string;
   assetId: string;
   stemId?: string;
+  importedStemId?: string;
   inputSha256: string;
   modelId: 'basic-pitch';
   modelVersion: '0.4.0';
@@ -52,10 +53,18 @@ export type TranscriptionRequest = {
   projectId: string;
   assetId: string;
   stemId?: string;
+  importedStemId?: string;
   tuningMidi: number[];
   syncAnchors: SyncAnchor[];
   grid: number;
 };
+function validInputSource(request: TranscriptionRequest) {
+  return (
+    (request.stemId === undefined || isUuid(request.stemId)) &&
+    (request.importedStemId === undefined || isUuid(request.importedStemId)) &&
+    !(request.stemId !== undefined && request.importedStemId !== undefined)
+  );
+}
 function invalid(): never {
   throw new Error('AI_OUTPUT_INVALID');
 }
@@ -84,6 +93,7 @@ export function decodeAiDraft(
   request: TranscriptionRequest,
 ): AiDraft {
   if (
+    !validInputSource(request) ||
     !isRecord(value) ||
     !exact(value, [
       'schemaVersion',
@@ -97,12 +107,15 @@ export function decodeAiDraft(
       'durationMs',
       'notes',
       ...(request.stemId ? ['stemId'] : []),
+      ...(request.importedStemId ? ['importedStemId'] : []),
     ]) ||
     value.schemaVersion !== 1 ||
     value.projectId !== request.projectId ||
     value.assetId !== request.assetId ||
     (request.stemId !== undefined &&
       (!isUuid(request.stemId) || value.stemId !== request.stemId)) ||
+    (request.importedStemId !== undefined &&
+      value.importedStemId !== request.importedStemId) ||
     typeof value.inputSha256 !== 'string' ||
     !/^[0-9a-f]{64}$/.test(value.inputSha256) ||
     value.modelId !== 'basic-pitch' ||
@@ -195,6 +208,9 @@ export function decodeAiDraft(
     projectId: request.projectId,
     assetId: request.assetId,
     ...(request.stemId ? { stemId: request.stemId } : {}),
+    ...(request.importedStemId
+      ? { importedStemId: request.importedStemId }
+      : {}),
     inputSha256: value.inputSha256,
     modelId: 'basic-pitch',
     modelVersion: '0.4.0',
@@ -239,6 +255,7 @@ export function draftPreview(session: ScoreSession, draft: AiDraft) {
 export const transcriptionApi = {
   available: isTauri,
   async restore(request: TranscriptionRequest, signal: AbortSignal) {
+    if (!validInputSource(request)) throw new Error('AI_INPUT_INVALID');
     const value = await runStorageJob(
       'restore_transcription_draft',
       request,
@@ -254,6 +271,7 @@ export const transcriptionApi = {
     return value.draft === null ? null : decodeAiDraft(value.draft, request);
   },
   async analyze(request: TranscriptionRequest, signal: AbortSignal) {
+    if (!validInputSource(request)) throw new Error('AI_INPUT_INVALID');
     return decodeAiDraft(
       await runStorageJob(
         'transcribe_project_audio',
@@ -283,6 +301,10 @@ export function transcriptionError(cause: unknown) {
       '프로젝트의 분리 결과 보존 한도20개에 도달했습니다. 기존 결과는 유지했습니다.',
     AI_STEM_NOT_FOUND:
       '저장된 전체 기타 분리 결과가 없습니다. 먼저 별도 분리 기능으로 저장해주세요.',
+    IMPORTED_STEM_NOT_FOUND:
+      '선택한 사용자 기타 파일이 이 프로젝트에 없습니다. 목록을 다시 읽어주세요.',
+    IMPORTED_STEM_INVALID:
+      '사용자 기타 파일의 WAV 형식·길이·저장 무결성을 확인하세요. 원본은 유지합니다.',
     AI_WORKER_TIMEOUT: '분석 시간이 초과되어 작업을 종료했습니다.',
     AI_DRAFT_LIMIT:
       '프로젝트의 초안 보존 한도100개에 도달했습니다. 기존 초안은 유지했습니다.',

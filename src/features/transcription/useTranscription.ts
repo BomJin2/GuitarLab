@@ -5,6 +5,7 @@ import { prepareEditingDocument } from '../score/normalizedNotation';
 import { getActiveTrackIndex } from '../score/trackSelection';
 import { LatestTask } from '../../shared/latestTask';
 import { separationApi } from './separation';
+import type { ImportedGuitarStem } from '../performance/importedStems';
 import {
   draftPreview,
   transcriptionApi,
@@ -15,6 +16,7 @@ import {
 export function useTranscription(
   session: ScoreSession | null,
   project?: Pick<ProjectController, 'details' | 'audioAssetId' | 'busy'>,
+  importedStem?: ImportedGuitarStem,
 ) {
   const projectId = project?.details?.project.id,
     assetId = project?.audioAssetId;
@@ -25,13 +27,30 @@ export function useTranscription(
     active = useRef(false),
     mounted = useRef(false);
   const [busy, setBusy] = useState(false),
-    [source, setSource] = useState<'original' | 'guitar'>('original'),
+    [source, setSource] = useState<'original' | 'guitar' | 'imported'>(
+      'original',
+    ),
     [draft, setDraft] = useState<AiDraft | null>(null),
     [error, setError] = useState<string | null>(null),
     [notice, setNotice] = useState<string | null>(null);
+  const selectedImported =
+    importedStem?.projectId === projectId ? importedStem : undefined;
+  const importedStemId =
+    source === 'imported' ? selectedImported?.id : undefined;
+  const importedReady =
+    !!selectedImported &&
+    selectedImported.durationMs <= 60000 &&
+    selectedImported.bytes <= 64 * 1024 * 1024;
   const context = useMemo(
-    () => ({ document, trackIndex, projectId, assetId, source }),
-    [document, trackIndex, projectId, assetId, source],
+    () => ({
+      document,
+      trackIndex,
+      projectId,
+      assetId,
+      source,
+      importedStemId,
+    }),
+    [document, trackIndex, projectId, assetId, source, importedStemId],
   );
   const owner = useRef(context);
   const ownsContext = owner.current === context;
@@ -72,6 +91,7 @@ export function useTranscription(
       !session ||
       !projectId ||
       !assetId ||
+      (source === 'imported' && !importedReady) ||
       project?.busy ||
       active.current ||
       !transcriptionApi.available()
@@ -110,6 +130,7 @@ export function useTranscription(
           projectId,
           assetId,
           ...(stemId ? { stemId } : {}),
+          ...(importedStemId ? { importedStemId } : {}),
           tuningMidi: track.tuningMidi,
           syncAnchors: prepared.syncAnchors,
           grid: 240,
@@ -136,7 +157,7 @@ export function useTranscription(
   return {
     busy: ownsContext && busy,
     source,
-    selectSource: (value: 'original' | 'guitar') => {
+    selectSource: (value: 'original' | 'guitar' | 'imported') => {
       if (mounted.current && owner.current === context && !active.current)
         setSource(value);
     },
@@ -145,7 +166,12 @@ export function useTranscription(
     notice: ownsContext ? notice : null,
     preview,
     native: transcriptionApi.available(),
-    available: !!session && !!projectId && !!assetId && !project?.busy,
+    available:
+      !!session &&
+      !!projectId &&
+      !!assetId &&
+      !project?.busy &&
+      (source !== 'imported' || importedReady),
     analyze: () => run('analyze'),
     restore: () => run('restore'),
     cancel: () => {

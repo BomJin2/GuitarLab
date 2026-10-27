@@ -450,6 +450,7 @@ mod tests {
             project_id: project_id.clone(),
             asset_id: r.asset_id.clone(),
             stem_id: Some(guitar_id.clone()),
+            imported_stem_id: None,
             tuning_midi: [64, 59, 55, 50, 45, 40],
             grid: 240,
             sync_anchors: vec![

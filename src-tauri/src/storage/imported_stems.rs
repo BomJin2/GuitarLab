@@ -212,7 +212,7 @@ impl ProjectStore {
         result?;
         Ok(stem)
     }
-    fn imported_stem_metadata(
+    pub(crate) fn imported_stem_metadata(
         &self,
         project_id: &str,
         id: &str,

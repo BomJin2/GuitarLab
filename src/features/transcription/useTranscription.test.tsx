@@ -8,6 +8,7 @@ import {
 } from '../../test/transcriptionFixture';
 import { transcriptionApi, type AiDraft } from './transcription';
 import { useTranscription } from './useTranscription';
+import { importedStemFixture } from '../../test/importedStemFixture';
 
 vi.mock('./transcription', async (original) => ({
   ...(await original<typeof import('./transcription')>()),
@@ -18,6 +19,22 @@ vi.mock('./transcription', async (original) => ({
   },
 }));
 beforeEach(() => vi.resetAllMocks());
+
+it('다른 프로젝트의 사용자 기타로 실행하거나 원본으로 자동 대체하지 않는다', async () => {
+  const initial = props();
+  const stem = { ...importedStemFixture(), projectId: crypto.randomUUID() };
+  const { result } = renderHook(() =>
+    useTranscription(initial.session, initial.project, stem),
+  );
+  act(() => result.current.selectSource('imported'));
+  expect(result.current.available).toBe(false);
+  await act(async () => {
+    await result.current.analyze();
+    await result.current.restore();
+  });
+  expect(transcriptionApi.analyze).not.toHaveBeenCalled();
+  expect(transcriptionApi.restore).not.toHaveBeenCalled();
+});
 
 function props() {
   return {

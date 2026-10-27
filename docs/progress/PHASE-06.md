@@ -1,10 +1,44 @@
 # Phase 6 — AI 기타 카피 및 stem 분리
 
+## 후속 — 사용자 제공 기타 WAV를 AI 카피 (2026-10-27)
+
+### 1. 작업 개요
+
+작업일 2026-10-27. 기존에 보존한 사용자 기타 WAV를 F-08의 분석 입력으로 선택하도록 연결했습니다. 원곡/AI 전체 기타·사용자 제공 파일을 구분하고 기본 모델/원본·저장 키를 유지합니다. 프론트/전체 native·실제 자체 모델·MSRV/제품 빌드는 성공이며 새 원격/패키지는 후속입니다. 별도 OS·특화 AI/고급 품질 수용은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 `docs/00`, `docs/12`에 출처/저장 문맥·기존 anchor와 파일0ms·믹스 조정 제외/검토 정책을 기록하고 `docs/06`, `docs/09`를 갱신했습니다.
+- `TranscribeRequest`와 AI 초안 v1에 선택적 `importedStemId`를 추가했습니다. 기존 `stemId`와 동시 지정은 거부하며 생략한 기존 직렬화·DB/worker 프로토콜은 유지합니다. 기존 native 요청 fixture 4곳의 선택적 필드도 갱신했습니다.
+- `ai/transcription.rs`, `ai/drafts.rs`, `storage/imported_stems.rs`: 기존 프로젝트 원본 ID와 사용자 기타 소유권·metadata/링크·WAV/SHA 읽기를 재사용합니다. metadata의60초/64MiB를 읽기 전과 실제 읽은 결과 양쪽에서 확인하고 새 출처의 실제 SHA/ID·길이를 저장/복원 때 검증합니다. 기존 원본/분리 초안과 저장 키를 공유하지 않습니다.
+- `transcription.ts`, `useTranscription.ts`, `AiDraftPanel.tsx`: 명시적 목록·선택/분석·저장 초안 복원과 출처 표시를 연결했습니다. 선택만으로 모델을 실행하지 않으며 다른 프로젝트/60초 초과 입력과 잘못된 source 조합을 차단합니다. 파일을 바꾸면 이전 초안을 지우고 검토/편집·Undo·저장을 재사용합니다.
+- `useImportedStems.ts`: 기존 목록 훅을 재사용하며 프로젝트 전환의 첫 데이터 반환/이전 명령과 최신 잠금 우회를 보완했습니다. 기존 작업의 실제 종료까지 중복 잠금을 유지하고 기존 import/청취 기능은 그대로 둡니다.
+- 테스트 fixture/서비스·훅/화면 검사와 native 임시 SQLite/WAV 및 선택 실행하는 실제 모델 검사를 추가했습니다. 새 라이브러리·다운로드/설치·사용자 자료 변경은 없습니다.
+
+### 3. 테스트 결과
+
+- `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml imported_input`: **3개 성공**, 실행0.72초/컴파일35.47초. 별도 출처 초안/기존 원본 키·바이트 보존, 다른 프로젝트·동시 ID/경로·취소 거부, PCM 변조·파일 열기 전61초 거부를 확인했습니다.
+- `cargo test … real_model_imported_eight_notes_restore_without_changing_input -- --ignored --nocapture`: **1개 성공**, 12.99초/컴파일0.75초. 승인 설치한 개발 Basic Pitch0.4.0으로 자체4초 WAV만 실제 분석해8음·입력 SHA/출처·초안 복원·임시 폴더 정리·원본 바이트 보존을 확인했습니다. 이 검사는 일반 CI에서는 기본 제외합니다.
+- 같은 검사에 무음 원곡과 서로 다른 사용자 기타 입력을 사용하도록 보강한 뒤 **1개 성공**, 4.72초/컴파일11.90초입니다. 원곡 SHA와 결과 SHA가 다르고 선택 파일의 SHA/예상 MIDI `[64,67,69,71,64,67,69,71]`·양쪽 원본 보존을 확인해 원곡으로 잘못 대체하는 구현도 거부합니다. 로그 `imported-ai-distinct-source-model-20261027.log`.
+- 대상 프론트 최초 **30개 성공**, 이후 다른 프로젝트 입력/파일 선택 변경을 추가한 최종 **32개/6파일 성공**, 3.55초. `pnpm test` **581개/117파일 성공**, 40.89초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check` **성공**.
+- `cargo clippy --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**, 21.77초. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --all-features`: **256개 성공/29개 기본 제외**, 실행19.54초/컴파일34.51초이며 내장 자산/권한4개도 포함합니다. `cargo +1.90.0 check --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**, 16.45초.
+- `pnpm build`: **성공**, Vite1분24초/기존 큰 chunk 경고. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**, 12.86초/기존 MSVC 링크 경고. 새 원격/패키지는 후속입니다. 검증 로그는 ignored `src-tauri/target/runtime-validation/imported-ai-…-20261027.log`에 보존합니다.
+- 실제 모델 검사를 보강한 최종 소스의 Clippy **성공**, 6.51초·MSRV1.90 **성공**, 4.39초·Windows 빌드 **성공**, 12.27초입니다. 실제 모델 테스트의 검증 부분만 보강했으며 제품 로직·전체 기본 검사 실행 대상은 바꾸지 않았습니다.
+- 실제 새 UI·개인 기타/실제 연주 품질·앱 재실행 수용·별도 Windows는 **미실행** — 자체 fixture와 실제 자체 합성 모델 검사와 구분합니다. 기존 사용자 앱/프로젝트·설치 모델·입력/모니터/REC는 조작하지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+원본 음원이 없는 프로젝트의 사용자 파일 단독 카피·60초 초과 분석·파일 일부 구간 선택은 이번 범위가 아닙니다. 파일 시작과 원곡이 다르면 현재 수동 싱크를 맞춰야 하며 믹스 offset/음량을 자동 적용하지 않습니다. 역할은 사용자 지정으로 두 기타 AI 분리나 실제 자동 카피 정확도를 보장하지 않습니다. 별도 OS/고급 점수·전체 출시 수용 경계는 유지합니다.
+
+### 5. 다음 작업 계획
+
+전체 Rust/MSRV와 제품 빌드는 완료했으며 Git 업로드·원격 회귀와 새 독립 패키지를 확정합니다. 현재 테스트와 실제 사용자 수용을 구분해 문서화한 뒤 독립적인 다음 요구사항을 이어갑니다. 새 모델이나 개인 오디오 분석을 자동으로 시작하거나 이전 데이터를 삭제/덮어쓰지 않습니다.
+
 ## 후속 — AI 초안·분리 미리보기의 문맥 보호 (2026-10-27)
 
 ### 1. 작업 개요
 
-작업일 2026-10-27. 악보/음원 전환의 첫 반환에 이전 AI 초안·미리 듣기가 남고, 이전 화면의 함수가 새 분석을 시작하거나 취소할 수 있는 경계를 자동 재현해 수정했습니다. 대상/전체 프론트·정적 검사·웹 빌드는 완료했으며 Windows/원격 결과는 후속 기록으로 구분합니다. Phase 6 전체의 별도 OS/모델 수용은 미완료입니다.
+작업·원격 검증 완료일 2026-10-27. 악보/음원 전환의 첫 반환에 이전 AI 초안·미리 듣기가 남고, 이전 화면의 함수가 새 분석을 시작하거나 취소할 수 있는 경계를 자동 재현해 수정했습니다. 대상/전체 프론트·정적 검사·웹/Windows와 원격 회귀는 완료했으며 실제 새 앱/별도 OS 수용은 구분합니다. 이후 사용자 기타 입력 확장은 위 별도 절을 따릅니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -20,6 +54,8 @@
 - `pnpm test`: **573개/117파일 성공**, 33.96초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. `pnpm build`: **성공**, Vite 1분25초/기존 큰 chunk 경고. 로그는 ignored `src-tauri/target/runtime-validation/ai-context-front-20261027.log`, `ai-context-build-20261027.log`에 보존합니다.
 - `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**, 0.00초/컴파일10.81초. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**, 11.63초/기존 MSVC 링크 경고. 로그 `ai-context-bundle-20261027.log`, `ai-context-native-build-20261027.log`.
 - 새 원격/독립 ZIP과 전체 로컬 Rust/AI/도구·실제 모델 재분석·실제 앱/개인 음원/별도 OS는 **미실행** — native/Python/추론 입력 형식은 기존 검증 소스와 같으며 자체 fixture로 프론트 수명만 검사했습니다.
+
+후속 확정: 소스 `a259992ef0d0846ab9d801f3dba9366adc8ebdad`의 [Windows40428489969](https://github.com/BomJin2/GuitarLab/actions/runs/40428489969)/job121940113814는 사후 정리까지 **전체 성공**입니다. 실제 로그에서573프론트/117파일(89.33초), 기본249/확장253Rust(46.35/47.60초·각28개 기본 제외), 예제1+1·AI113(5.47초)/도구143(29.208초·제외 없음)·Clippy/MSRV1.90을 확인했습니다. 위 새 원격 미실행은 확정 전 이력이며 사용자 기타 입력의 새 코드 검증과는 구분합니다.
 
 ### 4. 미구현 및 알려진 문제
 
