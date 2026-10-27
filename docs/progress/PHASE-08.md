@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일 2026-10-27. 녹음 목록/복구 문맥과 정보 변경 중 재생 유지를 두 수직 슬라이스로 검증합니다. 앞선4243408은 원격/독립 ZIP 성공이며 추가 재생 유지까지646프론트·웹/Windows 빌드가 성공했습니다. 최종 새 원격/패키지 확정은 후속이고 Phase8 전체 수용은 미완료입니다.
+작업·검증 완료일 2026-10-27. 녹음 목록/복구 문맥과 정보 변경 중 재생 유지를 두 수직 슬라이스로 검증했습니다. 앞선4243408과 최종9106d66의 원격·독립 ZIP을 확인했고 최신646프론트·웹/Windows·보안 검증을 완료했습니다. Phase8 전체 수용은 미완료입니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -16,6 +16,10 @@
 - 해당 EXE **41,245,184바이트**, SHA `a05e708ca17b20f26e8e3ed46cabc993a15494b8c8c4827cb11b09373e106603`. ZIP **3,613파일/40,293,800바이트**, SHA `33ea5b5d9adea963b528f012cfd4d155fbd8b77c474838f89755ce02a2f98e3c`입니다. 전체 CRC/SHA·새 추출·실제 PS5.1/최소 PATH Python3.12.15 두 번 **성공**, exit0/`VERIFIED_NOT_LAUNCHED`입니다.
 - ZIP `validation-packages/5acb7211-b97a-41e1-b0a4-f6a341d7f3d9/GuitarLab-validation.zip`, 후보 `take-list-context-candidate-dddf1f41-7841-4403-8477-519fd0208252.json`, 영수증 `take-list-context-package-receipt-bad62a5f-ab1d-42c9-b92f-bbffea1dd3e0.json`, 추출 `take-list-context-roundtrip-b6058331-1ec0-42a8-b930-94d8d1c48b58`입니다. 이후 청취 유지 수정 전 후보이며 최신 패키지와 구분합니다.
 - 정보 변경 중 재생 유지 후속의 로컬 **646프론트/122파일**, 대상12개·타입/lint/포맷·웹2분2초·내장4개/Windows13.75초 **성공**입니다. 새 소스/원격·두 변경이 포함된 최신 ZIP/보안 검사 결과는 이어 기록합니다.
+- 두 수정이 포함된 소스 `9106d66771cde991cc5a5d3c25b58de14e3e0e0f`를 main에 push했습니다. 최신 EXE **41,245,184바이트**, SHA `4e76634678cda3334e0c079c738ecb3ae0d9d4200e0f6ee64e44f4f38cf522dc`. 최신 ZIP **3,613파일/40,293,792바이트**, SHA `44ce75bfe9e386ca316b0d19c20f0bc3192591bac1619c17f468db4376931899`입니다. 전체 CRC/SHA·새 추출·실제 PS5.1/최소 PATH Python3.12.15 두 번 **성공**, exit0/`VERIFIED_NOT_LAUNCHED`입니다.
+- 최신 ZIP `validation-packages/cc497daa-adc0-4ac5-9c78-c78ccc1db682/GuitarLab-validation.zip`, 후보 `take-replay-metadata-candidate-009fe353-0149-43a5-b148-679276cd4a3c.json`, 영수증 `take-replay-metadata-package-receipt-22c88a10-c5d6-4050-9b2e-3a8fe33bc6ba.json`, 추출 `take-replay-metadata-roundtrip-f468d45e-00e4-4311-a151-97973142e5a2`입니다. [Windows40505283442](https://github.com/BomJin2/GuitarLab/actions/runs/40505283442)/job122192904415는 진행 중이며 최신 EXE/ZIP만의 보안 검사와 최종 원격 결론을 이어 기록합니다.
+- 최신 EXE/ZIP 두 파일만 Defender `-DisableRemediation`으로 검사해 각 exit0/위협 없음/전후 SHA 동일 **성공**입니다. Defender4.18.26090.9·정의1.461.224.0, 실행 파일 **NotSigned**, 영수증 `take-replay-metadata-defender-8331a6cb-f784-4ca0-b9cb-de5c82c83755.json`입니다. 전역 보안 설정·기존 사용자 자료는 변경하지 않았습니다.
+- 최신 소스의 원격 실제 로그/상태를 확인해 사후 정리까지 **전체 성공**으로 확정했습니다. 프론트646/122파일·기본Rust252/확장256(각29개 기본 제외)·예제1+1·AI113/도구143·Clippy/MSRV1.90 성공입니다. 상세 시간은 Phase4A 첫 절을 따릅니다. 필수5절/기존 이력·진행 표14개 링크·한국어/공백과 사용 안내의 실제 버튼/입력명4개 일치도 확인했습니다. 이후 결과/안내 문서만 변경하며 제품 소스·검증 패키지는 동일합니다.
 - 새 실제 GUI·개인 녹음/메타데이터 복구·청취/REC·새 설치/제거·모델 포함 별도 Windows10/11/다른 백신은 **미실행**입니다. 새 전체 로컬 native/Python/도구 검사는 **미실행** — 변경 없는 엔진의 원격 검증과 구분합니다. 앞선 목록 후보만의 Defender 재검사는 **미실행**이며 최신 통합 후보를 검사합니다.
 
 ### 4. 미구현 및 알려진 문제
@@ -24,7 +28,7 @@
 
 ### 5. 다음 작업 계획
 
-최신 두 수정의 Git/원격·독립 ZIP/보안 검사와 문서 정합성을 확정합니다. 결과 문서만 바뀐 뒤 같은 소스의 빌드/모델/패키지 검사를 반복하지 않으며 남은 실제 GUI/장치·별도 OS/독립 품질 조건은 진행 요약을 따릅니다.
+최신 두 수정의 Git/원격·독립 ZIP/보안 검사와 문서 정합성을 확정했습니다. 결과 문서만 바뀐 뒤 같은 소스의 빌드/모델/패키지 검사를 반복하지 않으며 남은 실제 GUI/장치·별도 OS/독립 품질 조건은 진행 요약을 따릅니다.
 
 ## 믹스 문맥 보호 후보의 독립 패키지 — 2026-10-27
 
