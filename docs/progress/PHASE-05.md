@@ -1,5 +1,32 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 취소 후 실제 출력 오류 보존 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 앞선 출력 수명 수정의 추가 경계에서 취소 요청 뒤 실제 저장 오류가 취소 안내에 가려지는 문제를 보완했습니다. 대상27개·전체678프론트·타입/lint/포맷·웹/내장4개/Windows 검사 완료, 새 원격/패키지는 진행 중입니다. 기존 편집/조회 버전과 원본 보존·파일 형식은 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`: 취소 요청과 실제 AbortError·늦은 완료·저장 오류를 구분하며 현재 문서 오류만 표시하는 기준을 먼저 기록했습니다.
+- `src/features/score/useScoreExport.ts`: 모든 후속 오류를 취소로 분류하는 공통 LatestTask 대신 현재 작업의 AbortController를 관리해 실제 오류를 보존합니다. 기존 최신 잠금/문서 소유권·중복 방지·실제 종료 대기와 현재/이전 문서의 결과 분리는 유지합니다. 공통 LatestTask와 다른 도메인은 변경하지 않습니다.
+- `useScoreExport.test.tsx`: 취소 후 DISK_SPACE_LOW/EXPORT_IO·다른 문서의 늦은 오류·실제 AbortError4개 검사를 추가합니다. UI 컴포넌트·native 엔진/DB·외부 의존성은 변경하지 않습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 후크13개 중 **2개 실패/11개 성공**,2.21초로 취소 뒤 디스크 부족/저장 오류 은폐를 재현했습니다. `score-export-cancel-error-red-20261028.log`입니다.
+- 수정 후 `pnpm test src/features/score/useScoreExport.test.tsx src/features/score/scoreExportCancellation.test.ts src/features/score/scoreExport.test.ts src/features/score/ScoreEditorExport.test.tsx src/features/library/ScoreHistoryPanel.test.tsx`: **27개/5파일 성공**,3.42초. 실제 취소·늦은 완료·현재 오류·이전 문서 오류와 편집/조회 통합을 확인했습니다.
+- `pnpm test`: **678개/125파일 성공**,37.34초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite1분42초. 내장 자산4개/Windows 빌드12.34초 **성공**(기존 큰 chunk/MSVC 링크 안내). 새 Git/원격/패키지는 후속이며 `score-export-cancel-error-…-20261028.log`에 보존합니다. 앞선ca90f4a의674프론트/Windows·독립 ZIP/원격 전체 성공과 새 코드는 구분합니다.
+- 실제 새 GUI/실제 디스크 부족·개인 악보 출력/장치·별도 OS: **미실행** — 오류는 모의 파일 API로 주입하며 사용자 앱/자료를 조작하지 않았습니다. 로컬 전체 Rust/Python 재실행: **미실행** — 해당 엔진/의존성은 동일합니다.
+
+### 4. 미구현 및 알려진 문제
+
+이전 문서를 떠난 뒤 발생한 오류는 새 문서의 오류로 표시하지 않습니다. 취소 뒤 이미 완료한 파일을 삭제하거나 native 파일 작업을 즉시 종료한다고 보장하지 않습니다. 실제 파일 선택창/디스크 오류 수용은 자동 서비스 검사와 구분합니다.
+
+### 5. 다음 작업 계획
+
+새 전체/Windows·원격/독립 패키지를 검증하고 오류 보존 결과를 확정합니다. 독립 합성 DSP 관측 도구9fce425의 원격/145+1 로컬 검사와 앱 수용 조건은 Phase8에서 별도 기록합니다.
+
 ## 후속 — 악보 파일 출력의 문맥·취소 수명 (2026-10-28)
 
 ### 1. 작업 개요

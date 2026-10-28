@@ -13,11 +13,87 @@ function deferred<T>() {
   let resolve: (value: T) => void = () => {
     throw new Error('테스트 초기화');
   };
-  const promise = new Promise<T>((done) => {
+  let reject: (cause: unknown) => void = () => {
+    throw new Error('테스트 초기화');
+  };
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
+it.each([
+  ['DISK_SPACE_LOW', '저장 공간이 부족'],
+  ['EXPORT_IO', '악보 파일을 출력하지 못했습니다'],
+])(
+  '취소 요청 뒤 실제 %s 오류는 취소 성공 안내로 가리지 않는다',
+  async (code, message) => {
+    vi.spyOn(scoreExportApi, 'available').mockReturnValue(true);
+    const pending = deferred<{ format: 'JSON'; bytes: number }>();
+    vi.spyOn(scoreExportApi, 'export').mockReturnValueOnce(pending.promise);
+    const initial = scoreEditingFixture();
+    const hook = renderHook(() => useScoreExport(initial.document));
+    let work: Promise<void> | undefined;
+    act(() => {
+      work = hook.result.current.export(initial.document, 'JSON');
+    });
+    act(() => hook.result.current.cancel());
+    expect(hook.result.current.busy).toBe(true);
+    await act(async () => {
+      pending.reject(new Error(code));
+      await work;
+    });
+    expect(hook.result.current.error).toContain(message);
+    expect(hook.result.current.notice).toBeNull();
+    expect(hook.result.current.busy).toBe(false);
+  },
+);
+it('문서를 바꿔 취소한 이전 작업의 늦은 실제 오류는 현재 문서에 표시하지 않는다', async () => {
+  vi.spyOn(scoreExportApi, 'available').mockReturnValue(true);
+  const pending = deferred<{ format: 'JSON'; bytes: number }>();
+  vi.spyOn(scoreExportApi, 'export')
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValue({ format: 'JSON', bytes: 100 });
+  const initial = scoreEditingFixture();
+  const hook = renderHook((source: object) => useScoreExport(source), {
+    initialProps: initial.originalBytes,
+  });
+  let work: Promise<void> | undefined;
+  act(() => {
+    work = hook.result.current.export(initial.document, 'JSON');
+  });
+  hook.rerender(new Uint8Array(initial.originalBytes));
+  await act(async () => {
+    pending.reject(new Error('EXPORT_IO'));
+    await work;
+  });
+  expect(hook.result.current.error).toBeNull();
+  expect(hook.result.current.notice).toBeNull();
+  expect(hook.result.current.busy).toBe(false);
+  await act(async () => hook.result.current.export(initial.document, 'JSON'));
+  expect(hook.result.current.notice).toContain('새 JSON');
+});
+it('실제 AbortError는 오류로 표시하지 않고 취소 안내와 함께 잠금을 해제한다', async () => {
+  vi.spyOn(scoreExportApi, 'available').mockReturnValue(true);
+  const pending = deferred<{ format: 'JSON'; bytes: number }>();
+  vi.spyOn(scoreExportApi, 'export').mockReturnValueOnce(pending.promise);
+  const initial = scoreEditingFixture();
+  const hook = renderHook(() => useScoreExport(initial.document));
+  let work: Promise<void> | undefined;
+  act(() => {
+    work = hook.result.current.export(initial.document, 'JSON');
+  });
+  act(() => hook.result.current.cancel());
+  await act(async () => {
+    pending.reject(new DOMException('출력 취소', 'AbortError'));
+    await work;
+  });
+  expect(hook.result.current.error).toBeNull();
+  expect(hook.result.current.notice).toContain(
+    '이미 저장된 파일은 유지될 수 있습니다',
+  );
+  expect(hook.result.current.busy).toBe(false);
+});
 it('화면 이탈 뒤 이전 출력 명령을 실행하지 않는다', async () => {
   vi.spyOn(scoreExportApi, 'available').mockReturnValue(true);
   const output = vi

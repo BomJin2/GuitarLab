@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ScoreDocument } from '../../entities/score';
 import type { JobSnapshot } from '../library/projects';
-import { LatestTask } from '../../shared/latestTask';
+import { isRecord } from '../../shared/validation';
 import {
   scoreExportApi,
   scoreExportError,
@@ -20,7 +20,7 @@ export function useScoreExport(source: object, enabled = true) {
     job: JobSnapshot | null;
     canceling: boolean;
   } | null>(null);
-  const task = useRef(new LatestTask());
+  const task = useRef<AbortController | null>(null);
   const operation = useRef<typeof context | null>(null);
   const owner = useRef<typeof context | null>(null);
   const allowed = useRef(enabled);
@@ -28,11 +28,11 @@ export function useScoreExport(source: object, enabled = true) {
     allowed.current = enabled;
   }, [enabled]);
   useLayoutEffect(() => {
-    const current = task.current;
+    const current = task;
     owner.current = context;
     return () => {
       owner.current = null;
-      current.cancel();
+      current.current?.abort();
     };
   }, [context]);
   const currentView = view?.context === context ? view : null;
@@ -53,6 +53,8 @@ export function useScoreExport(source: object, enabled = true) {
       )
         return;
       operation.current = context;
+      const controller = new AbortController();
+      task.current = controller;
       setBusy(true);
       setView({
         context,
@@ -61,41 +63,58 @@ export function useScoreExport(source: object, enabled = true) {
         job: null,
         canceling: false,
       });
-      const result = await task.current.run((signal) =>
-        scoreExportApi.export(document, format, signal, (next) => {
-          if (ownsContext() && !signal.aborted)
-            setView((current) =>
-              current?.context === context
-                ? {
-                    ...current,
-                    job: next,
-                    canceling: current.canceling || next.state === 'CANCELING',
-                  }
-                : current,
-            );
-        }),
-      );
-      operation.current = null;
-      if (owner.current) setBusy(false);
-      if (!ownsContext()) return;
-      setView((current) =>
-        current?.context === context
-          ? {
-              ...current,
-              canceling: false,
-              error:
-                result.status === 'error'
-                  ? scoreExportError(result.error)
+      try {
+        const result = await scoreExportApi.export(
+          document,
+          format,
+          controller.signal,
+          (next) => {
+            if (ownsContext() && !controller.signal.aborted)
+              setView((current) =>
+                current?.context === context
+                  ? {
+                      ...current,
+                      job: next,
+                      canceling:
+                        current.canceling || next.state === 'CANCELING',
+                    }
+                  : current,
+              );
+          },
+        );
+        if (!ownsContext()) return;
+        setView((current) =>
+          current?.context === context
+            ? {
+                ...current,
+                canceling: false,
+                error: null,
+                notice: controller.signal.aborted
+                  ? '출력 취소를 요청했습니다. 이미 저장된 파일은 유지될 수 있습니다.'
+                  : `새 ${format} 파일로 저장했습니다 · ${result.bytes.toLocaleString()}바이트`,
+              }
+            : current,
+        );
+      } catch (cause) {
+        if (!ownsContext()) return;
+        const canceled = isRecord(cause) && cause.name === 'AbortError';
+        setView((current) =>
+          current?.context === context
+            ? {
+                ...current,
+                canceling: false,
+                error: canceled ? null : scoreExportError(cause),
+                notice: canceled
+                  ? '출력 취소를 요청했습니다. 이미 저장된 파일은 유지될 수 있습니다.'
                   : null,
-              notice:
-                result.status === 'ready'
-                  ? `새 ${format} 파일로 저장했습니다 · ${result.value.bytes.toLocaleString()}바이트`
-                  : result.status === 'canceled'
-                    ? '출력 취소를 요청했습니다. 이미 저장된 파일은 유지될 수 있습니다.'
-                    : null,
-            }
-          : current,
-      );
+              }
+            : current,
+        );
+      } finally {
+        task.current = null;
+        operation.current = null;
+        if (owner.current) setBusy(false);
+      }
     },
     cancel: () => {
       if (!ownsContext() || operation.current !== context) return;
@@ -104,7 +123,7 @@ export function useScoreExport(source: object, enabled = true) {
           ? { ...current, canceling: true }
           : current,
       );
-      task.current.cancel();
+      task.current?.abort();
     },
   };
 }
