@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useLayoutEffect, useReducer, useRef, type FormEvent } from 'react';
 import type { ScoreSession } from './scoreSession';
 import type { ScoreEditingController } from './useScoreEditing';
 import { getActiveTrackIndex } from './trackSelection';
@@ -22,6 +22,32 @@ export function ScoreEditor({
     !locked && editor.enabled && !!editor.document,
   );
   const controlsLocked = locked || exporting.busy;
+  const panel = useRef<HTMLElement>(null);
+  const actionFocus = useRef<HTMLElement | null>(null);
+  const [, checkActionFocus] = useReducer(
+    (revision: number) => revision + 1,
+    0,
+  );
+  function rememberActionFocus() {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && panel.current?.contains(active)) {
+      actionFocus.current = active;
+      checkActionFocus();
+    }
+  }
+  useLayoutEffect(() => {
+    const previous = actionFocus.current;
+    actionFocus.current = null;
+    // 폼 교체로 사라진 초점만 복원하고 다른 입력/파일 선택창의 초점은 유지합니다.
+    if (
+      !controlsLocked &&
+      previous &&
+      (!previous.isConnected || previous.matches(':disabled')) &&
+      (document.activeElement === document.body ||
+        document.activeElement === previous)
+    )
+      panel.current?.focus({ preventScroll: true });
+  });
   const track = session.document.tracks[getActiveTrackIndex(session)];
   if (!track) return null;
   const selected = editor.selectedNote;
@@ -51,8 +77,15 @@ export function ScoreEditor({
   }
   return (
     <section
+      ref={panel}
+      tabIndex={-1}
       className="panel"
       aria-label="수동 음표 편집"
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest('button'))
+          rememberActionFocus();
+      }}
+      onSubmit={rememberActionFocus}
       onKeyDown={(event) => {
         if (
           controlsLocked ||
@@ -72,6 +105,7 @@ export function ScoreEditor({
         )
           return;
         event.preventDefault();
+        rememberActionFocus();
         if (key === 'y' || event.shiftKey) editor.redo();
         else editor.undo();
       }}

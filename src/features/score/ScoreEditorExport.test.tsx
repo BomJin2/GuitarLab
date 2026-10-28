@@ -54,7 +54,14 @@ it('원본 기반 편집 출력은 화면 갱신에도 유지하고 취소 정�
   fireEvent.click(
     screen.getByRole('button', { name: '안내 확인 · 편집 시작' }),
   );
-  fireEvent.click(screen.getByRole('button', { name: '새 JSON으로 내보내기' }));
+  const json = screen.getByRole('button', { name: '새 JSON으로 내보내기' });
+  const panelFocus = vi.spyOn(
+    screen.getByRole('region', { name: '수동 음표 편집' }),
+    'focus',
+  );
+  act(() => json.focus());
+  fireEvent.click(json);
+  expect(panelFocus).not.toHaveBeenCalled();
   const signal = output.mock.calls[0]?.[2];
   expect(signal?.aborted).toBe(false);
   rendered.rerender(view(1));

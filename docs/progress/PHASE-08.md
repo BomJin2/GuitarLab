@@ -1,5 +1,37 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 최신 출력 오류 보존·독립 GUI 수동 검증 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 취소 후 실제 오류를 보존하는 제품 소스c6222e5의 자동 검사/Windows·패키지/보안을 완료했습니다. 실제 GUI는 원본 데이터와 분리한 같은 소스의 검증용 식별자로 열었으며 사용자 요청 이후 원격 입력을 중단하고 사용자가 직접 확인하고 있습니다. 출시 전체/다른 Windows와 장치·전체 RSS 수용은 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 제품 변경은 `useScoreExport.ts`의 실제 오류/AbortError·늦은 완료 구분과 추가4개 검사이며 [Phase5 첫 절](PHASE-05.md)에 파일/실패·해결을 기록했습니다.
+- `AGENTS.md`11절, `docs/00-SCOPE-AND-DECISIONS.md`: 실제 GUI 마우스/키보드 원격 조작 중단·실행/종료도 사용자 요청·수동 확인 중 창/실행 UI 소스 유지와 독립 CLI 작업 지속을 기록합니다.
+- 설치된 Tauri2.12.3/build2.7.2의 TAURI_CONFIG 병합과 app_data_dir 식별자 사용·dataDirectory를 소스로 확인했습니다. 검증용 식별자/제목·별도 WebView 폴더만 바꾸고 실제 제품 소스·CSP/권한은 유지합니다. 원래 제품의 검증 EXE/ZIP은 먼저 불변 폴더에 보존했습니다.
+- 자체 GUI 영수증은 `src-tauri/target/runtime-validation/gui-proofs/8d7592482b7a4262a7abd95623b97b7e/proof.json`입니다. GUI EXE SHA256=`1fd7469816737bc6166ededaa3ba1d418510d27aa551d08b05c53e78a7871845`,창=`GuitarLab · 자체 GUI 검증 8d759248`,식별자=`com.guitarlab.validation.gui8d7592482b7a4262a7abd95623b97b7e`입니다. 명시한 새 자체 AppData 폴더만 만들었으며 실행 전 비어 있음/실행 파일의 식별자·제목·SHA를 확인했습니다. 기존 프로필·프로젝트는 열지 않았습니다.
+
+### 3. 테스트 결과
+
+- c6222e5: 대상27개/전체678프론트·타입/lint/포맷·웹1분42초/내장4개·Windows12.34초 **성공**. [Windows40631916894](https://github.com/BomJin2/GuitarLab/actions/runs/40631916894)/job122630020917도 사후 정리까지 **전체 성공**입니다. 원격678프론트(55.63초), 기본252/확장256Rust(57.84/56.45초·각29개 기본 제외), 예제1+1·AI113(2.28초)/도구146(22.159초·건너뜀 없음)·Clippy/MSRV1.90(9.28초)을 확인했습니다.
+- `score-export-cancel-error-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,294,070바이트·CRC/SHA·새 압축 해제 후 실제 PS5.1/최소 PATH Python3.12.15 두 번이 성공했습니다. 제품 EXE41,245,696바이트/SHA256=`54c3052383c59e02892c10ab2f42323e289d6819ed1803c87588ff26924087f1`,ZIP SHA256=`58259cbfb013e593c786ac22b702766c515f161f000f435f1f89bd1d9dfbb05f`입니다.
+- 검증 폴더 기준 ZIP=`validation-packages/c34f7e55-24b8-4f54-babc-2314b1f91b8b/GuitarLab-validation.zip`,후보=`score-export-cancel-error-candidate-528403e6-63a4-4d5c-b649-5a3106377d7b.json`,영수증=`score-export-cancel-error-package-receipt-10d6e54a-df20-4332-bbb0-3d355b67c9c6.json`,추출=`score-export-cancel-error-roundtrip-6ab76c12-0a40-48c1-be41-ba86302228a8`입니다. 이 제품 패키지는 직접 실행하지 않았고 독립 식별자 GUI EXE와 구분합니다.
+- 새 제품 EXE/ZIP Defender **성공**: exit0·위협 없음/전후 SHA 불변,`NotSigned`. 영수증 `score-export-cancel-error-defender-397cf570-0e62-465b-ba0c-5d11bb4de303.json`입니다. 치료/설정 변경·개인 파일 삭제는 하지 않았습니다.
+- 독립 GUI 복사 후 기본 개발 EXE는 원래 설정으로 복원했습니다. 빌드15.09초/내장4개 **성공**이며 로그 `gui-default-restore-build-20261028.log`,`gui-default-restore-bundle-20261028.log`입니다. 검증 창은 별도 불변 EXE여서 재실행·화면 초기화 없이 유지했습니다.
+- 초기 원격 입력 준비는 `coordinate input geometry is unavailable`와 사용자 입력 감지로 재관측이 필요했고 프로젝트 생성/내용 입력을 자동 검증으로 기록하지 않았습니다. 이후 사용자가 직접 테스트하겠다고 요청해 모든 원격 UI 입력을 중단했습니다.
+- 사용자 수동 확인 **성공**: ‘GUI 확인’ 프로젝트 생성,빈 악보에 프렛3 추가,미저장 X→계속 편집 후 창/프로젝트/3 보존,프로젝트 저장/다시 열기 후 카피 화면/3 보존. 키보드 Undo/Redo는 사용자가 **실패**를 확인했고 되돌리기 버튼은3으로 복원됐습니다. 이후3을 저장하고 창을 닫음은 **사용자 확인 성공**입니다. 초점 수정은 Phase5 첫 절의 새 소스로 구분합니다. 입력/모니터/REC를 요청하지 않았습니다.
+- 실제 기본 제품 프로필/개인 악보 출력·실제 디스크 부족·CPAL/장기 GUI RSS/별도 OS: **미실행**. 독립 프로필의 GUI 수용과 실제 제품 EXE 전체 수용·앞선 DSP 자식 메모리 관측을 혼용하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+검증용 프로젝트는 별도 프로필에만 있으며 기존 GuitarLab 라이브러리로 옮기지 않았습니다. 검증 프로필/자체 자료는 보존하고 자동 삭제하지 않습니다. 키보드 실패와 사용자 저장/창 닫힘 확인을 분리해 기록하며 프로세스 종료 코드/기본 프로필의 동작은 별도입니다. 기본9개/부분5개와 독립 정답/별도 Windows·서명 수용은 유지합니다.
+
+### 5. 다음 작업 계획
+
+사용자의 키보드 실패와 저장/종료 결과를 기록했고, 새 초점 수정/검증 후 직접 재확인을 요청합니다. 실제 GUI 조작·실행/종료는 사용자에게 요청하며, 코드/CLI 검사·GitHub Actions·문서화는 독립적으로 진행합니다. 테스트하지 않은 실제 디스크 오류/장치와 전체 출시를 완료로 바꾸지 않습니다.
+
 ## 후속 — 악보 출력 검증과 합성 DSP 지속 관측 (2026-10-28)
 
 ### 1. 작업 개요
