@@ -1,5 +1,11 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 열린 프로젝트의 관리용 악보 drop — 2026-10-28
+
+새 `import_project_score_bytes`는 로컬 main의 raw IPC body만 받습니다. 앞4바이트 little-endian u32는 UTF-8 JSON 메타데이터 길이(1~1024), 뒤 메타데이터는 `{schemaVersion:1,projectId:UUID,name:basename}`이며 unknown 필드/경로·제어 문자/Windows 예약 파일명·지원 외 확장자를 거부합니다. 나머지 바이트는 비어 있지 않은 최대8MiB GP/MusicXML/GuitarLab JSON 악보입니다. 임의 sourcePath/파일 시스템 권한·외부 참조는 받지 않습니다. Raw body 전체는8MiB+1028 이하입니다. 응답은 기존 StorageJob v1→`{schemaVersion:1,asset,duplicate}`이며 자산은 SCORE_IMPORT/MANAGED/동일 projectId입니다.
+
+사용자가 단일 악보 File을 명시적으로 놓은 경우에만 읽고 관리용 복사합니다. 원본 보관 방식이 REFERENCE이면 drop을 처리하지 않고 기존 native 파일 선택으로 안내합니다. 녹음·채점·다른 파일 작업 중에는 시작하지 않으며 미저장 교체 확인을 공유합니다. 취소/실패 때 현재 악보와 저장 head를 유지하고 작업의 실제 종료까지 중복 요청을 막습니다. native는 자체 incoming UUID 폴더의 임시 파일을 create_new로 쓰고 기존 import 검증/중복/DB 보관을 재사용하며, 이 호출 소유 파일/빈 폴더만 정리합니다. 다른 작업/외부 원본·기존 자산은 변경하지 않습니다. 강제 종료/전원 중단의 고아 파일 회수는 별도 미구현입니다. 사용자가 프로젝트 저장을 눌러야 새 악보 revision이 저장됩니다. 음원 drop과 참조 경로 취득은 이 슬라이스 범위 밖입니다.
+
 ## 프로젝트 원본 import의 실패 정리 — 2026-10-28
 
 기존 `pick_project_asset`/StorageJob v1과 관리용 복사·외부 참조 요청/결과는 유지합니다. 원본 복사 이후 중복 조회·DB 삽입·commit 또는 취소가 실패하면 이 호출이 create_new로 만든 임시/최종 복사본만 정리합니다. DB rollback과 함께 기존 자산/저장 revision·다른 작업의 파일과 외부 원본을 유지하며 이미 commit한 성공 자산은 취소 요청만으로 삭제하지 않습니다. 정리 실패는 STORAGE_ERROR로 반환하고 실패를 성공으로 표시하지 않습니다. 열린 프로젝트 drag/drop의 새로운 IPC나 경로 권한은 아직 추가하지 않습니다.

@@ -31,6 +31,7 @@ vi.mock('./projects', async (original) => ({
     open: vi.fn(),
     read: vi.fn(),
     import: vi.fn(),
+    importDroppedScore: vi.fn(),
     save: vi.fn(),
     relink: vi.fn(),
     createBlankScore: vi.fn(),
@@ -271,6 +272,120 @@ function harness(beforeReplace: () => boolean | Promise<boolean> = () => true) {
   );
   return { ...hook, engine };
 }
+
+it('프로젝트 악보 drop은 관리용 원본을 연결하고 저장 head는 명시적 저장 전 유지한다', async () => {
+  const details = projectFixture();
+  const asset = {
+    ...details.assets[0]!,
+    kind: 'SCORE_IMPORT' as const,
+    storage: 'MANAGED' as const,
+    available: true,
+  };
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  vi.mocked(projectApi.importDroppedScore).mockResolvedValue({
+    asset,
+    duplicate: false,
+  });
+  vi.mocked(projectApi.read).mockResolvedValue({
+    name: 'custom.json',
+    data: new TextEncoder().encode(jsonScore).buffer,
+  });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  const file = new File([jsonScore], 'custom.json');
+  await act(async () =>
+    result.current.project.importAsset('SCORE_IMPORT', 'MANAGED', file),
+  );
+  expect(projectApi.importDroppedScore).toHaveBeenCalledWith(
+    details.project.id,
+    file,
+    expect.any(AbortSignal),
+    expect.any(Function),
+  );
+  expect(projectApi.import).not.toHaveBeenCalled();
+  expect(result.current.session?.originalAssetId).toBe(asset.id);
+  expect(result.current.session?.document.tracks[0]?.notes[0]?.fret).toBe(3);
+  expect(result.current.project.details?.revision).toBeNull();
+  expect(result.current.project.scoreSaved).toBe(false);
+  engine.dispose();
+});
+
+it('drop의 취소 요청은 실제 종료까지 잠금을 유지하고 이전 악보를 보존한다', async () => {
+  const details = projectFixture();
+  const asset = {
+    ...details.assets[0]!,
+    kind: 'SCORE_IMPORT' as const,
+    storage: 'MANAGED' as const,
+    available: true,
+  };
+  const pending = deferred<{ asset: typeof asset; duplicate: boolean }>();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  vi.mocked(projectApi.importDroppedScore).mockReturnValue(pending.promise);
+  vi.mocked(projectApi.read).mockResolvedValue({
+    name: 'custom.json',
+    data: new TextEncoder().encode(jsonScore).buffer,
+  });
+  const { result, engine } = harness();
+  await act(async () => result.current.project.open(details.project.id));
+  const previous = scoreEditingFixture();
+  act(() => result.current.setSession(previous));
+  let operation: Promise<void> = Promise.resolve();
+  await act(async () => {
+    operation = result.current.project.importAsset(
+      'SCORE_IMPORT',
+      'MANAGED',
+      new File([jsonScore], 'custom.json'),
+    );
+  });
+  act(() => result.current.project.cancel());
+  expect(result.current.project.busy).toBe(true);
+  await act(async () =>
+    result.current.project.importAsset(
+      'SCORE_IMPORT',
+      'MANAGED',
+      new File([jsonScore], 'another.json'),
+    ),
+  );
+  expect(projectApi.importDroppedScore).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    pending.resolve({ asset, duplicate: false });
+    await operation;
+  });
+  expect(result.current.project.busy).toBe(false);
+  expect(result.current.session).toBe(previous);
+  engine.dispose();
+});
+
+it('drop의 외부 참조와 미저장 확인 거절은 native 저장을 시작하지 않는다', async () => {
+  const confirmation = vi.fn().mockReturnValue(true);
+  const details = projectFixture();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  const { result, engine } = harness(confirmation);
+  await act(async () => result.current.project.open(details.project.id));
+  const file = new File([jsonScore], 'custom.json');
+  await act(async () =>
+    result.current.project.importAsset('SCORE_IMPORT', 'REFERENCE', file),
+  );
+  confirmation.mockReturnValue(false);
+  await act(async () =>
+    result.current.project.importAsset('SCORE_IMPORT', 'MANAGED', file),
+  );
+  expect(projectApi.importDroppedScore).not.toHaveBeenCalled();
+  expect(projectApi.import).not.toHaveBeenCalled();
+  engine.dispose();
+});
 it.each(['copy', 'practice', 'performance'] as const)(
   '%s 화면은 저장과 같은 프로젝트 재열기 후 유지하고 라이브러리 열기는 생성 모드를 따른다',
   async (mode) => {

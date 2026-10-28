@@ -8,6 +8,7 @@ use crate::{
             WorkspaceState,
         },
         projects::{canceled, ProjectStore},
+        score_upload::ScoreUpload,
     },
 };
 use serde::Deserialize;
@@ -236,6 +237,37 @@ pub async fn pick_project_asset(
             |done, total| job.progress(done, total),
         )?;
         Ok(json!({"schemaVersion":1,"asset":imported.asset,"duplicate":imported.duplicate}))
+    });
+    Ok(initial)
+}
+
+#[tauri::command]
+pub async fn import_project_score_bytes(
+    request: tauri::ipc::Request<'_>,
+    store: tauri::State<'_, Arc<ProjectStore>>,
+    jobs: tauri::State<'_, Arc<StorageJobs>>,
+    recording: tauri::State<'_, Arc<RecordingService>>,
+) -> Result<JobSnapshot, AppError> {
+    if recording.is_active() {
+        return Err(record_error("RECORDING_BUSY"));
+    }
+    let tauri::ipc::InvokeBody::Raw(body) = request.body() else {
+        return Err(AppError::invalid());
+    };
+    let (metadata, bytes) = ScoreUpload::decode(body)?;
+    let job = jobs.start("RUNNING")?;
+    let initial = job.snapshot()?;
+    let bytes = bytes.to_vec();
+    let store = store.inner().clone();
+    let recording = recording.inner().clone();
+    launch(job, move |job| {
+        recording.while_idle(|| {
+            let imported =
+                store.import_score_upload(&metadata, &bytes, &job.cancel, |done, total| {
+                    job.progress(done, total)
+                })?;
+            Ok(json!({"schemaVersion":1,"asset":imported.asset,"duplicate":imported.duplicate}))
+        })
     });
     Ok(initial)
 }

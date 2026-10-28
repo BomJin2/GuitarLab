@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import type { ProjectController } from './useProjects';
 import { ScoreHistoryPanel } from './ScoreHistoryPanel';
-export function ProjectStatus({ project }: { project: ProjectController }) {
+import { ProjectScoreDrop } from './ProjectScoreDrop';
+export function ProjectStatus({
+  project,
+  importBlocked = false,
+}: {
+  project: ProjectController;
+  importBlocked?: boolean;
+}) {
   const [storage, setStorage] = useState<'MANAGED' | 'REFERENCE'>('MANAGED');
   const [showHistory, setShowHistory] = useState(false);
   return (
@@ -75,6 +82,14 @@ export function ProjectStatus({ project }: { project: ProjectController }) {
               프로젝트 다시 열기
             </button>
           </div>
+          <ProjectScoreDrop
+            key={project.details.project.id}
+            disabled={project.busy || importBlocked}
+            reference={storage === 'REFERENCE'}
+            onFile={(file) =>
+              project.importAsset('SCORE_IMPORT', storage, file)
+            }
+          />
           {project.native && showHistory && (
             <ScoreHistoryPanel
               key={project.details.project.id}

@@ -192,7 +192,10 @@ export function App() {
             <a href="#/library">라이브러리로 돌아가기</a>
           </section>
         ) : route === 'library' ? (
-          <LibraryPage project={project} />
+          <LibraryPage
+            project={project}
+            importBlocked={practice.armed || measurement.active}
+          />
         ) : route === 'settings' ? (
           <SettingsPage
             input={input}

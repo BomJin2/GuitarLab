@@ -406,7 +406,7 @@ impl ProjectStore {
         }
         result
     }
-    // source는 공개 IPC 경로가 아닌 native picker가 승인한 파일로만 전달합니다.
+    // native picker 승인 파일 또는 검증한 drop의 앱 소유 임시 파일만 전달합니다.
     pub fn import_asset(
         &self,
         project_id: &str,

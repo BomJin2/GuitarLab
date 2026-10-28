@@ -9,7 +9,11 @@ import {
 import { afterEach, expect, it, vi } from 'vitest';
 import { InputMonitor } from './InputMonitor';
 import { emptyAudioSnapshot } from './audioInput';
-import { emptyInputMonitor, inputMonitorApi } from './monitoring';
+import {
+  emptyInputMonitor,
+  inputMonitorApi,
+  type InputMonitorSnapshot,
+} from './monitoring';
 import type { AudioInputController } from './useAudioInput';
 vi.mock('./monitoring', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./monitoring')>();
@@ -40,7 +44,8 @@ it('목록·PC 기본 출력은 바로 준비하되 입력 시작만으로 소�
     stop: vi.fn(),
     refresh: vi.fn(),
   };
-  vi.mocked(inputMonitorApi.status).mockResolvedValue(emptyInputMonitor);
+  let snapshot: InputMonitorSnapshot = emptyInputMonitor;
+  vi.mocked(inputMonitorApi.status).mockImplementation(async () => snapshot);
   vi.mocked(inputMonitorApi.outputs).mockResolvedValue([
     {
       id: 'out',
@@ -51,17 +56,22 @@ it('목록·PC 기본 출력은 바로 준비하되 입력 시작만으로 소�
       isDefault: true,
     },
   ]);
-  vi.mocked(inputMonitorApi.start).mockResolvedValue({
-    ...emptyInputMonitor,
-    state: 'RUNNING',
-    sessionId: 1,
-    inputGeneration: 7,
-    outputDeviceId: 'out',
-    outputName: 'SSL Output',
-    sampleRate: 48000,
-    channels: 2,
-  });
-  vi.mocked(inputMonitorApi.stop).mockResolvedValue(emptyInputMonitor);
+  vi.mocked(inputMonitorApi.start).mockImplementation(
+    async () =>
+      (snapshot = {
+        ...emptyInputMonitor,
+        state: 'RUNNING',
+        sessionId: 1,
+        inputGeneration: 7,
+        outputDeviceId: 'out',
+        outputName: 'SSL Output',
+        sampleRate: 48000,
+        channels: 2,
+      }),
+  );
+  vi.mocked(inputMonitorApi.stop).mockImplementation(
+    async () => (snapshot = emptyInputMonitor),
+  );
   const view = render(<InputMonitor input={input} />);
   await screen.findByRole('option', { name: 'SSL Output · PC 기본 출력' });
   expect(screen.getByRole('combobox', { name: '모니터 출력' })).toHaveProperty(

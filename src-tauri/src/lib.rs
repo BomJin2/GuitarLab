@@ -101,6 +101,7 @@ mod bundle_tests {
             for command in [
                 "plugin:dialog|message",
                 "open_project",
+                "import_project_score_bytes",
                 "update_project_metadata",
                 "list_score_revisions",
                 "read_score_revision",

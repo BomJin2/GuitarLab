@@ -8,6 +8,7 @@ import {
   isNumberWithin,
 } from '../../shared/validation';
 import { logDiagnostic } from '../../shared/logger';
+import { scoreUploadBody } from './scoreUpload';
 export type ProjectMode = 'copy' | 'practice' | 'performance';
 export type ProjectSummary = {
   id: string;
@@ -247,13 +248,16 @@ export async function runStorageJob(
   request: Record<string, unknown>,
   signal: AbortSignal,
   progress: (value: JobSnapshot) => void,
-  options: { waitForCancellation?: boolean } = {},
+  options: { waitForCancellation?: boolean; body?: Uint8Array } = {},
 ): Promise<unknown> {
   if (signal.aborted) throw new DOMException('작업 취소', 'AbortError');
   let snapshot = decodeJob(
-    await invoke<unknown>(command, {
-      request: { schemaVersion: 1, ...request },
-    }),
+    await invoke<unknown>(
+      command,
+      options.body ?? {
+        request: { schemaVersion: 1, ...request },
+      },
+    ),
   );
   const id = snapshot.jobId;
   const cancel = () => {
@@ -341,6 +345,31 @@ export const projectApi = {
       !asset(v.asset) ||
       typeof v.duplicate !== 'boolean' ||
       v.asset.projectId !== projectId
+    )
+      throw new Error('PROJECT_CONTRACT_INVALID');
+    return { asset: v.asset, duplicate: v.duplicate };
+  },
+  async importDroppedScore(
+    projectId: string,
+    file: File,
+    signal: AbortSignal,
+    progress: (v: JobSnapshot) => void,
+  ) {
+    if (!isUuid(projectId)) throw new Error('PROJECT_CONTRACT_INVALID');
+    const body = await scoreUploadBody(projectId, file, signal);
+    const v = envelope(
+      await runStorageJob('import_project_score_bytes', {}, signal, progress, {
+        body,
+        waitForCancellation: true,
+      }),
+    );
+    if (
+      !asset(v.asset) ||
+      typeof v.duplicate !== 'boolean' ||
+      v.asset.projectId !== projectId ||
+      v.asset.kind !== 'SCORE_IMPORT' ||
+      v.asset.storage !== 'MANAGED' ||
+      !v.asset.available
     )
       throw new Error('PROJECT_CONTRACT_INVALID');
     return { asset: v.asset, duplicate: v.duplicate };

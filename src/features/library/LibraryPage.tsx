@@ -7,7 +7,13 @@ import { ProjectTrashPanel } from './ProjectTrashPanel';
 import { ProjectMetadataPanel } from './ProjectMetadataPanel';
 import { filterProjects } from './projectSearch';
 
-export function LibraryPage({ project }: { project: ProjectController }) {
+export function LibraryPage({
+  project,
+  importBlocked = false,
+}: {
+  project: ProjectController;
+  importBlocked?: boolean;
+}) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [mode, setMode] = useState<ProjectMode>('practice');
@@ -93,7 +99,7 @@ export function LibraryPage({ project }: { project: ProjectController }) {
           브라우저에서는 악보·음원 미리보기를 사용할 수 있습니다.
         </p>
       )}
-      <ProjectStatus project={project} />
+      <ProjectStatus project={project} importBlocked={importBlocked} />
       {project.details && (
         <ProjectMetadataPanel
           key={JSON.stringify([

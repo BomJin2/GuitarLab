@@ -155,6 +155,7 @@ export function useProjects(
       progress: (job: JobSnapshot) => void,
     ) => Promise<T>,
     apply: (value: T) => void,
+    waitForCompletion = false,
   ) {
     if (!native || inFlight.current || confirming.current) return;
     inFlight.current = true;
@@ -163,11 +164,15 @@ export function useProjects(
     setError(null);
     setNotice(null);
     setJob(null);
+    const physical = waitForCompletion ? new AbortController() : null;
+    if (physical) mutation.current.controller = physical;
     const result = await task.current.run((signal) =>
-      work(signal, (value) => {
+      work(physical?.signal ?? signal, (value) => {
         if (mounted.current && current === operation.current) setJob(value);
       }),
     );
+    if (physical && mutation.current.controller === physical)
+      mutation.current.controller = null;
     if (!mounted.current || current !== operation.current) return;
     inFlight.current = false;
     setBusy(false);
@@ -345,27 +350,36 @@ export function useProjects(
   async function importAsset(
     kind: AssetInfo['kind'],
     storage: AssetInfo['storage'],
+    file?: File,
   ) {
     if (!details) return;
+    if (file && (kind !== 'SCORE_IMPORT' || storage !== 'MANAGED')) {
+      setError(
+        '악보 drop은 관리용 복사만 지원합니다. 외부 참조·음원은 파일 선택을 사용하세요.',
+      );
+      return;
+    }
     if (kind === 'SCORE_IMPORT' && !(await canReplace())) return;
     const projectId = details.project.id;
     engine.pause();
     pendingRestore.current = null;
     await run(
       async (signal, progress) => {
-        const imported = await projectApi.import(
-          projectId,
-          kind,
-          storage,
-          signal,
-          progress,
-        );
+        const imported = file
+          ? await projectApi.importDroppedScore(
+              projectId,
+              file,
+              signal,
+              progress,
+            )
+          : await projectApi.import(projectId, kind, storage, signal, progress);
         if (!imported.asset.available) throw new Error('FILE_NOT_FOUND');
         const loaded = await projectApi.read(
           projectId,
           imported.asset.id,
           signal,
           progress,
+          { waitForCancellation: !!file },
         );
         if (kind === 'SCORE_IMPORT') {
           signal.throwIfAborted();
@@ -405,6 +419,7 @@ export function useProjects(
             : '선택한 파일을 연결했습니다. 변경 내용을 저장하세요.',
         );
       },
+      !!file,
     );
   }
   async function relink(assetId: string) {
