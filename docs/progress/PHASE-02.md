@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일2026-10-28. 프로젝트 없는 drop을 유지하면서 열린 프로젝트의 단일 악보만 관리용 복사로 보관하는 F01 수직 슬라이스입니다. 새 raw IPC/제한 검증과 자체 staging·기존 원본/DB import 재사용, 미저장 보호·실제 취소 종료 잠금을 구현했습니다. 대상44프론트/신규3native 성공,최종693프론트/261Rust·타입/lint/포맷/Clippy·Rust1.90과 웹/Windows·내장4개도 성공했습니다. 새 원격/패키지와 실제 사용자 수용은 후속입니다.
+작업일2026-10-28. 프로젝트 없는 drop을 유지하면서 열린 프로젝트의 단일 악보만 관리용 복사로 보관하는 F01 수직 슬라이스입니다. 새 raw IPC/제한 검증과 자체 staging·기존 원본/DB import 재사용, 미저장 보호·실제 취소 종료 잠금을 구현했습니다. 대상44프론트/신규3native 성공,최종693프론트/261Rust·타입/lint/포맷/Clippy·Rust1.90과 웹/Windows·내장4개도 성공했습니다. 새 원격 전체/패키지·PS5.1/Defender까지 성공했으며 실제 사용자 Explorer 수용은 답변 대기입니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -18,11 +18,14 @@
 
 ### 3. 테스트 결과
 
+- 7f88fb3의 [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813: **전체 성공**. 프론트693(71.89초)·웹6.86초, 기본Rust257/확장261(74.78/84.60초·각29개 기본 제외), 예제1+1·AI113(2.52초)/도구146(23.041초·건너뜀 없음)·Clippy/MSRV1.90(10.18초)·사후 정리를 확인했습니다.
+
 - 최초 native 컴파일에서 ImportResult 위치를 project_model로 잘못 가져와 E0432가 발생했습니다. 실제 projects 모듈의 타입을 재사용하도록 고쳤습니다. 이후 `cargo test … score_upload --lib`: **신규3개 성공**,0.57초입니다.
 - `pnpm test src/features/library/scoreUpload.test.ts src/features/library/ProjectScoreDrop.test.tsx src/features/library/useProjects.test.tsx src/features/library/projects.test.ts`: **44개/4파일 성공**,15.93초. 계약4개·UI3개·hook3개 신규를 포함합니다.
 - 첫 `pnpm test`: **692개 성공/1개 실패**,57.84초. 기존 모니터 검사 mock의 status가 켜기 이후에도 항상 IDLE을 반환해 실제200ms 폴링이 실행되면 RUNNING 표시를 덮었습니다. 제품 코드는 유지하고 mock 상태를 start/stop과 일치시켰습니다. 후속 대상33개/3파일 **성공**,2.96초입니다. 최종 `pnpm test`는 **693개/128파일 성공**,37.83초이며 타입/lint/포맷도 **성공**입니다. `pnpm build`도 **성공**,Vite2분3초(기존 큰 chunk 안내)입니다.
 - 첫 확장 `cargo test --all-features`: **261개 성공/29개 기본 제외**,20.29초. Clippy **성공**,15.05초. Windows 예약 파일명 보완 뒤 최종 전체 **261개 성공/29개 기본 제외**,19.15초입니다. 최종 Clippy **성공**,6.98초·`cargo +1.90.0 check --all-targets --all-features` **성공**,15.47초입니다.
 - `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,14.76초(기존 MSVC 링크 안내). 같은 feature의 `bundle_tests` **4개 성공**,0.01초이며 새 명령의 원격 origin 거부를 포함합니다. `cargo fmt --check`,Git diff/추가 한국어 문자 검사도 **성공**입니다. 새 원격/패키지는 후속입니다.
+- 7f88fb3은 main에 push했습니다. 새 독립 ZIP3,613파일/40,331,534바이트·CRC/SHA/실제PS5.1·Python3.12.15와 EXE/ZIP Defender는 **성공**입니다. 정확한 경로/지문은 [Phase8 첫 절](PHASE-08.md)을 따릅니다. Windows40647692164/job122680240813도 사후 정리까지 성공했습니다.
 - 실제 Explorer drop/저장·재실행/다른 Windows·개인 자료/디스크 부족·강제 종료: **미실행**. 현재 사용자가 수용한 단축키 고정 앱은 유지하며 새 기능을 적용했다고 표시하지 않습니다.
 
 ### 4. 미구현 및 알려진 문제

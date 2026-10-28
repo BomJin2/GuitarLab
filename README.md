@@ -2,7 +2,7 @@
 
 ## 현재 소스 상태 — 2026-10-28
 
-프로젝트 악보 drop 후속: 열린 프로젝트에서 단일 GP/MusicXML/JSON 악보를 관리용 복사로 보관하는 경로를 구현했습니다. 임의 경로 대신 제한된 raw 바이트를 검증하고 미저장 교체 확인·실제 취소 종료 잠금·자체 임시 보관 정리를 공유합니다. 최종693프론트/261확장Rust·타입/lint/포맷/Clippy·Rust1.90·웹/Windows·내장4개가 성공했으며 원격/패키지·실제 Explorer 수용은 [Phase2](docs/progress/PHASE-02.md) 첫 절에서 구분합니다. 외부 참조·음원 drop과 자동 staging 복구는 미구현입니다.
+프로젝트 악보 drop 후속: 열린 프로젝트에서 단일 GP/MusicXML/JSON 악보를 관리용 복사로 보관하는 경로를 구현했습니다. 임의 경로 대신 제한된 raw 바이트를 검증하고 미저장 교체 확인·실제 취소 종료 잠금·자체 임시 보관 정리를 공유합니다. 최종693프론트/261확장Rust·타입/lint/포맷/Clippy·Rust1.90·웹/Windows·내장4개가 성공했으며 원격 전체693프론트/257·261Rust·AI113/도구146·Clippy/MSRV·독립ZIP/PS5.1/Defender도 성공했습니다. 실제 Explorer 수용은 사용자 답변 대기로 [Phase2](docs/progress/PHASE-02.md) 첫 절에서 구분합니다. 외부 참조·음원 drop과 자동 staging 복구는 미구현입니다.
 
 원본 가져오기 후속: DB 삽입/commit 실패 뒤 남던 새 관리용 복사본만 정리하고 기존 자산/저장 버전·외부 원본/다른 작업 파일을 보존합니다. 대상21개·확장Rust258개·타입/포맷/Clippy·Windows·Rust1.90이 성공했으며 새 원격 전체683프론트/254·258Rust·AI113/도구146·MSRV와 ZIP/PS5.1도 성공했습니다. 새 Defender도 승인 검토 복구 후 동일 절차로 성공했으며 [Phase4](docs/progress/PHASE-04.md) 첫 절에서 구분합니다. 열린 프로젝트의 드롭 기능 자체는 아직 미구현입니다.
 

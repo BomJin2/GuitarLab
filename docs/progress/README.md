@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 0 | 프로젝트 스캐폴딩 | 완료 | [PHASE-00.md](PHASE-00.md) |
 | 1 | UI 쉘과 디자인 시스템 | 완료 | [PHASE-01.md](PHASE-01.md) |
-| 2 | 악보 import와 재생 동기화 | 기본 완료 · TAB/오선보·마디 반복 및 프로젝트 없는 단일 파일drop 후속492프론트/240·244Rust/독립ZIP·원격 기능/격리 설치 성공. 실제Explorer·프로젝트 자산drop 수용은 별도 | [PHASE-02.md](PHASE-02.md) |
+| 2 | 악보 import와 재생 동기화 | 기본 완료 · 관리용 프로젝트 악보 drop 7f88fb3의693프론트/257·261Rust·AI113/도구146·Clippy/MSRV 원격 전체와 웹/내장4개/Windows·독립ZIP/PS5.1/Defender 성공. 실제Explorer drop/저장 수용은 사용자 답변 대기. 음원/참조 drop은 미구현 | [PHASE-02.md](PHASE-02.md) |
 | 3 | 오디오 장치와 단음 판정 | 완료(단음 PoC). PC 기본 입력 최초 선택10a3e72의542프론트/249·253Rust·AI113/도구143·MSRV 원격 전체와 실제 읽기 전용 열거/웹·내장4개/Windows·독립ZIP/PS5.1/Defender 성공. 실제 앱의 새 UI/캡처·청취는 미실행 | [PHASE-03.md](PHASE-03.md) |
 | 4 | 프로젝트 저장과 기록 | 기본 완료 · 원본 import 실패 정리e736df7의683프론트/254·258Rust·AI113/도구146·MSRV 원격 전체와 타입/포맷·Clippy·Windows/새ZIP·PS5.1 성공. 새 Defender 성공. 실제 개인 DB 수용은 미실행 | [PHASE-04.md](PHASE-04.md) |
 | 2A | 다중 기타 악보 트랙 선택 | 완료 | [PHASE-02A.md](PHASE-02A.md) |
@@ -19,7 +19,7 @@
 | 6A | YouTube 공식 반주 검색 | URL/영상·TAB 보존 수용 완료, 자동 검색은 사용자 결정으로 보류(전체 미완료) | [PHASE-06A.md](PHASE-06A.md) |
 | 6B | 사용자 기타 파트 파일·실험적 AI 분리 | 특화 AI 의존성 보류(사용자 파일/믹스/연주·REC 청취·미지원 폴백 완료) | [PHASE-06B.md](PHASE-06B.md) |
 | 7 | 고급 판정 | 진행 중(긴 녹음 구간 분석476프론트/239확장Rust·Windows/독립ZIP·실제PS5.1/원격 전체 검증. 박자·장식음·골페 보호·배음 교정 기각/pYIN 미채택. 독립 정답/주법·고급 점수 미완료) | [PHASE-07.md](PHASE-07.md) |
-| 8 | 품질과 릴리스 | 진행 중.ca90f4a의674프론트/252·256Rust·AI113/도구143·Clippy/MSRV 원격 전체·웹/내장/Windows·새ZIP/PS5.1·독립Python/Defender 성공. 독립 합성DSP300초/1,440만 프레임·메모리 관측 및 새 도구3개/전체145성공·권한 제약1미실행. fc6628c 격리 설치/정상종료/제거·보존 성공과 실제Tauri/키/Explorer·RSS·데이터교체/영구삭제·서명/별도Windows10/11 미완료는 구분 | [PHASE-08](PHASE-08.md) |
+| 8 | 품질과 릴리스 | 진행 중.7f88fb3의693프론트/257·261Rust·AI113/도구146·Clippy/MSRV 원격 전체·웹/내장/Windows·새ZIP/PS5.1·독립Python/Defender 성공. 자체 GUI 기본 편집/저장·단축키 사용자 수용과 새 Explorer 검증 대기를 구분. 독립 합성DSP300초/1,440만 프레임·메모리 관측 및 새 도구3개/전체145성공·권한 제약1미실행. fc6628c 격리 설치/정상종료/제거·보존 성공과 실제Tauri/키/Explorer·RSS·데이터교체/영구삭제·서명/별도Windows10/11 미완료는 구분 | [PHASE-08](PHASE-08.md) |
 
 ## 남은 수용 조건과 재개 기준
 
@@ -32,6 +32,10 @@
 | 8 | 별도 OS·장기 Tauri/장치 수용, 배포 서명/고지, 실제 데이터 교체·영구 삭제 | 자체 임시 데이터/격리 설치·백업/새 파일 출력만 검증. 서명 주체와 배포 범위, 기존 데이터를 교체·삭제하는 작업의 구체적 범위를 확정하고 해당 수용을 진행해야 함. |
 
 ## 최신 진행 기록
+
+**원격 전체 확정 / 사용자 수용 대기 — 2026-10-28 프로젝트 악보 drop 7f88fb3**: [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813는693프론트/257·261Rust·AI113/도구146·Clippy/MSRV·사후 정리까지 전체 성공입니다. 독립ZIP/PS5.1·Defender·별도 GUI와 기본 설정 복원/내장4개도 성공했습니다. 사용자의 명시적 요청으로 새 고정 GUI를 한 번 실행했고 같은 ‘GUI 확인’ 프로젝트에 standard.musicxml을 놓는 실제 Explorer 검증은 **답변 대기**입니다. 창/EXE·실행 UI 소스를 유지하고 원격 입력/종료를 하지 않습니다. [Phase2](PHASE-02.md)/[Phase8](PHASE-08.md) 첫 절에 지문/명령·오류/해결/미실행을 확정했습니다. 아래 대기는 이전 이력입니다.
+
+**독립 ZIP/GUI 준비 — 2026-10-28 프로젝트 악보 drop 7f88fb3**: 693프론트/261Rust·타입/lint/포맷/Clippy/MSRV·웹/Windows·내장4개와 새 ZIP3,613파일/40,331,534바이트·CRC/SHA·실제PS5.1/독립Python·Defender가 성공했습니다. [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813 최종을 확인 중입니다. 사용자가 기존 창이 닫혔다고 확인했고 명시적 요청 후 별도 `A:\GuitarLab\src-tauri\target\runtime-validation\gui-proofs\project-score-drop-c5dc50c5\GuitarLab.exe`를 한 번 실행했습니다. 같은 테스트 프로필의 ‘GUI 확인’에서 standard.musicxml drop을 요청했으며 **실제 수용은 답변 대기**입니다. 현재 창/EXE·실행 UI 소스를 유지하고 원격 입력/종료는 하지 않습니다. [Phase2](PHASE-02.md)/[Phase8](PHASE-08.md) 첫 절에 파일·오류/해결/명령·지문/미실행을 구분합니다.
 
 **진행 중 — 2026-10-28 열린 프로젝트 관리용 악보 drop**: raw 바이트 v1/8MiB·파일명/경로 제한,기존 native import/자체 staging 정리와 UI 파일 전달·미저장/실제 취소 종료 잠금을 구현했습니다. 대상44프론트/신규3native·첫 확장261Rust/Clippy가 성공했으며 기존 모니터 mock의 폴링 불일치1개 실패를 수정해 대상33개도 통과했습니다. 최종693프론트/261Rust·타입/lint/포맷/Clippy·Rust1.90·웹/Windows·내장4개가 성공했으며 원격/패키지·새 실제 Explorer 수용은 후속입니다. 사용자에게 현재 테스트 창의 저장/종료를 요청했고 답변 전에는 현재 앱을 유지합니다. [Phase2 첫 절](PHASE-02.md)에 계약/파일·오류/해결·미실행을 기록합니다. 현재 사용자 단축키 고정 창은 유지합니다.
 

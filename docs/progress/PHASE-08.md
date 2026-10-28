@@ -1,5 +1,34 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 프로젝트 악보 drop의 독립 패키지·수동 검증 준비 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 7f88fb3의 관리용 악보 drop에서 로컬693프론트/261Rust·타입/lint/포맷·Clippy/MSRV·웹/Windows·내장4개를 통과했습니다. 새 ZIP/PS5.1/Defender를 확인하고 같은 자체 테스트 프로필을 쓰는 별도 실행 파일을 준비했습니다. 원격 전체도 성공했으며 사용자 실제 Explorer 수용은 답변 대기입니다.
+
+### 2. 구현 및 변경 사항
+
+실제 소스/계약·검사와 오류 해결은 [Phase2 첫 절](PHASE-02.md)을 따릅니다. 기본 제품 패키지를 불변 폴더에 먼저 고정한 뒤 별도 식별자/제목·WebView 폴더만 바꾼 검증 EXE를 복사했습니다. 같은 테스트 프로필의 ‘GUI 확인’을 재사용하며 기본 제품 AppData/개인 자료는 열지 않습니다. 사용자가 기존 창이 닫혀 있다고 확인했고 새 창 실행을 명시적으로 요청해 해당 EXE만 한 번 실행했습니다. 마우스/키보드 조작과 자동 종료는 하지 않습니다.
+
+### 3. 테스트 결과
+
+- `project-score-drop-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,331,534바이트·CRC/SHA·새 압축 해제와 실제 PS5.1/최소 PATH Python3.12.15 검사를 확인했습니다. 제품 EXE41,379,328바이트/SHA256=`6f42f1a70558dac53c56b1a1674fd66393a4c8d14f38acd20e7d217be65b7452`,ZIP SHA256=`8c570dd01e4ba833d55db6fc4d17f2f49f283c0f2c0b42431a1970518f68cc92`입니다.
+- 검증 폴더 기준 ZIP=`validation-packages/50f1ce79-3220-4d95-970a-46e1d8738295/GuitarLab-validation.zip`,후보=`project-score-drop-candidate-0347165a-0941-454d-b7c2-923ec8c604c6.json`,영수증=`project-score-drop-package-receipt-248bdc47-fb5b-4dc2-929a-139937a317bd.json`,추출=`project-score-drop-roundtrip-dcaf3fb6-16e7-45a0-a058-207a39a459bf`입니다. 제품 패키지는 **미실행**입니다.
+- 새 제품 EXE/ZIP Defender **성공**: 두 exit0/전후 SHA 불변,NotSigned. 영수증=`project-score-drop-defender-0a90d70a-3f0c-483e-bcd7-bdd2fd25b724.json`입니다. 자동 치료/설정 변경·개인 파일 검사는 하지 않았습니다.
+- 별도 GUI=`gui-proofs/project-score-drop-c5dc50c5/GuitarLab.exe`,41,379,840바이트/SHA256=`13ea58a8bfce769916b0a17e44c6cf6e7b61c756f63e40a097a46c8b3f50e620`입니다. 실제 바이너리의 검증 식별자/제목을 확인했습니다. 제목=`GuitarLab · 프로젝트 악보 드롭 c5dc50c5`,식별자=`com.guitarlab.validation.gui8d7592482b7a4262a7abd95623b97b7e`입니다. 같은 폴더의 proof.json에 사용자 종료/실행 요청과 비자동 UI 입력을 기록합니다. 실행 PID가 다른 관측 세션에 보이지 않는다는 이유만으로 중복 실행하거나 창을 닫지 않습니다.
+- GUI 복사 후 기본 빌드 설정 복원 **성공**,15.73초·내장4개 성공. 기본 식별자/검증 식별자 부재와 GUI SHA 불변을 확인했습니다. 로그=`project-score-drop-default-restore-20261028.log`,`project-score-drop-default-bundle-20261028.log`입니다.
+- 7f88fb3의 [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813: **전체 성공**. 프론트693(71.89초)·웹6.86초, 기본Rust257/확장261(74.78/84.60초·각29개 기본 제외), 예제1+1·AI113(2.52초)/도구146(23.041초·건너뜀 없음)·Clippy/MSRV1.90(10.18초)·사후 정리를 확인했습니다.
+- 실제 Explorer drop→프로젝트 저장/다시 열기는 **미실행/사용자 답변 대기**입니다.
+- 개인 자료/기본 제품 GUI·다른 Windows/디스크 부족·강제 종료/장기 실제 입력/RSS: **미실행**. 단축키 e745059의 사용자 수용과 새 기능을 구분합니다.
+
+### 4. 미구현 및 알려진 문제
+
+프로젝트 음원/외부 참조 drop·자동 staging 복구는 미구현입니다. 기본 제품 패키지와 별도 프로필 GUI EXE를 혼용하지 않습니다. 실제 데이터 교체/영구 삭제·서명·별도 OS와 고급 정확도/특화 AI 수용은 계속 남아 있습니다.
+
+### 5. 다음 작업 계획
+
+같은 테스트 프로젝트의 실제 Explorer drop과 저장/다시 열기를 사용자 답변으로 확인하고 원격 전체 결과를 확정합니다. 현재 새 창/불변 EXE/실행 UI 소스는 유지하며 CLI·문서 확인을 계속합니다. 원격 마우스/키보드 조작으로 수동 수용을 대체하지 않습니다.
+
 ## 후속 — 원본 import rollback의 원격·독립 패키지 검증 (2026-10-28)
 
 ### 1. 작업 개요
