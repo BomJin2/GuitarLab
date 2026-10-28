@@ -14,7 +14,7 @@
 - `audioUpload.ts`, `projects.ts`/새 검사: FileReader로1MiB씩 읽어 같은 job/offset으로 전달하고 받은 확인·최종 자산을 검증합니다. runStorageJob의 준비 단계 실패도 실제 정리 종료까지 관측하고 중복 cancel을 막습니다. 기존 요청은 준비 callback 없이 같은 경로를 유지합니다.
 - `asset_staging.rs`, `score_upload.rs`, `projects.rs`: 악보와 음원의 이름/크기·디스크 여유/자체 staging·기존 import/정리를 공유했습니다. 기존 raw 악보 v1은 유지합니다.
 - `audio_upload.rs`, `storage/mod.rs`, `commands/storage_api.rs`, native `app.rs`/`lib.rs`: 한 작업/1개 대기 큐·조각 ID/offset/크기·단절/30초 미수신·취소를 처리하고 실제 보관 뒤만 완료합니다. 녹음 idle/종료 guard와 원격 접근 거부에 연결했습니다. DB/Python·외부 의존성은 변경하지 않았습니다.
-- `docs/00`,`02`,`04`,`07`,`09`,`12`와 진행 요약에 범위/계약·검증과 미실행을 기록합니다.
+- `docs/00`,`02`,`04`,`07`,`09`,`12`와 진행 요약에 범위/계약·검증과 미실행을 기록합니다. `docs/21-QUICKSTART.md`에 전체 영역 drop·종류별 제한/참조 선택·저장 단계를 추가했습니다.
 
 ### 3. 테스트 결과
 
