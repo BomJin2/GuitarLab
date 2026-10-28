@@ -6,7 +6,11 @@ import { usePlayerEngine } from '../player/usePlayer';
 import type { AudioInputController } from '../practice/useAudioInput';
 import type { CalibrationController } from './useCalibration';
 import type { MonitorEnvironment } from './calibration';
-import { CalibrationClickClock } from './CalibrationClickClock';
+import {
+  CalibrationClickClock,
+  type CalibrationSignalMode,
+} from './CalibrationClickClock';
+import { inputMonitorApi } from '../practice/monitoring';
 import {
   measurementApi,
   measurementError,
@@ -25,6 +29,7 @@ type Status =
   | 'CANCELED'
   | 'ERROR';
 type Run = {
+  mode: CalibrationSignalMode;
   clicks: CalibrationClickClock;
   generation: number;
   environment: MonitorEnvironment;
@@ -49,6 +54,7 @@ export function useCalibrationMeasurement(
   const current = useRef<Run | null>(null);
   const mounted = useRef(false);
   const [status, setStatus] = useState<Status>('IDLE');
+  const [mode, setMode] = useState<CalibrationSignalMode>('PLUCK');
   const [snapshot, setSnapshot] = useState<MeasurementSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [clock, setClock] = useState('보정 대기');
@@ -141,7 +147,10 @@ export function useCalibrationMeasurement(
   );
 
   const start = useCallback(
-    async (environment: MonitorEnvironment) => {
+    async (
+      environment: MonitorEnvironment,
+      mode: CalibrationSignalMode = 'PLUCK',
+    ) => {
       const selected = latest.current.input;
       if (
         current.current ||
@@ -150,6 +159,7 @@ export function useCalibrationMeasurement(
       )
         return;
       const run: Run = {
+        mode,
         clicks: new CalibrationClickClock(),
         generation: selected.state.streamGeneration,
         environment,
@@ -165,6 +175,7 @@ export function useCalibrationMeasurement(
         cancelAfterSave: false,
       };
       current.current = run;
+      setMode(mode);
       setStatus('SYNCING');
       setSnapshot(null);
       setError(null);
@@ -181,10 +192,19 @@ export function useCalibrationMeasurement(
         );
       }, 90000);
       try {
+        const checkMonitor = async () => {
+          if (mode === 'CABLE') {
+            const monitor = await inputMonitorApi.status();
+            if (monitor.state !== 'STOPPED')
+              throw new Error('CABLE_MONITOR_ACTIVE');
+          }
+        };
+        await checkMonitor();
+        if (run.canceled || current.current !== run) return;
         engine.pause();
         run.mediaEpoch = engine.getSnapshot().playbackEpoch;
         const [, native] = await Promise.all([
-          run.clicks.start(),
+          run.clicks.start(mode),
           invoke<unknown>('get_audio_clock').then(decodeInputClock),
         ]);
         if (run.canceled) return;
@@ -200,6 +220,8 @@ export function useCalibrationMeasurement(
             return;
           }
           try {
+            await checkMonitor();
+            if (run.canceled || current.current !== run) return;
             if (performance.now() - run.startedMs > 90000) {
               await finish(
                 run,
@@ -291,6 +313,10 @@ export function useCalibrationMeasurement(
   const save = useCallback(async () => {
     const run = current.current;
     if (!run?.measurementId || run.saving || run.canceled) return;
+    if (run.mode === 'CABLE') {
+      setError('유선 관측값은 기타 연주 보정값으로 저장하지 않습니다.');
+      return;
+    }
     run.saving = true;
     setStatus('SAVING');
     setError(null);
@@ -316,7 +342,7 @@ export function useCalibrationMeasurement(
       run.saving = false;
     }
   }, [finish]);
-  return { status, snapshot, error, clock, active, start, cancel, save };
+  return { status, mode, snapshot, error, clock, active, start, cancel, save };
 }
 export type MeasurementController = ReturnType<
   typeof useCalibrationMeasurement

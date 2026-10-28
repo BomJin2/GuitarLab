@@ -96,9 +96,26 @@ it('목록·PC 기본 출력은 바로 준비하되 입력 시작만으로 소�
     expect(inputMonitorApi.start).toHaveBeenCalledWith(7, 'out', 0.25),
   );
   await screen.findByText(/모니터 켜짐 · SSL Output/);
+  view.rerender(
+    <InputMonitor
+      startBlocked
+      input={{
+        ...input,
+        state: { ...emptyAudioSnapshot, state: 'RUNNING', streamGeneration: 7 },
+      }}
+    />,
+  );
+  expect(screen.getByRole('button', { name: '🎧 모니터 끄기' })).toHaveProperty(
+    'disabled',
+    false,
+  );
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: '🎧 모니터 끄기' }));
   });
   expect(inputMonitorApi.stop).toHaveBeenCalledOnce();
+  expect(screen.getByRole('button', { name: '🎧 모니터 켜기' })).toHaveProperty(
+    'disabled',
+    true,
+  );
   expect(input.stop).not.toHaveBeenCalled();
 });

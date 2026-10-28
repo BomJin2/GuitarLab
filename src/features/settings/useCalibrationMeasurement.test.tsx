@@ -9,6 +9,7 @@ import { useCalibrationMeasurement } from './useCalibrationMeasurement';
 import { emptyAudioSnapshot } from '../practice/audioInput';
 import type { AudioInputController } from '../practice/useAudioInput';
 import type { CalibrationController } from './useCalibration';
+import { inputMonitorApi, emptyInputMonitor } from '../practice/monitoring';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -37,6 +38,9 @@ const measured = {
   estimateErrorCode: null,
 };
 function harness() {
+  const monitor = vi
+    .spyOn(inputMonitorApi, 'status')
+    .mockResolvedValue(emptyInputMonitor);
   const engine = new PlayerEngine();
   vi.spyOn(engine.audio, 'pause').mockImplementation(() => {});
   vi.spyOn(CalibrationClickClock.prototype, 'start').mockResolvedValue();
@@ -108,9 +112,121 @@ function harness() {
       return { schemaVersion: 1, revision: 1, profiles: [] };
     throw new Error('예상하지 않은 테스트 명령');
   });
-  return { engine, wrapper, input, calibration, stop };
+  return { engine, wrapper, input, calibration, stop, monitor };
 }
 describe('보정 측정의 비동기 생명주기', () => {
+  it('모니터 상태를 확인하지 못하면 유선 출력과 native 측정을 시작하지 않는다', async () => {
+    const { wrapper, input, calibration, monitor } = harness();
+    monitor.mockRejectedValue(new Error('상태 조회 실패'));
+    const { result } = renderHook(
+      () => useCalibrationMeasurement(input, calibration),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.start('HEADPHONES', 'CABLE');
+    });
+    expect(result.current.status).toBe('ERROR');
+    expect(result.current.active).toBe(false);
+    expect(CalibrationClickClock.prototype.start).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it('유선 관측은 별도 신호를 사용하고 추정이 있어도 저장 API를 호출하지 않는다', async () => {
+    const { wrapper, input, calibration } = harness();
+    const { result } = renderHook(
+      () => useCalibrationMeasurement(input, calibration),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.start('HEADPHONES', 'CABLE');
+    });
+    expect(CalibrationClickClock.prototype.start).toHaveBeenCalledWith('CABLE');
+    expect(result.current.mode).toBe('CABLE');
+    expect(result.current.snapshot?.estimate?.biasRealMs).toBe(30);
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.error).toContain('저장하지 않습니다');
+    expect(
+      vi
+        .mocked(invoke)
+        .mock.calls.some(
+          ([command]) => command === 'save_measured_calibration',
+        ),
+    ).toBe(false);
+    expect(calibration.applySaved).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.cancel();
+    });
+  });
+  it('켜진 모니터는 유선 출력 전에 거부하며 일반 보정에는 새 조회를 추가하지 않는다', async () => {
+    const { wrapper, input, calibration, monitor } = harness();
+    monitor.mockResolvedValue({ ...emptyInputMonitor, state: 'RUNNING' });
+    const { result } = renderHook(
+      () => useCalibrationMeasurement(input, calibration),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.start('HEADPHONES', 'CABLE');
+    });
+    expect(result.current.status).toBe('ERROR');
+    expect(result.current.error).toContain('모니터를 완전히 끈 뒤');
+    expect(CalibrationClickClock.prototype.start).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    monitor.mockClear();
+    await act(async () => {
+      await result.current.start('HEADPHONES');
+    });
+    expect(monitor).not.toHaveBeenCalled();
+    expect(CalibrationClickClock.prototype.start).toHaveBeenCalledWith('PLUCK');
+    await act(async () => {
+      await result.current.cancel();
+    });
+  });
+  it('유선 관측 중 모니터가 켜지면 신호와 native 측정을 취소한다', async () => {
+    const { wrapper, input, calibration, monitor, stop } = harness();
+    const { result } = renderHook(
+      () => useCalibrationMeasurement(input, calibration),
+      { wrapper },
+    );
+    await act(async () => {
+      await result.current.start('HEADPHONES', 'CABLE');
+    });
+    monitor.mockResolvedValue({ ...emptyInputMonitor, state: 'RUNNING' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(201);
+    });
+    expect(result.current.status).toBe('ERROR');
+    expect(stop).toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith('cancel_calibration_measurement', {
+      request: { schemaVersion: 1, measurementId: id },
+    });
+  });
+  it('유선 준비 조회 중 취소한 뒤 늦은 응답은 출력을 시작하지 않는다', async () => {
+    const { wrapper, input, calibration, monitor } = harness();
+    let resolve = () => {};
+    monitor.mockReturnValue(
+      new Promise((done) => {
+        resolve = () => done(emptyInputMonitor);
+      }),
+    );
+    const { result } = renderHook(
+      () => useCalibrationMeasurement(input, calibration),
+      { wrapper },
+    );
+    let pending: Promise<void> | undefined;
+    await act(async () => {
+      pending = result.current.start('HEADPHONES', 'CABLE');
+    });
+    await act(async () => {
+      await result.current.cancel();
+    });
+    await act(async () => {
+      resolve();
+      await pending;
+    });
+    expect(CalibrationClickClock.prototype.start).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
   it('명시적 시작 이후 실제 서버 표본만 표시하고 측정 ID로 저장한다', async () => {
     const { wrapper, input, calibration, stop } = harness();
     const { result } = renderHook(

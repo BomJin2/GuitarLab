@@ -200,7 +200,10 @@ export function App() {
             locked={recording.locked}
           />
         )}
-        <InputMonitor input={input} />
+        <InputMonitor
+          input={input}
+          startBlocked={measurement.active && measurement.mode === 'CABLE'}
+        />
         {player.state.status === 'countIn' && (
           <PreparationCountdown
             key={player.state.playbackEpoch}

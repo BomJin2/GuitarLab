@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeMeasurement } from './calibrationMeasurement';
+import { decodeMeasurement, measurementError } from './calibrationMeasurement';
 import { decodeProfiles } from './calibration';
 const snapshot = {
   schemaVersion: 1,
@@ -15,6 +15,24 @@ const snapshot = {
   estimateErrorCode: null,
 };
 describe('반복 측정 계약', () => {
+  it('유선 모니터 오류의 Error와 native 코드 객체를 같은 안내로 처리한다', () => {
+    expect(measurementError(new Error('CABLE_MONITOR_ACTIVE'))).toContain(
+      '모니터를 완전히 끈 뒤',
+    );
+    expect(measurementError({ code: 'CABLE_MONITOR_ACTIVE' })).toBe(
+      measurementError(new Error('CABLE_MONITOR_ACTIVE')),
+    );
+    expect(measurementError(new Error('C:/private/sample.wav'))).not.toContain(
+      'private',
+    );
+    expect(
+      measurementError(
+        Object.assign(new Error('private detail'), {
+          code: 'CABLE_MONITOR_ACTIVE',
+        }),
+      ),
+    ).toBe(measurementError(new Error('CABLE_MONITOR_ACTIVE')));
+  });
   it('실제 서버 표본 수·종료 상태·추정을 검증한다', () => {
     expect(decodeMeasurement(snapshot).estimate?.samplesUsed).toBe(15);
     expect(

@@ -54,6 +54,58 @@ const outputs = [
     isDefault: true,
   },
 ];
+it('유선 관측 중 예전 시작·켜기 함수도 차단하고 해제 후 자동 재시작하지 않는다', async () => {
+  vi.mocked(inputMonitorApi.outputs).mockResolvedValue(outputs);
+  vi.mocked(inputMonitorApi.status).mockResolvedValue(emptyInputMonitor);
+  const { result, rerender } = renderHook(
+    ({ blocked }) => useInputMonitor(true, 7, blocked),
+    { initialProps: { blocked: false } },
+  );
+  await waitFor(() => expect(result.current.selectedOutput).toBe('out'));
+  const previousStart = result.current.start;
+  const previousEnable = result.current.enable;
+  act(() => {
+    rerender({ blocked: true });
+  });
+  await act(async () => {
+    previousEnable();
+    await previousStart(7, 'out');
+  });
+  expect(result.current.enabled).toBe(false);
+  expect(inputMonitorApi.start).not.toHaveBeenCalled();
+  act(() => rerender({ blocked: false }));
+  await act(async () => {
+    await new Promise((done) => setTimeout(done, 250));
+  });
+  expect(inputMonitorApi.start).not.toHaveBeenCalled();
+});
+it('입력이 오기를 기다리던 모니터 켜기 의사를 유선 관측이 해제한다', async () => {
+  vi.mocked(inputMonitorApi.outputs).mockResolvedValue(outputs);
+  vi.mocked(inputMonitorApi.status).mockResolvedValue(emptyInputMonitor);
+  const { result, rerender } = renderHook<
+    ReturnType<typeof useInputMonitor>,
+    { generation: number | null; blocked: boolean }
+  >(
+    ({
+      generation,
+      blocked,
+    }: {
+      generation: number | null;
+      blocked: boolean;
+    }) => useInputMonitor(true, generation, blocked),
+    { initialProps: { generation: null, blocked: false } },
+  );
+  await waitFor(() => expect(result.current.selectedOutput).toBe('out'));
+  act(() => result.current.enable());
+  expect(result.current.enabled).toBe(true);
+  act(() => rerender({ generation: 7, blocked: true }));
+  expect(result.current.enabled).toBe(false);
+  act(() => rerender({ generation: 7, blocked: false }));
+  await act(async () => {
+    await new Promise((done) => setTimeout(done, 250));
+  });
+  expect(inputMonitorApi.start).not.toHaveBeenCalled();
+});
 it('PC 기본 출력은 선택하되 입력을 시작해도 기본 꺼짐이며 수동 끄기를 유지한다', async () => {
   vi.mocked(inputMonitorApi.outputs).mockResolvedValue(outputs);
   vi.mocked(inputMonitorApi.status).mockResolvedValue(emptyInputMonitor);

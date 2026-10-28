@@ -116,11 +116,14 @@ export const measurementApi = {
   },
 };
 export function measurementError(error: unknown) {
-  const code = isRecord(error)
-    ? error.code
-    : error instanceof Error
-      ? error.message
-      : '';
+  const code =
+    isRecord(error) && typeof error.code === 'string'
+      ? error.code
+      : error instanceof Error
+        ? error.message
+        : '';
+  if (code === 'CABLE_MONITOR_ACTIVE')
+    return '앱 모니터를 완전히 끈 뒤 유선 관측을 시작하세요.';
   if (code === 'CALIBRATION_REQUIRED')
     return '이상치를 제외한 유효 단음 표본이8회 이상 필요합니다. 다시 측정하세요.';
   if (code === 'CLOCK_UNCERTAIN')

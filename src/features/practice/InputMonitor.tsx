@@ -2,13 +2,21 @@ import type { AudioInputController } from './useAudioInput';
 import { useInputMonitor } from './useInputMonitor';
 import { monitorError } from './monitoring';
 
-export function InputMonitor({ input }: { input: AudioInputController }) {
+export function InputMonitor({
+  input,
+  startBlocked = false,
+}: {
+  input: AudioInputController;
+  startBlocked?: boolean;
+}) {
   const monitor = useInputMonitor(
     input.native,
     input.state.state === 'RUNNING' ? input.state.streamGeneration : null,
+    startBlocked,
   );
   const output = monitor.selectedOutput;
   const running = monitor.state.state === 'RUNNING';
+  const enabled = monitor.enabled || running;
   const error =
     monitor.error ??
     (monitor.state.errorCode
@@ -43,13 +51,11 @@ export function InputMonitor({ input }: { input: AudioInputController }) {
           </select>
         </label>
         <button
-          aria-pressed={monitor.enabled}
-          disabled={monitor.busy}
-          onClick={() =>
-            void (monitor.enabled ? monitor.stop() : monitor.enable())
-          }
+          aria-pressed={enabled}
+          disabled={monitor.busy || (startBlocked && !enabled)}
+          onClick={() => void (enabled ? monitor.stop() : monitor.enable())}
         >
-          {monitor.enabled ? '🎧 모니터 끄기' : '🎧 모니터 켜기'}
+          {enabled ? '🎧 모니터 끄기' : '🎧 모니터 켜기'}
         </button>
         <label>
           모니터 음량
@@ -72,6 +78,7 @@ export function InputMonitor({ input }: { input: AudioInputController }) {
           </button>
         )}
       </div>
+      {startBlocked && <p>유선 관측 중에는 앱 모니터를 켤 수 없습니다.</p>}
       <p role="status">
         {running
           ? `모니터 켜짐 · ${monitor.state.outputName} · ${monitor.state.sampleRate} Hz`

@@ -10,7 +10,10 @@ import {
 export function useInputMonitor(
   native: boolean,
   inputGeneration: number | null = null,
+  startBlocked = false,
 ) {
+  const blocked = useRef(startBlocked);
+  blocked.current = startBlocked;
   const [state, setState] = useState(emptyInputMonitor);
   const [outputs, setOutputs] = useState<DeviceInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -25,6 +28,12 @@ export function useInputMonitor(
   const operation = useRef(false);
   const revision = useRef(0);
   const mounted = useRef(false);
+  useEffect(() => {
+    if (startBlocked) {
+      setEnabled(false);
+      attempted.current = null;
+    }
+  }, [startBlocked]);
   useEffect(() => {
     mounted.current = true;
     let canceled = false;
@@ -125,6 +134,7 @@ export function useInputMonitor(
     : (outputs.find((device) => device.isDefault)?.id ?? '');
   const start = useCallback(
     (generation: number, id: string) => {
+      if (blocked.current) return Promise.resolve();
       attempted.current = `${generation}:${id}`;
       setEnabled(true);
       setOutput(id);
@@ -137,6 +147,7 @@ export function useInputMonitor(
   useEffect(() => {
     if (
       !native ||
+      startBlocked ||
       !enabled ||
       busy ||
       operation.current ||
@@ -149,6 +160,7 @@ export function useInputMonitor(
     if (attempted.current !== key) void start(inputGeneration, selectedOutput);
   }, [
     native,
+    startBlocked,
     enabled,
     busy,
     inputGeneration,
@@ -173,6 +185,7 @@ export function useInputMonitor(
       }
     },
     enable: () => {
+      if (blocked.current) return;
       attempted.current = null;
       setEnabled(true);
     },

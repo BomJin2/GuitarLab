@@ -3,6 +3,7 @@ import type { MediaClock } from '../player/captureClock';
 export const calibrationBeatOriginMs = 1000;
 export const calibrationBeatDurationMs = 750;
 export const calibrationBeatCount = 16;
+export type CalibrationSignalMode = 'PLUCK' | 'CABLE';
 
 export class CalibrationClickClock {
   private context: AudioContext | null = null;
@@ -10,7 +11,7 @@ export class CalibrationClickClock {
   private generation = 0;
   private clicks = new Set<OscillatorNode>();
 
-  async start() {
+  async start(mode: CalibrationSignalMode = 'PLUCK') {
     if (this.context) throw new Error('MEASUREMENT_ACTIVE');
     const generation = ++this.generation;
     const context = new AudioContext();
@@ -27,8 +28,15 @@ export class CalibrationClickClock {
         const scheduled =
           this.origin +
           (calibrationBeatOriginMs + index * calibrationBeatDurationMs) / 1000;
-        gain.gain.setValueAtTime(0.15, scheduled);
-        gain.gain.exponentialRampToValueAtTime(0.001, scheduled + 0.035);
+        if (mode === 'CABLE') {
+          gain.gain.setValueAtTime(0.001, scheduled);
+          gain.gain.exponentialRampToValueAtTime(0.15, scheduled + 0.002);
+          gain.gain.setValueAtTime(0.15, scheduled + 0.18);
+          gain.gain.exponentialRampToValueAtTime(0.001, scheduled + 0.2);
+        } else {
+          gain.gain.setValueAtTime(0.15, scheduled);
+          gain.gain.exponentialRampToValueAtTime(0.001, scheduled + 0.035);
+        }
         oscillator.connect(gain);
         gain.connect(context.destination);
         this.clicks.add(oscillator);
@@ -38,7 +46,7 @@ export class CalibrationClickClock {
           gain.disconnect();
         };
         oscillator.start(scheduled);
-        oscillator.stop(scheduled + 0.04);
+        oscillator.stop(scheduled + (mode === 'CABLE' ? 0.2 : 0.04));
       }
     } catch (error) {
       if (this.context === context) await this.stop();

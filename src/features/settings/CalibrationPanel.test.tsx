@@ -14,6 +14,7 @@ it('측정 중 수동 저장을 막고 서버 추정이 있는 경우만 측정�
     applySaved: vi.fn(),
   };
   const measurement: MeasurementController = {
+    mode: 'PLUCK',
     status: 'COLLECTING',
     active: true,
     error: null,
@@ -62,6 +63,50 @@ it('측정 중 수동 저장을 막고 서버 추정이 있는 경우만 측정�
   expect(screen.getByRole('button', { name: '측정값 저장' })).toHaveProperty(
     'disabled',
     false,
+  );
+  rerender(
+    <CalibrationPanel
+      input={input}
+      native
+      calibration={calibration}
+      measurement={{ ...measurement, mode: 'CABLE' }}
+    />,
+  );
+  expect(screen.getByRole('button', { name: '측정값 저장' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  rerender(
+    <CalibrationPanel
+      input={input}
+      native
+      calibration={calibration}
+      measurement={{
+        ...measurement,
+        active: false,
+        status: 'IDLE',
+        snapshot: null,
+      }}
+    />,
+  );
+  screen
+    .getByText('유선 지연 관측 · 실험')
+    .parentElement?.setAttribute('open', '');
+  fireEvent.click(screen.getByRole('button', { name: '유선 관측 시작' }));
+  expect(measurement.start).toHaveBeenCalledExactlyOnceWith(
+    'HEADPHONES',
+    'CABLE',
+  );
+  expect(calibration.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '측정값 저장' }));
+  expect(measurement.save).not.toHaveBeenCalled();
+  rerender(
+    <CalibrationPanel
+      input={input}
+      native
+      calibration={calibration}
+      measurement={measurement}
+    />,
   );
   fireEvent.click(screen.getByRole('button', { name: '측정값 저장' }));
   expect(measurement.save).toHaveBeenCalledOnce();

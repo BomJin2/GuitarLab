@@ -45,6 +45,11 @@ export function CalibrationPanel({
   ]);
   const busy =
     calibration.status === 'LOADING' || calibration.status === 'SAVING';
+  const cannotStart =
+    busy ||
+    measurement.active ||
+    input.state !== 'RUNNING' ||
+    input.bufferFrames === null;
   return (
     <section className="panel" aria-label="입력 지연 보정">
       <h2>입력 지연 보정</h2>
@@ -143,12 +148,7 @@ export function CalibrationPanel({
           </p>
           <div className="toolbar">
             <button
-              disabled={
-                busy ||
-                measurement.active ||
-                input.state !== 'RUNNING' ||
-                input.bufferFrames === null
-              }
+              disabled={cannotStart}
               onClick={() => void measurement.start(environment)}
             >
               반복 연주 보정 시작
@@ -168,6 +168,7 @@ export function CalibrationPanel({
                 busy ||
                 !measurement.active ||
                 !measurement.snapshot?.estimate ||
+                measurement.mode === 'CABLE' ||
                 measurement.status === 'SAVING' ||
                 measurement.status === 'STOPPING'
               }
@@ -177,8 +178,11 @@ export function CalibrationPanel({
             </button>
           </div>
           <p role="status">
-            {measurementLabels[measurement.status]} · 수집 표본{' '}
-            {measurement.snapshot?.sampleCount ?? 0}/16회
+            {measurement.mode === 'CABLE' ? '유선 관측 · ' : ''}
+            {measurement.mode === 'CABLE' && measurement.status === 'READY'
+              ? '관측 완료 · 저장하지 않습니다'
+              : measurementLabels[measurement.status]}{' '}
+            · 수집 표본 {measurement.snapshot?.sampleCount ?? 0}/16회
           </p>
           <p>{measurement.clock}</p>
           {measurement.snapshot?.estimate && (
@@ -193,6 +197,26 @@ export function CalibrationPanel({
             <p>유효 표본이 부족하거나 이상치가 많습니다. 다시 측정하세요.</p>
           )}
           {measurement.error && <p role="alert">{measurement.error}</p>}
+          <details>
+            <summary>유선 지연 관측 · 실험</summary>
+            <p>
+              출력과 LINE 입력을 연결한 검증용입니다. 앱 모니터를 끄고
+              인터페이스 MIX는 USB로, 출력 음량은 낮게 시작하세요. Windows 기본
+              출력에서 200ms 신호를 16회 재생합니다. 이 버튼은 녹음을 시작하거나
+              보정값을 저장하지 않습니다.
+            </p>
+            <p>
+              출력·입력·검출·clock을 포함한 관측값이며 순수 하드웨어 왕복
+              지연이나 기타 연주 보정값이 아닙니다. 외부 DAW의 모니터도 꺼야
+              합니다.
+            </p>
+            <button
+              disabled={cannotStart}
+              onClick={() => void measurement.start(environment, 'CABLE')}
+            >
+              유선 관측 시작
+            </button>
+          </details>
         </>
       )}
       <p>

@@ -370,6 +370,52 @@ mod tests {
     }
 
     #[test]
+    fn cable_tones_pass_confidence_without_accepting_short_reference_clicks() {
+        for scale in [0.1, 0.3, 1.0] {
+            for cable in [false, true] {
+                let mut detector = Detector::new(48000, -50.0);
+                let mut onsets = 0;
+                let mut qualified = 0;
+                for index in 0..14 * 48000u64 {
+                    let since = index as i64 - 48000;
+                    let beat = since.div_euclid(36000);
+                    let within = since.rem_euclid(36000) as f64 / 48000.0;
+                    let duration = if cable { 0.2 } else { 0.04 };
+                    let value = if (0..16).contains(&beat) && within < duration {
+                        let frequency = if beat % 4 == 0 { 1200.0 } else { 800.0 };
+                        let gain = if !cable {
+                            0.15 * (f64::ln(0.001 / 0.15) * within.min(0.035) / 0.035).exp()
+                        } else if within < 0.002 {
+                            0.001 * (f64::ln(150.0) * within / 0.002).exp()
+                        } else if within < 0.18 {
+                            0.15
+                        } else {
+                            0.15 * (f64::ln(0.001 / 0.15) * (within - 0.18) / 0.02).exp()
+                        };
+                        (scale * gain * (std::f64::consts::TAU * frequency * within).sin()) as f32
+                    } else {
+                        0.0
+                    };
+                    if let Some(output) = detector.push(Sample {
+                        index,
+                        captured_ns: index * 1_000_000_000 / 48000,
+                        value,
+                    }) {
+                        if let Some((_, pitch)) = output.onset {
+                            onsets += 1;
+                            qualified +=
+                                usize::from(pitch.is_some_and(|pitch| pitch.confidence >= 0.85));
+                        }
+                    }
+                }
+                assert_eq!(onsets, 16);
+                assert_eq!(qualified, if cable { 16 } else { 0 });
+                assert_eq!(detector.discontinuities, 0);
+                assert_eq!(detector.full_scale_frames, 0);
+            }
+        }
+    }
+    #[test]
     fn sustained_tone_has_one_onset_and_gap_invalidates_window() {
         let mut detector = Detector::new(48000, -50.0);
         let mut onsets = Vec::new();
