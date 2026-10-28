@@ -1,5 +1,32 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 단축키 초점 수정의 배포 검사·수동 재확인 준비 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. e745059의 초점 수정은 전체683프론트·타입/lint/포맷·웹/내장4개·Windows 빌드를 통과했습니다. 새 독립 ZIP/PS5.1·Defender를 확인하고 사용자가 직접 실행할 별도 GUI를 준비했습니다. 실제 단축키 재확인과 새 원격 전체 성공을 확인했으며 전체 출시 완료는 아닙니다.
+
+### 2. 구현 및 변경 사항
+
+초점 복원/신규5개 검사의 소스 변경은 [Phase5 첫 절](PHASE-05.md)을 따릅니다. 이전 자체 GUI와 같은 테스트 식별자를 사용해 사용자가 저장한 ‘GUI 확인’/프렛3을 유지하며 새 EXE는 별도 불변 폴더에 복사했습니다. 원본 제품 프로필·개인 자료를 열지 않았고 처음에는 실행 경로를 안내했으며 이후 사용자가 실행을 요청해 해당 수정본만 실행했습니다. 앱 종료/마우스/키보드 조작은 하지 않았습니다.
+
+### 3. 테스트 결과
+
+- `editor-focus-keyboard-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. 새 ZIP3,613파일/40,293,985바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 두 번을 확인했습니다. 제품 EXE41,246,208바이트/SHA256=`a301547f6549628959db8d50866829053488729178e1a3d7db930ba322cab0cf`,ZIP SHA256=`035574a00d826975092e4c8ce17b256f71a62818672d289fd6257e07a4889aba`입니다.
+- 검증 폴더 기준 ZIP=`validation-packages/244bed0f-3f5b-4d35-88d7-7fe2591076e3/GuitarLab-validation.zip`,후보=`editor-focus-keyboard-candidate-a41843f6-5552-44b1-929d-762ff789d0cb.json`,영수증=`editor-focus-keyboard-package-receipt-26bdf614-09b1-40c4-955b-e6d2239ec4e3.json`,추출=`editor-focus-keyboard-roundtrip-c9732c48-fd10-45f1-b207-4e78c08df792`입니다.
+- 새 제품 EXE/ZIP Defender **성공**: exit0/전후 SHA 불변,서명은 `NotSigned`. 영수증=`editor-focus-keyboard-defender-ad5af80b-2cc7-4e3e-b8fd-c3b0737c646f.json`입니다. 자동 치료/설정 변경은 하지 않았습니다.
+- 별도 GUI=`gui-proofs/keyboard-focus-d55ec2b1/GuitarLab.exe`,SHA256=`570e0dbf9c24880259b7a981996c91b3d5f255d42cd2e0ecb74b7c19b815df96`,41,246,208바이트. 제목=`GuitarLab · 단축키 초점 수정 d55ec2b1`,식별자=`com.guitarlab.validation.gui8d7592482b7a4262a7abd95623b97b7e`가 실제 바이너리에 포함됨을 확인했습니다. 영수증은 같은 폴더의 `proof.json`이며 사용자의 명시적 요청 후 실행했고 실제 Ctrl+Z/Y 정상은 **사용자 수동 확인 성공**입니다. 첫 실행의 PID가 도구에서 보이지 않아 추가 실행을 시도했으나 해당 시도는 exit1로 끝났습니다. 사용자는 정상 창/단축키를 확인했으므로 기존 창을 종료하거나 잠금 파일을 변경하지 않았습니다. 실행 세션의 종료를 실제 창 종료로 간주하지 않습니다.
+- 별도 GUI 복사 후 기본 제품 설정 복원 빌드 **성공**,15.37초. 내장 검사를 잘못 `--test bundle_assets`로 지정해 존재하지 않는 테스트 대상 오류가 발생했고 올바른 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`로 수정해 **4개 성공**했습니다. 복원 EXE의 기본 식별자/격리 식별자 부재와 복사한 GUI SHA 불변도 확인했습니다. 재빌드 EXE 지문은 패키지에 고정한 EXE 지문과 구분합니다.
+- e745059의 [Windows40637214536](https://github.com/BomJin2/GuitarLab/actions/runs/40637214536)/job122646833819는 사후 정리까지 **전체 성공**입니다. 프론트683(97.14초), 기본252/확장256Rust(110.17/53.68초·각29개 기본 제외), 예제1+1·AI113(2.92초)/도구146(20.969초·건너뜀 없음)·Clippy/MSRV1.90(12.93초)을 확인했습니다. 기본 제품 프로필/개인 파일·장치·다른 OS는 **미실행**입니다.
+
+### 4. 미구현 및 알려진 문제
+
+기존 c6222e5 GUI의 Ctrl+Z/Y 실패는 e745059 수정본에서 사용자 수용까지 확인했습니다. 테스트 프로필/기존 GUI EXE는 보존하며 기본 제품 ZIP을 실행했다고 주장하지 않습니다. 독립 OS·실제 장기 Tauri/장치와 서명 수용은 미완료입니다.
+
+### 5. 다음 작업 계획
+
+수정본 단축키 수용/원격 전체 결과를 Phase5/진행 요약에 반영했습니다. 현재 창/불변 실행 파일을 유지하며 다음 열린 프로젝트 악보 drop의 관리용 복사·취소/오류 보존을 검토합니다. 다른 Windows/실제 장치·서명 등 남은 출시 조건을 완료로 바꾸지 않습니다.
+
 ## 후속 — 최신 출력 오류 보존·독립 GUI 수동 검증 (2026-10-28)
 
 ### 1. 작업 개요
