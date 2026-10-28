@@ -27,8 +27,8 @@
 - 173e429의 독립 패키지 **성공**,`VERIFIED_NOT_LAUNCHED`:3,613파일/40,386,572바이트·CRC/SHA·새 추출/실제PS5.1·최소 PATH Python3.12.15를 확인했습니다. 제품 EXE41,656,832바이트/SHA256=`b78f50027f679e9a298534798848c9e950698cde8c78b690f097677ecc336491`,ZIP SHA256=`b3d865aed1f992e652e2f7b4fe5e1df8f98b3d9e88c1935b44fd9290a5c87eef`입니다.
 - 이하 경로는 `src-tauri/target/runtime-validation/` 기준입니다. ZIP=`validation-packages/6910287d-97e0-4958-9e82-673adfb0692b/GuitarLab-validation.zip`,후보=`backup-canonical-root-candidate-9dd5c6f9-c5d5-41d3-a431-69bee7878a22.json`,영수증=`backup-canonical-root-package-receipt-2f2f3b52-6917-498f-b850-e135917ee645.json`,추출=`backup-canonical-root-roundtrip-36ca761d-3ad3-4460-9670-24d71b076263`입니다. 제품 패키지 앱은 **미실행**입니다.
 - 새 EXE/ZIP Defender는 첫 묶음 검사에서 실패했고 해당 helper가 예외 전에 개별 원인을 보존하지 못했습니다. 파일 존재/기존 SHA 불변을 확인한 뒤 같은 조건으로 각각 한 번 재검사해 **둘 다 exit0/탐지 없음·전후 SHA 불변**을 확인했습니다. 최초 실패 원인은 미확정으로 보존하며 숨기지 않습니다. 재검사 영수증=`backup-canonical-root-defender-receipt-20261028.json`,개별 진단=`backup-canonical-root-defender-diagnostic-20261028.json`/`backup-canonical-root-defender-zip-diagnostic-20261028.json`. NotSigned이며 자동 치료·설정 변경은 없었습니다.
-- 새 GUI=`gui-proofs/backup-path-fix-b2241600/GuitarLab.exe`,41,657,344바이트/SHA256=`1711c54c25a0e1279c23e8a415230a1af2b7ce11a8545c2865074351428876d2`,제목=`GuitarLab · 백업 경로 수정 b2241600`입니다. 기존 검증 식별자/‘GUI 확인’을 재사용하고3,393리소스 전체 SHA와 **정확한 새 GUI 폴더의 native 최소 PATH/Python 실행2회 성공**을 확인했습니다. 아직 **미실행/사용자 저장·종료 확인 대기**이며 기존 앱은 유지합니다.
-- [Windows40687786274](https://github.com/BomJin2/GuitarLab/actions/runs/40687786274)/job122814503761은 **전체 성공**입니다. 프론트715/129파일(74.47초)·웹7.02초,기본Rust263/확장267(95.64/142.76초·각29개 기본 제외),예제1+1·AI113(2.90초)/도구149(26.558초·건너뜀 없음)·Clippy/MSRV1.90(10.37초)·사후 정리를 확인했습니다. 실제 새 GUI 백업/검사·복원 미리보기는 **미실행**이며 사용자 종료/실행 요청 뒤 순차 확인합니다.
+- 새 GUI=`gui-proofs/backup-path-fix-b2241600/GuitarLab.exe`,41,657,344바이트/SHA256=`1711c54c25a0e1279c23e8a415230a1af2b7ce11a8545c2865074351428876d2`,제목=`GuitarLab · 백업 경로 수정 b2241600`입니다. 기존 검증 식별자/‘GUI 확인’을 재사용하고3,393리소스 전체 SHA와 **정확한 새 GUI 폴더의 native 최소 PATH/Python 실행2회 성공**을 확인했습니다. 사용자가 ‘저장하고 닫음 — 수정 앱 실행해주세요’로 확인/요청해 해당 GUI만 한 번 실행했습니다. 같은 테스트 프로필을 유지하며 native 입력/REC·원격 마우스/키보드 조작은 하지 않았습니다. **새 GUI의 백업 보존 문구는 사용자 답변 대기**입니다.
+- [Windows40687786274](https://github.com/BomJin2/GuitarLab/actions/runs/40687786274)/job122814503761은 **전체 성공**입니다. 프론트715/129파일(74.47초)·웹7.02초,기본Rust263/확장267(95.64/142.76초·각29개 기본 제외),예제1+1·AI113(2.90초)/도구149(26.558초·건너뜀 없음)·Clippy/MSRV1.90(10.37초)·사후 정리를 확인했습니다. 새 GUI는 사용자 요청에 따라 실행했고 실제 백업 생성은 **미실행/사용자 답변 대기**입니다. 읽기 전용 ZIP 검사/새 폴더 복원 미리보기도 **미실행**이며 생성 성공 뒤 순차 요청합니다.
 
 ### 4. 미구현 및 알려진 문제
 
@@ -36,7 +36,7 @@
 
 ### 5. 다음 작업 계획
 
-로컬 검사/Windows·독립 패키지/새 GUI 준비를 마쳤습니다. 현재 사용자 저장/종료 확인과 수정 앱 실행 요청을 기다리며 기존 창은 유지합니다. 확인 뒤 같은 테스트 프로필의 수정본을 실행해 새 ZIP 생성→읽기 전용 검사→새 폴더 미리보기를 순차 확인합니다. 새 원격 전체 결과도 성공으로 확정했으며 확인 전 현재 앱을 임의 조작/종료하지 않습니다.
+사용자가 기존 창을 저장/종료하고 새 앱 실행을 명시적으로 요청해 준비된 수정본을 한 번 실행했습니다. 현재 새 ZIP 생성 완료 문구 답변을 기다립니다. 성공하면 읽기 전용 ZIP 검사→새 폴더 미리보기를 순차 확인합니다. 새 원격 전체 결과는 성공으로 확정했으며 확인 중 새 창/EXE·실행 UI 소스를 유지합니다.
 
 ## 후속 — 검증 GUI의 내장 런타임 누락과 백업 재시도 (2026-10-28)
 
