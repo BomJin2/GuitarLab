@@ -17,7 +17,10 @@ export function ScoreEditor({
   editor: ScoreEditingController;
   locked: boolean;
 }) {
-  const exporting = useScoreExport(session.originalBytes);
+  const exporting = useScoreExport(
+    session.document,
+    !locked && editor.enabled && !!editor.document,
+  );
   const controlsLocked = locked || exporting.busy;
   const track = session.document.tracks[getActiveTrackIndex(session)];
   if (!track) return null;
@@ -299,9 +302,12 @@ export function ScoreEditor({
       )}
       {exporting.busy && (
         <p role="status">
-          악보 출력 중 · {exporting.job?.completedBytes ?? 0}/
-          {exporting.job?.totalBytes ?? 0}바이트{' '}
-          <button onClick={exporting.cancel}>출력 취소 요청</button>
+          {exporting.canceling ? '악보 출력 취소 정리 중' : '악보 출력 중'} ·{' '}
+          {exporting.job?.completedBytes ?? 0}/{exporting.job?.totalBytes ?? 0}
+          바이트{' '}
+          <button disabled={exporting.canceling} onClick={exporting.cancel}>
+            출력 취소 요청
+          </button>
         </p>
       )}
       {exporting.notice && <p role="status">{exporting.notice}</p>}

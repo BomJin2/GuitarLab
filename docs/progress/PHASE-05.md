@@ -1,5 +1,35 @@
 # Phase 5 — 수동 TAB 편집
 
+## 후속 — 악보 파일 출력의 문맥·취소 수명 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 현재 편집본/조회한 저장 버전의 파일 출력에서 이전 명령 재사용과 선택 변경·취소 조기 잠금 해제를 보완합니다. 구현·대상/전체674프론트·타입/lint/포맷·웹/내장4개/Windows 검사 완료, 원격/패키지 검증은 진행 중입니다. 기존 수동 편집·저장/출력의 기본 수용과 이번 실제 GUI 미실행을 구분합니다.
+
+### 2. 구현 및 변경 사항
+
+- 먼저 `docs/12-API-CONTRACTS.md`에 최신 조작 잠금/문서 소유권·실제 취소 종료와 기존 IPC v1 유지 조건을 기록했습니다. `docs/04`, `docs/09`에 동작/회귀 기준을 보완합니다.
+- `src/features/score/useScoreExport.ts`: 문서 문맥·이탈/같은 객체 복귀·최신 조작 허용/실행 가능 여부를 확인하고 첫 반환부터 이전 결과·진행을 숨깁니다. 실제 서비스 종료 전 새 작업을 시작하지 않으며 현재 문맥의 취소만 처리합니다.
+- `src/features/score/scoreExport.ts`: 기존 StorageJob의 waitForCancellation을 사용해 취소 요청 뒤 실제 terminal 상태까지 확인합니다. JSON/MusicXML 스키마·8MiB/실제 의미 왕복·새 파일만 저장하는 정책은 유지합니다.
+- `ScoreEditor.tsx`, `ScoreHistoryPanel.tsx`: 현재 문서/조회 버전과 최신 잠금을 연결하고 취소 정리 상태·반복 취소 방지를 표시합니다. 원본 기반 편집의 가공 문서는 매번 새 객체이므로 작업 문맥에는 안정적인 session.document를 사용합니다.
+- `useScoreExport.test.tsx`에8개, `scoreExportCancellation.test.ts`에3개, `ScoreEditorExport.test.tsx`에1개 검사를 추가하고 기존 저장 버전 취소 검사에 잠금/문구를 보완했습니다. 엔진/음원·DB·플레이어·의존성은 변경하지 않습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 대상13개 중 **11개 실패/2개 성공**,14.19초로 이전 실행·취소/최신 잠금과 native 종료 대기 회귀를 재현했습니다. 로그 `score-export-lifecycle-red-20261028.log`입니다.
+- 통합 연결 과정에서 원본 기반 가공 문서가 화면 갱신마다 바뀌어 출력을 취소하는 **1개 실패**,2.48초를 재현했습니다. 안정적인 실제 문서를 문맥으로 사용해 해결했습니다. 로그 `score-export-editor-identity-red-20261028.log`입니다.
+- 최종 `pnpm test src/features/score/useScoreExport.test.tsx src/features/score/scoreExportCancellation.test.ts src/features/score/scoreExport.test.ts src/features/score/ScoreEditorExport.test.tsx src/features/library/ScoreHistoryPanel.test.tsx`: **23개/5파일 성공**,3.25초. 신규12개/기존11개·실제 alphaTab 의미 왕복·취소 상태별 응답/편집 통합·버전 조회 보존을 확인했습니다.
+- `pnpm test`: **674개/125파일 성공**,38.44초. `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: **성공**. `pnpm build`: **성공**,Vite2분/기존 큰 chunk 안내. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,12.83초/기존 MSVC 링크 안내입니다. 새 Git/원격/독립 패키지는 후속입니다. 로그는 `src-tauri/target/runtime-validation/score-export-lifecycle-…-20261028.log`에 보존합니다.
+- 실제 새 GUI·Windows 파일 선택/개인 악보 출력·청취/입력/REC·별도 OS: **미실행** — 자체 악보/모의 파일 API만 사용하고 사용자 앱·자료는 조작하지 않았습니다. 로컬 전체 Rust/Python 재실행: **미실행** — 해당 엔진/의존성이 변경되지 않았습니다.
+
+### 4. 미구현 및 알려진 문제
+
+동기 악보 검증/직렬화 자체의 즉시 취소나 이미 저장한 파일 삭제를 보장하지 않습니다. 파일 선택창이 열려 있으면 그 창도 닫아야 취소가 끝날 수 있습니다. 화면 이탈 뒤 새 인스턴스의 파일 작업은 기존 native 공통 잠금도 적용됩니다. 기존 원본 기반 과거 버전의 내보내기 미지원은 유지합니다.
+
+### 5. 다음 작업 계획
+
+전체 검사/Windows·원격/독립 패키지 결과를 확정합니다. 이어서 실제 장치 없이 확인 가능한 성능 수용의 합성 입력/프로세스 관측 범위를 검토하며, 실제 오디오 드라이버·Tauri RSS와 동일한 결과로 기록하지 않습니다.
+
 ## 후속 — 저장 조회의 프로젝트 문맥 보호 (2026-10-26)
 
 ### 1. 작업 개요

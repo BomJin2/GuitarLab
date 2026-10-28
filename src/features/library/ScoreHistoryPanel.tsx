@@ -128,7 +128,13 @@ export function ScoreHistoryPanel({
 }) {
   const history = useScoreHistory(projectId);
   const preview = useRevisionScorePreview(history.preview);
-  const exporting = useScoreExport(history.preview ?? emptyPreview);
+  const exporting = useScoreExport(
+    history.preview ?? emptyPreview,
+    !disabled &&
+      !history.busy &&
+      !preview.busy &&
+      history.preview?.score.renderSource === 'NORMALIZED',
+  );
   const [selected, setSelected] = useState('');
   const entries = history.page?.entries ?? [];
   const entry =
@@ -238,8 +244,15 @@ export function ScoreHistoryPanel({
             )}
             {exporting.busy && (
               <p role="status">
-                조회한 버전 파일 출력 중{' '}
-                <button onClick={exporting.cancel}>버전 출력 취소</button>
+                {exporting.canceling
+                  ? '버전 출력 취소 정리 중'
+                  : '조회한 버전 파일 출력 중'}{' '}
+                <button
+                  disabled={exporting.canceling}
+                  onClick={exporting.cancel}
+                >
+                  버전 출력 취소
+                </button>
               </p>
             )}
             {exporting.error && <p role="alert">{exporting.error}</p>}

@@ -316,6 +316,14 @@ it('버전 출력 취소·문맥 이탈 후 늦은 성공을 적용하지 않고
   const signal = exportFile.mock.calls[0]?.[2];
   fireEvent.click(screen.getByRole('button', { name: '버전 출력 취소' }));
   expect(signal?.aborted).toBe(true);
+  expect(screen.getByText(/버전 출력 취소 정리 중/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: '버전 출력 취소' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  expect(
+    screen.getByRole('button', { name: '조회 버전을 새 JSON으로 내보내기' }),
+  ).toHaveProperty('disabled', true);
   await act(async () => complete?.());
   expect(screen.queryByText(/새 JSON 파일로 저장했습니다/)).toBeNull();
   expect(

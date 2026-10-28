@@ -35,6 +35,7 @@ export const scoreExportApi = {
       },
       signal,
       progress,
+      { waitForCancellation: true },
     );
     if (
       !isRecord(result) ||
