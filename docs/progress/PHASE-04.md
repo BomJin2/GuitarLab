@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-작업일2026-10-28. 열린 프로젝트 drop의 관리용 보관 경로를 검토하다 기존 import_asset에서 원본 복사 후 DB 삽입/commit 실패 시 새 파일이 남는 문제를 확인했습니다. 드롭 기능보다 기존 저장 실패 처리를 먼저 보완하는 단일 슬라이스이며 대상21개·타입/포맷 검사, 확장 Rust258개/Clippy·Windows·Rust1.90 검사를 통과했습니다. 새 GitHub Actions와 패키지 검증은 후속입니다.
+작업일2026-10-28. 열린 프로젝트 drop의 관리용 보관 경로를 검토하다 기존 import_asset에서 원본 복사 후 DB 삽입/commit 실패 시 새 파일이 남는 문제를 확인했습니다. 드롭 기능보다 기존 저장 실패 처리를 먼저 보완하는 단일 슬라이스이며 대상21개·타입/포맷 검사, 확장 Rust258개/Clippy·Windows·Rust1.90 검사를 통과했습니다. e736df7의 새 GitHub Actions 전체와 독립 패키지/PS5.1 검사까지 성공했습니다. 새 EXE/ZIP Defender는 자동 승인 검토의 사용량 한도로 미실행입니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -17,7 +17,9 @@
 - 수정 전 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml import_ --lib`: **2개 실패/3개 성공**. INSERT/COMMIT 실패 후 새 최종 복사본이 남아 파일 목록/내용 보존 검사가 실패했습니다. `asset-import-rollback-red-20261028.log`입니다.
 - 수정 후 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml storage::projects_tests --lib`: **21개 성공**,최종2.55초. 두 신규 검사는 관리용/외부 참조 모두 성공하며 기존 정상/중복·복사 취소·손상/잘못된 JSON·저장/reopen/재연결 검사도 통과했습니다. `asset-import-rollback-target-final-20261028.log`입니다.
 - `pnpm typecheck`, `pnpm format:check`, `cargo fmt --check`: **성공**. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --all-features`: **258개 성공/29개 기본 제외**,20.28초. `cargo clippy --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**,10.48초.
-- `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,4.84초(기존 MSVC 링크 안내). `cargo +1.90.0 check --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**,13.94초. 새 Git/원격·패키지는 후속입니다. 프론트 전체/웹 재빌드: **미실행** — 프론트 소스/내장 dist는 e745059의683개·웹 빌드/원격 성공 이후 변경하지 않았습니다.
+- `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,4.84초(기존 MSVC 링크 안내). `cargo +1.90.0 check --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**,13.94초. 소스 e736df7은 main에 push했고 새 원격·패키지도 성공했습니다. 로컬 프론트 전체/웹 재빌드: **미실행** — 프론트 소스/내장 dist는 e745059의683개·웹 빌드/원격 성공 이후 변경하지 않았습니다.
+- e736df7의 [Windows40639171764](https://github.com/BomJin2/GuitarLab/actions/runs/40639171764)/job122653103870: **전체 성공**. 프론트683(53.82초)·웹5.54초, 기본Rust254/확장258(55.85/53.24초·각29개 기본 제외), 예제1+1·AI113(2.14초)/도구146(18.965초·건너뜀 없음)·Clippy/MSRV1.90(8.04초)·사후 정리를 확인했습니다.
+- 새 ZIP3,613파일/40,293,790바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 검사 **성공**입니다. 새 제품 EXE/ZIP Defender **미실행** — 자동 승인 검토가 사용량 한도로 완료되지 않아 명령 자체가 실행되지 않았습니다. 안전성 거절과 구분하고 우회하지 않았습니다. 정확한 경로/지문은 [Phase8 첫 절](PHASE-08.md)을 따릅니다.
 - 실제 개인 자료/디스크 오류·전원 중단: **미실행** — 자체 임시 DB 오류를 주입하며 원본 제품 프로필을 열지 않았습니다. 열린 프로젝트 drop은 **미구현**입니다.
 
 ### 4. 미구현 및 알려진 문제
@@ -26,7 +28,7 @@
 
 ### 5. 다음 작업 계획
 
-확장 Rust/Clippy·Windows/원격을 확인하고 결과를 기록합니다. 현재 정상 앱은 재실행하지 않으며, 다음 열린 프로젝트 drop은 제한된 악보 바이트 전달·관리용 복사/참조 정책·취소/미저장 보존을 검토한 뒤 별도 계약/슬라이스로 구현합니다.
+확장 Rust/Clippy·Windows/원격과 독립 ZIP/PS5.1 성공을 기록했습니다. 남은 Defender와 최종 문서 Git 반영을 확인합니다. 현재 정상 앱은 재실행하지 않으며, 다음 열린 프로젝트 drop은 제한된 악보 바이트 전달·관리용 복사/참조 정책·취소/미저장 보존을 검토한 뒤 별도 계약/슬라이스로 구현합니다.
 
 ## 후속 — 결과 조회 선택·취소·재시도 (2026-10-27)
 

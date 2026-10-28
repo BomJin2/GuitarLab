@@ -1,5 +1,31 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 원본 import rollback의 원격·독립 패키지 검증 (2026-10-28)
+
+### 1. 작업 개요
+
+작업/자동 검사일2026-10-28. e736df7의 DB 실패 정리에서 로컬 확장258Rust/Clippy·타입/포맷·Windows/Rust1.90과 새 원격 전체, 독립 ZIP/PS5.1을 확인했습니다. 새 Defender는 승인 검토 한도로 미실행이며 개인 자료·현재 수동 검증 창은 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+소스는 `src-tauri/src/storage/projects.rs`/`projects_tests.rs`의 호출 소유 복사본 정리와 신규2개 회귀입니다. [Phase4 첫 절](PHASE-04.md)에 실패 재현/파일·명령을 기록했습니다. 새 패키지는 기존 Python3.12 런타임 lock/라이선스와 같은 프론트 dist를 사용하고 제품 EXE만 갱신합니다. 앱을 실행하거나 사용자 프로필을 열지 않았습니다.
+
+### 3. 테스트 결과
+
+- [Windows40639171764](https://github.com/BomJin2/GuitarLab/actions/runs/40639171764)/job122653103870: **전체 성공**. 프론트683(53.82초)·웹5.54초, 기본254/확장258Rust(55.85/53.24초·각29개 기본 제외), 예제1+1·AI113(2.14초)/도구146(18.965초·건너뜀 없음)·Clippy/MSRV1.90(8.04초)·사후 정리를 확인했습니다.
+- `asset-import-rollback-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,293,790바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 검사를 확인했습니다. 제품 EXE41,247,744바이트/SHA256=`b88d8f076921df6f5967bcd4121ba7e7619e8e2fa094a66fe0b6fe428ed56381`,ZIP SHA256=`6bf43548da763a6d6e572f1a424c99526c364a4107305502fbff6649cb806fdd`입니다.
+- 검증 폴더 기준 ZIP=`validation-packages/9001735b-1ada-4eb5-8809-afe3ff3adf91/GuitarLab-validation.zip`,후보=`asset-import-rollback-candidate-db4787e4-a790-4a90-8135-a2bca5027579.json`,영수증=`asset-import-rollback-package-receipt-7b0d5934-ff8a-4302-9b4b-8c4291beca5a.json`,추출=`asset-import-rollback-roundtrip-1dc6ac88-0497-4ca8-83fa-9dd1f01e08ae`입니다. 새 패키지 앱은 **미실행**입니다.
+- 새 제품 EXE/ZIP Defender: **미실행**. 검사 helper 생성/Defender 실행 명령의 자동 승인 검토가 사용량 한도로 완료되지 않아 전체 명령이 실행되지 않았습니다. 안전성 거절이 아니며 다른 도구/권한으로 같은 검사를 우회하지 않았습니다. 이전 e745059 후보 Defender 성공은 새 EXE 검사 결과로 혼용하지 않습니다.
+- 실제 개인 DB/디스크 부족·전원 중단·새 native GUI/별도 Windows: **미실행**. 사용자 수용한 단축키 고정 창은 이전 e745059이며 이번 native 변경을 적용했다고 표시하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+Defender/서명·별도 OS/실제 장치와 전체 출시 수용은 미완료입니다. 원본 가져오기 실패 보완을 열린 프로젝트의 drag/drop 구현으로 표시하지 않습니다. 현재14단계 중 기본9개/부분5개와 기존 데이터 보존 원칙은 유지합니다.
+
+### 5. 다음 작업 계획
+
+자동 승인 검토가 가능해지면 새 EXE/ZIP Defender와 최종 문서의 Git 반영을 확인합니다. 그 뒤 열린 프로젝트 악보 drop의 바이트 크기/취소·관리용 복사/외부 참조/미저장 보호 계약을 별도 슬라이스로 구현합니다. 실제 화면 조작은 계속 사용자에게 요청합니다.
+
 ## 후속 — 단축키 초점 수정의 배포 검사·수동 재확인 준비 (2026-10-28)
 
 ### 1. 작업 개요
