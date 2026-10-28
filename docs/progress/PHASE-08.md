@@ -12,6 +12,8 @@
 
 ### 3. 테스트 결과
 
+- 잔여 검사 후속 **성공**: 문서 Git 반영의 승인 검토가 다시 정상 처리돼 같은 승인 절차로 Defender를 재시도했습니다. 새 EXE/ZIP 모두 exit0/전후 SHA 불변,NotSigned이며 영수증은 `asset-import-rollback-defender-5994f4d0-1754-445e-b9fe-fd1d2f312c16.json`입니다. 아래 최초 미실행은 당시 이력으로 보존합니다. 원격/ZIP·PS5.1과 이번 검사까지 완료했으며 실제 새 GUI/장치·다른OS는 여전히 미실행입니다.
+
 - [Windows40639171764](https://github.com/BomJin2/GuitarLab/actions/runs/40639171764)/job122653103870: **전체 성공**. 프론트683(53.82초)·웹5.54초, 기본254/확장258Rust(55.85/53.24초·각29개 기본 제외), 예제1+1·AI113(2.14초)/도구146(18.965초·건너뜀 없음)·Clippy/MSRV1.90(8.04초)·사후 정리를 확인했습니다.
 - `asset-import-rollback-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,293,790바이트·CRC/SHA·실제 PS5.1/최소 PATH Python3.12.15 검사를 확인했습니다. 제품 EXE41,247,744바이트/SHA256=`b88d8f076921df6f5967bcd4121ba7e7619e8e2fa094a66fe0b6fe428ed56381`,ZIP SHA256=`6bf43548da763a6d6e572f1a424c99526c364a4107305502fbff6649cb806fdd`입니다.
 - 검증 폴더 기준 ZIP=`validation-packages/9001735b-1ada-4eb5-8809-afe3ff3adf91/GuitarLab-validation.zip`,후보=`asset-import-rollback-candidate-db4787e4-a790-4a90-8135-a2bca5027579.json`,영수증=`asset-import-rollback-package-receipt-7b0d5934-ff8a-4302-9b4b-8c4291beca5a.json`,추출=`asset-import-rollback-roundtrip-1dc6ac88-0497-4ca8-83fa-9dd1f01e08ae`입니다. 새 패키지 앱은 **미실행**입니다.

@@ -10,7 +10,7 @@
 | 1 | UI 쉘과 디자인 시스템 | 완료 | [PHASE-01.md](PHASE-01.md) |
 | 2 | 악보 import와 재생 동기화 | 기본 완료 · TAB/오선보·마디 반복 및 프로젝트 없는 단일 파일drop 후속492프론트/240·244Rust/독립ZIP·원격 기능/격리 설치 성공. 실제Explorer·프로젝트 자산drop 수용은 별도 | [PHASE-02.md](PHASE-02.md) |
 | 3 | 오디오 장치와 단음 판정 | 완료(단음 PoC). PC 기본 입력 최초 선택10a3e72의542프론트/249·253Rust·AI113/도구143·MSRV 원격 전체와 실제 읽기 전용 열거/웹·내장4개/Windows·독립ZIP/PS5.1/Defender 성공. 실제 앱의 새 UI/캡처·청취는 미실행 | [PHASE-03.md](PHASE-03.md) |
-| 4 | 프로젝트 저장과 기록 | 기본 완료 · 원본 import 실패 정리e736df7의683프론트/254·258Rust·AI113/도구146·MSRV 원격 전체와 타입/포맷·Clippy·Windows/새ZIP·PS5.1 성공. 새 Defender/실제 개인 DB 수용은 미실행 | [PHASE-04.md](PHASE-04.md) |
+| 4 | 프로젝트 저장과 기록 | 기본 완료 · 원본 import 실패 정리e736df7의683프론트/254·258Rust·AI113/도구146·MSRV 원격 전체와 타입/포맷·Clippy·Windows/새ZIP·PS5.1 성공. 새 Defender 성공. 실제 개인 DB 수용은 미실행 | [PHASE-04.md](PHASE-04.md) |
 | 2A | 다중 기타 악보 트랙 선택 | 완료 | [PHASE-02A.md](PHASE-02A.md) |
 | 4A | 입력 녹음과 다시 듣기 | 기본 완료. 선택 녹음 작업 수명fb7b0a6의662프론트/252·256Rust·AI113/도구143·Clippy/MSRV 원격 전체·웹/내장/Windows·독립ZIP/PS5.1·Defender 성공. 실제 새 GUI/개인 파일·청취는 미실행 | [PHASE-04A.md](PHASE-04A.md) |
 | 4B | 오버더빙과 로컬 믹스 출력 | 기본 완료. 믹스 문맥1586e90의624프론트/252·256Rust·AI113/도구143·MSRV 원격 전체·웹/내장/Windows·독립ZIP/PS5.1·Defender 성공. 실제 새 GUI·개인 청취는 미실행 | [PHASE-04B.md](PHASE-04B.md) |
@@ -32,6 +32,8 @@
 | 8 | 별도 OS·장기 Tauri/장치 수용, 배포 서명/고지, 실제 데이터 교체·영구 삭제 | 자체 임시 데이터/격리 설치·백업/새 파일 출력만 검증. 서명 주체와 배포 범위, 기존 데이터를 교체·삭제하는 작업의 구체적 범위를 확정하고 해당 수용을 진행해야 함. |
 
 ## 최신 진행 기록
+
+**잔여 검사 완료 — 2026-10-28 e736df7**: 자동 승인 검토가 정상 처리된 뒤 동일한 승인 절차로 새 EXE/ZIP Defender를 재시도해 둘 다 exit0/전후 SHA 불변을 확인했습니다. 영수증=`asset-import-rollback-defender-5994f4d0-1754-445e-b9fe-fd1d2f312c16.json`,서명은 NotSigned입니다. 소스/결과 문서는 main에 반영했고 아래 미실행 기록은 당시 이력으로 보존합니다. 다음은 F01 열린 프로젝트의 관리용 악보 drop이며 기존 앱/개인 자료는 유지합니다.
 
 **원격·ZIP 확정 / 잔여 검사 — 2026-10-28 원본 import 실패 정리 e736df7**: [Windows40639171764](https://github.com/BomJin2/GuitarLab/actions/runs/40639171764)/job122653103870는683프론트/254·258Rust·AI113/도구146·Clippy/MSRV·사후 정리까지 전체 성공입니다. 새 ZIP3,613파일/40,293,790바이트·CRC/SHA·실제PS5.1/독립Python 검사도 성공했습니다. 새 EXE/ZIP Defender는 자동 승인 검토 사용량 한도로 명령 자체가 실행되지 않아 **미실행**입니다. 검사를 우회하지 않으며 이전 후보 결과를 새 파일에 적용하지 않습니다. 소스는 main에 push했고 최종 검사 결과 문서는 후속 Git 반영 대상으로 남깁니다. [Phase4](PHASE-04.md)/[Phase8](PHASE-08.md) 첫 절에 지문·파일/명령·실패/해결/미실행을 확정했습니다. 현재 앱은 e745059 단축키 수용 창으로 유지합니다. 다음은 잔여 검사와 열린 프로젝트 악보 drop 계약/구현이며 해당 기능은 아직 미구현입니다.
 

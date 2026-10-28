@@ -14,6 +14,8 @@
 
 ### 3. 테스트 결과
 
+- 잔여 검사 후속 **성공**: 자동 승인 검토가 다시 정상 처리된 뒤 동일 절차로 새 EXE/ZIP Defender를 재시도해 둘 다 exit0/전후 SHA 불변을 확인했습니다. 서명은 NotSigned이며 Phase8 첫 절에 영수증을 기록합니다. 아래 최초 미실행은 당시 이력입니다.
+
 - 수정 전 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml import_ --lib`: **2개 실패/3개 성공**. INSERT/COMMIT 실패 후 새 최종 복사본이 남아 파일 목록/내용 보존 검사가 실패했습니다. `asset-import-rollback-red-20261028.log`입니다.
 - 수정 후 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml storage::projects_tests --lib`: **21개 성공**,최종2.55초. 두 신규 검사는 관리용/외부 참조 모두 성공하며 기존 정상/중복·복사 취소·손상/잘못된 JSON·저장/reopen/재연결 검사도 통과했습니다. `asset-import-rollback-target-final-20261028.log`입니다.
 - `pnpm typecheck`, `pnpm format:check`, `cargo fmt --check`: **성공**. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --all-features`: **258개 성공/29개 기본 제외**,20.28초. `cargo clippy --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**,10.48초.
