@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 전체 프로젝트 파일 drop의 원격·독립 패키지 검증 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. d835084의 전체 작업 공간 악보/WAV·MP3 drop·최소 안내와 음원 분할 보관은 로컬714프론트/266확장Rust·타입/lint/포맷·Clippy/MSRV·웹/Windows·내장4개 및 새 원격 전체를 통과했습니다. 독립 ZIP/PS5.1/Defender와 별도 GUI 준비를 마쳤습니다. 실제 전체 영역/음원 사용자 수용과 전체 출시는 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+소스/계약·신규 회귀와 오류 해결은 [Phase2 첫 절](PHASE-02.md)을 따릅니다. 기본 제품 EXE를 불변 폴더에 고정한 뒤 같은 자체 테스트 프로필을 쓰는 별도 제목/식별자의 검증 EXE를 준비했습니다. 사용자가 기존 창을 저장/종료했다고 확인한 뒤 이전의 명시적 실행 요청에 따라 새 테스트 앱을 한 번 실행했습니다. 앱을 원격 조작하거나 기본 제품 프로필/개인 음원을 열지 않았습니다. 패키지와 GUI의 서로 다른 EXE 지문을 구분합니다.
+
+### 3. 테스트 결과
+
+- d835084의 [Windows40657929271](https://github.com/BomJin2/GuitarLab/actions/runs/40657929271)/job122713419046: **전체 성공**. 프론트714/129파일(56.04초)·웹5.65초, 기본Rust262/확장266(58.96/51.03초·각29개 기본 제외), 예제1+1·AI113(2.30초)/도구146(26.126초·건너뜀 없음)·Clippy/MSRV1.90(11.02초)·사후 정리를 확인했습니다.
+- `project-wide-drop-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,391,843바이트·CRC/SHA·새 추출과 실제 PS5.1/최소 PATH Python3.12.15 검사를 확인했습니다. 제품 EXE41,656,832바이트/SHA256=`674063119a060e9786c5f54a77b73ff8e15bdbe6105ed4037ac8dd9b7415b638`,ZIP SHA256=`ceaeaf6ad0180e2ad3e5a075bfa01ace075796e0e0813268fd99de8ac1be36ce`입니다.
+- 이하 경로는 `src-tauri/target/runtime-validation/` 기준입니다. ZIP=`validation-packages/ba2a046f-2ef8-4034-9ed4-ffe1d2d4bd2c/GuitarLab-validation.zip`,후보=`project-wide-drop-candidate-32480187-7c1b-4411-b64c-31f58632a889.json`,영수증=`project-wide-drop-package-receipt-51a7d962-85be-4d68-9f45-d90408fb7aa5.json`,추출=`project-wide-drop-roundtrip-f1d14250-b9c5-450b-90bd-727f16d1cc54`입니다. 제품 패키지 앱은 **미실행**입니다.
+- 새 제품 EXE/ZIP Defender **성공**: 두 exit0/전후 SHA 불변,NotSigned. 영수증=`project-wide-drop-defender-3fbf3eec-49d4-44f7-852a-b7253ea5c29b.json`입니다. 자동 치료/설정 변경·개인 파일 검사는 하지 않았습니다.
+- 별도 GUI=`gui-proofs/project-wide-drop-60e73f2e/GuitarLab.exe`,41,657,344바이트/SHA256=`edaebe6485ba9e7ac2c4156b4cdb20413948aefa17046075fb2443e2779996b5`입니다. 제목=`GuitarLab · 전체 파일 드롭 60e73f2e`,식별자=`com.guitarlab.validation.gui8d7592482b7a4262a7abd95623b97b7e`입니다. 같은 폴더의 proof.json에 사용자 저장/종료 확인·실행 요청과 실행 정보를 기록했습니다. PID가 다른 관측 세션에서 보이지 않는다는 이유로 중복 실행하거나 종료하지 않습니다.
+- GUI 복사 후 기본 설정 빌드 **성공**,13.69초·내장/원격 권한4개 **성공**. 기본 바이너리에 제품 식별자가 있고 검증 식별자는 없으며 현재 GUI SHA는 불변임을 확인했습니다. 로그=`project-wide-drop-default-restore-20261028.log`,`project-wide-drop-default-bundle-20261028.log`입니다.
+- 실제 JSON을 TAB 위로 드래그했을 때 안내/프렛3 표시는 **미실행/사용자 답변 대기**입니다. 음원 드롭/청취·저장/다시 열기,256MiB 실전달·실제30초 timeout/디스크 부족/강제 종료·다른 Windows/장기 실제 입력/RSS는 **미실행**입니다. 2MiB 초과 조각/짧은 deadline 주입의 자동 검사를 실제 최대 크기·실시간 대기 성공으로 확대하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+외부 참조 drop·폴더/복수 파일·프로젝트 없는 화면 전체 drop·자동 staging 복구는 미구현/범위 밖입니다. 전체 재생 버퍼 정책은 유지하며1MiB 전송 조각 상한이 앱 RSS 상한은 아닙니다. 실행 파일 서명은 없고 별도 OS·실제 장치/전체 출시 수용 조건도 남았습니다. 기본9개/부분5개 상태를 유지합니다.
+
+### 5. 다음 작업 계획
+
+현재 불변 GUI/실행 UI 소스를 유지하며 사용자의 TAB 위 JSON 드래그 결과를 기다립니다. 통과하면 음원 드롭/약4초 청취·저장/다시 열기를 한 단계씩 요청하고 결과를 자동 검사와 구분해 기록합니다. 문서 반영은 계속하되 직접 GUI 입력/종료·재실행은 하지 않습니다.
+
 ## 후속 — 프로젝트 악보 drop의 독립 패키지·수동 검증 준비 (2026-10-28)
 
 ### 1. 작업 개요
