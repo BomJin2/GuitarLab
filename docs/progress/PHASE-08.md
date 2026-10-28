@@ -1,5 +1,40 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 악보 출력 검증과 합성 DSP 지속 관측 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 악보 출력 수명 수정ca90f4a의 로컬/독립 패키지·보안 검증을 완료했고 원격도 전체 성공했습니다. 이어 실제 장치를 사용하지 않는 합성 DSP 지속 처리/Windows 프로세스 메모리 관측 도구를 추가해1초·300초 관측과 로컬 자체 검사를 완료했습니다. 새 도구의 Git/원격 검증은 후속입니다. 실제 장치/GUI 수용과 출시 전체 완료로 확대하지 않습니다.
+
+### 2. 구현 및 변경 사항
+
+- 제품 변경은 `useScoreExport.ts`, `scoreExport.ts`, `ScoreEditor.tsx`, `ScoreHistoryPanel.tsx`와 신규12개 검사이며 [Phase5 첫 절](PHASE-05.md)에 상세 파일/실패·해결을 기록했습니다. 기존 도구로 새 Windows/ZIP 후보를 만들었습니다.
+- `scripts/probes/synthetic_detector.rs`: 제품 `src-tauri/src/audio/dsp.rs`를 직접 포함해 자체 패턴을 실제 시간으로 공급하고 출력·구간 작업 시간/스케줄 초과를 관측합니다. 별도 장치·파일 녹음이나 Tauri 명령을 추가하지 않습니다.
+- `scripts/Observe-SyntheticDetector.ps1`: 새 UUID 검증 폴더에만 도구를 빌드하고 생성한 자식의 working set/private bytes·CPU를 관측합니다. 소스 해시/요청 길이·결과를 확인하고 시간 초과/실패 시 자신이 만든 자식만 종료합니다.
+- `scripts/test_synthetic_detector_probe.py`:1초 paced 실행/요청 프레임·잘못된 범위/인자 수를 검사합니다. `docs/09`와 진행 요약에 의미/한계와 재개 위치를 기록합니다. 앱 엔진/의존성/개인 오디오는 변경하지 않습니다.
+
+### 3. 테스트 결과
+
+- ca90f4a: 대상23개·전체674프론트/125파일(38.44초)·타입/lint/포맷·웹2분/내장4개·Windows12.83초 **성공**. [Windows40628569772](https://github.com/BomJin2/GuitarLab/actions/runs/40628569772)/job122619308273는 사후 정리까지 **전체 성공**입니다. 원격674프론트(66.08초), 기본Rust252/확장256(50.42/48.42초·각29개 기본 제외), 예제1+1·AI113(1.85초)/기존 도구143(14.871초)·Clippy/MSRV1.90(7.39초)입니다. 새 관측 도구3개는 이 커밋 이후의 별도 검사입니다.
+- `score-export-lifecycle-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. ZIP3,613파일/40,293,692바이트·CRC/SHA·새 추출/실제 PS5.1·최소 PATH Python3.12.15 두 번을 확인했습니다.
+- EXE41,245,696바이트/SHA256=`eb8291a9a897438a37c08b40efc6663e7b3025efc4f43217aa45a7f6f4d0411a`,ZIP SHA256=`99e6e4b4bbc8127dabb9ebd94c85b6c5f15909df94a97610df8cd23897189b6e`입니다. 검증 폴더 기준 ZIP=`validation-packages/ed205eec-fb04-488e-9c33-86fd9c1bb5b8/GuitarLab-validation.zip`,후보=`score-export-lifecycle-candidate-bc5f7e33-5060-4636-b7e1-c9fe37369098.json`,영수증=`score-export-lifecycle-package-receipt-aa8daa18-8df6-4800-98e5-5879c4df9c23.json`,추출=`score-export-lifecycle-roundtrip-1ef65389-e688-47ca-8aa3-2923697b7fb6`입니다.
+- 새 EXE/ZIP Defender **성공**: 둘 다 exit0·위협 없음/전후 SHA 불변,`NotSigned`. 영수증 `score-export-lifecycle-defender-8eebfc90-d9ed-43a4-b6d0-51e223bbdf49.json`에 보존합니다. 치료/설정 변경이나 개인 파일 삭제는 하지 않았습니다.
+- `python -B -X utf8 -m unittest discover -s scripts -p test_synthetic_detector_probe.py -v`: **3개 성공**,1.906초. PowerShell 구문 검사 **성공**. 실제 PS5.1의1초 실행 **성공**:48,000프레임/100블록·43출력·불연속0,실측1.000414초·2개 메모리 표본입니다. 영수증 `synthetic-detector-b248c88d-2066-4753-81f9-bb482ec26389/observation.json`입니다.
+- 실제 PS5.1 `powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/Observe-SyntheticDetector.ps1 -Seconds 300`: **성공**,실측300.000132초·14,400,000프레임/30,000블록·14,059출력/10,312음정 출력·76onset·인덱스 불연속0/최대 입력값 계수0입니다. 블록 작업 p50/p95/max=0.0037/0.1586/0.4790ms,예약 시각 초과0입니다. 실제 오디오 프레임 drop·왕복 지연을 측정한 값은 아닙니다.
+- Windows 프로세스 표본297개: 최대 관측 working set6,119,424바이트/private bytes1,728,512바이트입니다.10초 이후 표본 범위는 각각5,890,048~6,119,424/1,642,496~1,728,512바이트,마지막 표본(299.675초)의 누적 CPU1.6875초입니다. 표본 간 최대값이며 전체 앱의 피크/누수 부재·출시 임계값 수용을 뜻하지 않습니다.
+- 영수증 `synthetic-detector-ef937964-c1fe-4927-8f3d-84b352b7aef8/observation.json`,로그 `synthetic-detector-five-minute-20261028.log`에 보존합니다. 관측 기준 Git ca90f4a/새 개발 도구 작업 트리=true,도구 SHA256=`7195e4bd199da71925024bddaa440e172a9d3d0394448b0e64e3f736876232e5`,제품 DSP SHA256=`a1f194af828f270f49a8c990363ae3e6975c983cec0a12c285dab8f754955db7`입니다. 관측 중 두 소스 해시 불변을 확인했습니다.
+- 실제 PS5.1의0/301초 요청은 **거부 성공**,새 검증 폴더가 생기지 않았습니다. `rustfmt --edition 2021 --check scripts/probes/synthetic_detector.rs`,`pnpm format:check`는 **성공**. 이미 설치된 Rust1.90의 별도 컴파일/1초 실행도 **성공**,1.000162초/48,000프레임·43출력/불연속0입니다. 기본 툴체인 변경/설치 없이 `synthetic-detector-msrv-b155f43f-c8d4-420d-b574-ed038d636d00`에 보존했습니다.
+- `python -B -X utf8 -m unittest discover -s scripts -p "test_*.py"`: **146개 중145개 성공/1개 미실행**,12.230초. 기존 `BackupTests.test_linked_file_is_never_followed`는 이 Windows 계정에 심볼릭 링크 생성 권한이 없어 OSError로 건너뛰었습니다. 해당1개만 다시 실행해 동일 이유를 확인했고 권한/개발자 모드를 바꾸지 않았습니다. 신규 관측3개는 실제 성공입니다.
+- 실제 Tauri GUI/CPAL 장치·사용자 녹음/모니터·왕복 지연·앱 전체 RSS/별도 OS: **미실행** — 독립 DSP 관측이며 사용자 앱/장치와 개인 자료는 조작하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+최적화 독립 프로세스는 배포 앱과 빌드/포함 라이브러리·경로가 다릅니다. working set은 공유 페이지를 포함한 Windows 관측값이며 전체 앱 메모리/모든 메모리 누수 부재나 실제 오디오 drop·실시간 채점 지연을 보장하지 않습니다. 소스/패턴·도구/머신에 한정한 관측으로 CPU 격리와 제품 수용 임계값은 별도입니다. 코드 서명/다른 Windows와 Phase7 독립 정답 수용도 미완료입니다. 관측 스크립트의 강제 시간 초과/사용자 중단 경로는 미실행이며 정상·입력 오류·실제 소스/결과 확인과 구분합니다.
+
+### 5. 다음 작업 계획
+
+300초 관측/도구 전체 자체 검사·악보 출력 원격 결과를 기록했습니다. 새 개발 도구를 Git/원격에 반영하고 최종 결과를 확정합니다. 추가 개발 도구는 배포물에 포함하지 않으며 실제 GUI·장치/별도 OS 수용은 별도 조건을 따릅니다.
+
 ## 후속 — 선택 녹음 작업 수명 후보 검증 (2026-10-28)
 
 ### 1. 작업 개요
