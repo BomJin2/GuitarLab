@@ -85,7 +85,9 @@ def checked_path(root, path, *, directory=False):
         info = current.lstat()
         if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
             raise BackupError("BACKUP_LINK_NOT_ALLOWED")
-    if not path.resolve(strict=True).is_relative_to(root) or not (path.is_dir() if directory else path.is_file()):
+    # AppData 리디렉션도 같은 실제 루트를 기준으로 비교하되 위 링크 검사는 유지합니다.
+    canonical_root = root.resolve(strict=True)
+    if not path.resolve(strict=True).is_relative_to(canonical_root) or not (path.is_dir() if directory else path.is_file()):
         raise BackupError("BACKUP_PATH_INVALID")
     return info
 

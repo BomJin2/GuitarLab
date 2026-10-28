@@ -100,6 +100,8 @@ export function backupError(cause: unknown) {
     BACKUP_HASH_INVALID:
       '백업 ZIP의 파일 지문이 다릅니다. 이 파일로 복원하지 마세요.',
     BACKUP_MANIFEST_INVALID: '지원하는 GuitarLab 로컬 백업 ZIP이 아닙니다.',
+    BACKUP_PATH_INVALID:
+      '백업 데이터 또는 저장 위치의 경로를 확인하지 못했습니다. 기존 데이터는 유지했습니다.',
     BACKUP_DATABASE_INVALID:
       '백업 데이터베이스 검사를 통과하지 못했습니다. 기존 데이터는 유지했습니다.',
     BACKUP_DATABASE_VERSION:

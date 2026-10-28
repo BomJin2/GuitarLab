@@ -1,6 +1,18 @@
 import { expect, it } from 'vitest';
 import { backupError, decodeLocalBackup } from './localBackup';
 
+it('백업 경로 오류와 ZIP 형식 오류를 구분하고 민감한 경로를 숨긴다', () => {
+  expect(backupError(new Error('BACKUP_PATH_INVALID'))).toBe(
+    '백업 데이터 또는 저장 위치의 경로를 확인하지 못했습니다. 기존 데이터는 유지했습니다.',
+  );
+  expect(backupError(new Error('BACKUP_MANIFEST_INVALID'))).toBe(
+    '지원하는 GuitarLab 로컬 백업 ZIP이 아닙니다.',
+  );
+  expect(backupError(new Error('C:/private/user.zip'))).not.toContain(
+    'private',
+  );
+});
+
 it('백업 완료를 엄격히 검사하고 경로·큰 수·복원 지원 주장을 거부한다', () => {
   const valid = {
     schemaVersion: 1,

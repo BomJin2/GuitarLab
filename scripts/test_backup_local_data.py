@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from backup_local_data import backup, verify, restore_to_new_folder, BackupError, safe_member
+from backup_local_data import backup, verify, restore_to_new_folder, BackupError, safe_member, checked_path
 
 
 class BackupTests(unittest.TestCase):
@@ -165,6 +165,41 @@ class BackupTests(unittest.TestCase):
             with self.assertRaisesRegex(BackupError, "LINK_NOT_ALLOWED"):
                 self.create()
         self.assertFalse(self.destination.exists())
+
+    def test_checked_path_accepts_redirected_ancestor_with_canonical_root(self):
+        canonical = self.base / "redirected-storage"
+        original = Path.resolve
+        def resolved(path, strict=False):
+            if path.is_relative_to(self.root):
+                return canonical / path.relative_to(self.root)
+            return original(path, strict=strict)
+        with patch.object(Path, "resolve", new=resolved):
+            checked_path(self.root, self.root, directory=True)
+            checked_path(self.root, self.root / "projects/test", directory=True)
+            checked_path(self.root, self.root / "projects/test/자체 파일.wav")
+
+    def test_checked_path_rejects_escape_from_redirected_root(self):
+        canonical = self.base / "redirected-storage"
+        target = self.root / "projects/test/자체 파일.wav"
+        original = Path.resolve
+        def resolved(path, strict=False):
+            if path == target:
+                return self.base / "outside.wav"
+            if path.is_relative_to(self.root):
+                return canonical / path.relative_to(self.root)
+            return original(path, strict=strict)
+        with patch.object(Path, "resolve", new=resolved):
+            with self.assertRaisesRegex(BackupError, "BACKUP_PATH_INVALID"):
+                checked_path(self.root, target)
+
+    def test_checked_path_rejects_reparse_root_before_canonical_comparison(self):
+        original = Path.lstat
+        def metadata(path):
+            info = original(path)
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400) if path == self.root else info
+        with patch.object(Path, "lstat", new=metadata):
+            with self.assertRaisesRegex(BackupError, "BACKUP_LINK_NOT_ALLOWED"):
+                checked_path(self.root, self.root, directory=True)
 
     def test_restore_only_new_folder_and_cancellation_preserve_originals(self):
         self.create()

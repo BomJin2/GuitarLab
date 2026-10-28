@@ -101,9 +101,8 @@ fn message(
                 Some("BACKUP_DATABASE_VERSION") => "BACKUP_DATABASE_VERSION",
                 Some("BACKUP_RECORDING_ACTIVE") => "RECORDING_BUSY",
                 Some("BACKUP_DESTINATION_INVALID") => "EXPORT_DESTINATION_EXISTS",
-                Some("BACKUP_MANIFEST_INVALID" | "BACKUP_PATH_INVALID") => {
-                    "BACKUP_MANIFEST_INVALID"
-                }
+                Some("BACKUP_MANIFEST_INVALID") => "BACKUP_MANIFEST_INVALID",
+                Some("BACKUP_PATH_INVALID") => "BACKUP_PATH_INVALID",
                 Some("BACKUP_HASH_INVALID") => "BACKUP_HASH_INVALID",
                 Some("BACKUP_DATABASE_INVALID") => "BACKUP_DATABASE_INVALID",
                 _ => "BACKUP_FAILED",
@@ -341,6 +340,24 @@ mod tests {
             Arc::new(ProjectStore::new(f.store.root.clone())),
             Arc::new(ProfileStore::new(f.store.root.clone())),
         )
+    }
+    #[test]
+    fn backup_failure_preserves_path_and_manifest_codes_without_private_details() {
+        let jobs = super::super::jobs::StorageJobs::default();
+        let job = jobs.start("RUNNING").expect("오류 계약 작업");
+        for (code, expected) in [
+            ("BACKUP_PATH_INVALID", "BACKUP_PATH_INVALID"),
+            ("BACKUP_MANIFEST_INVALID", "BACKUP_MANIFEST_INVALID"),
+            ("C:/private/user.zip", "BACKUP_FAILED"),
+        ] {
+            let bytes = serde_json::to_vec(&serde_json::json!({
+                "schemaVersion": 1, "state": "FAILED", "errorCode": code
+            }))
+            .expect("오류 메시지");
+            let cause = message(&bytes, &job, "COMPLETED").expect_err("백업 실패");
+            assert_eq!(cause.code, expected);
+            assert!(!cause.message.contains("private"));
+        }
     }
     #[test]
     fn backup_idle_guard_blocks_recording_start_and_releases_after_failure() {
