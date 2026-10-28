@@ -1,5 +1,33 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 선택 녹음 작업 수명 후보 검증 (2026-10-28)
+
+### 1. 작업 개요
+
+작업/검증 완료일2026-10-28. Phase4A/사후 분석의 선택 변경·취소 수명 수정 fb7b0a6을 웹/Windows·독립 검증 ZIP으로 확인했습니다. 로컬/보안·원격 전체 검증을 완료했습니다. 기존 기본9개/부분5개와 Phase8 출시 미완료를 유지합니다.
+
+### 2. 구현 및 변경 사항
+
+제품 수정은 `useTakeExport.ts`, `useRecordedPitches.ts`, 신규 회귀16개와 `docs/12`, `09`, `17`이며 [Phase4A 첫 절](PHASE-04A.md)에 재현/동작을 기록했습니다. 기존 빌드/패키지 검증 도구를 재사용해 자체 검증 폴더에만 새 EXE/번들 Python·검증 스크립트/ZIP·영수증을 만들었습니다. 앱 실행·사용자 파일·설치 모델과 원본 녹음은 조작하지 않았습니다.
+
+### 3. 테스트 결과
+
+- 대상26개·전체662프론트/123파일(38.31초)·타입/lint/포맷 **성공**. 최종 웹1분32초·내장4개·Windows13.22초 **성공**입니다. 큰 chunk/MSVC 링크 안내는 기존 경고입니다.
+- `python src-tauri/target/runtime-validation/recording-operations-package-20261028.py`: **성공**,`VERIFIED_NOT_LAUNCHED`. 새 ZIP/CRC/SHA·압축 해제 후 실제 PS5.1/최소 PATH Python3.12.15 두 번을 검증했습니다. sourceCommit=`fb7b0a6f33c4f9a5116a8397a95976cd668e948a`입니다.
+- EXE **41,245,696바이트**,SHA256=`26ad4b88e602d417db6d78dd8c77ff9b06c126f897b9ce18e4c8187ea8faa226`. ZIP **3,613파일/40,293,889바이트**,SHA256=`4af5dd681d9a96c2fdb6e6f46372d6505405c9d872234322797cef29d7cd7fda`입니다.
+- 검증 폴더 기준 ZIP=`validation-packages/356d121f-bfde-4a37-959f-0752bccf3398/GuitarLab-validation.zip`,후보=`recording-operations-candidate-f962b6b1-2b4f-492f-a1bf-098b69292224.json`,영수증=`recording-operations-package-receipt-2928ef55-3784-48ad-87f3-8e8c83aecc0d.json`,추출=`recording-operations-roundtrip-a3accb6f-667c-4ea4-a50d-45fdb99dc6cc`입니다. 로그 `recording-operations-package-check-471a4c9f-eeaa-498a-919c-b296b7e93ead.log`에 실제 PS5.1/Python 검사를 보존합니다.
+- [Windows40625741431](https://github.com/BomJin2/GuitarLab/actions/runs/40625741431)/job122610087649: 최종 실제 로그/상태에서 프론트662/123파일(100.33초), 기본Rust252/확장256(56.06/104.78초·각29개 기본 제외), 예제1+1·AI113(2.95초)/도구143(18.878초)·Clippy/MSRV1.90(13.15초)·사후 정리까지 **전체 성공**을 확인했습니다. 이전9106d66의 성공과 구분해 현재 소스를 확정합니다.
+- `scan-recording-operations-candidate-20261028.ps1`: **성공**. 새 EXE/ZIP만 `MpCmdRun -Scan -ScanType 3 -File … -DisableRemediation`으로 검사해 둘 다 exit0·위협 없음/전후 SHA 불변입니다. Defender4.18.26090.9/서명1.461.233.0,코드 서명은 `NotSigned`입니다. 영수증 `recording-operations-defender-7255635b-251c-4c95-b84c-79ac77d62358.json`에 기록하며 설정 변경·치료·원본 삭제는 하지 않았습니다.
+- 실제 앱 창·새 GUI/청취/입력/REC·장기 RSS·별도 Windows·서명/실제 데이터 교체/삭제: **미실행**. 자동 작업 수명·패키지 검사 범위이며 사용자 환경 수용과 구분합니다. 로컬 전체 Rust/Python/도구 재실행: **미실행** — 엔진/의존성 변경이 없어 원격 회귀로 확인합니다.
+
+### 4. 미구현 및 알려진 문제
+
+검증 ZIP은 실제 다른 Windows의 DLL/WebView2·보안 제품이나 코드 서명 수용을 대신하지 않습니다. 앱/모니터·입력을 시작하지 않았고 실시간 지연/음정 정확도를 새로 보장하지 않습니다. 새 선택에서 이전 작업이 취소 종료 중이면 잠금을 유지합니다.
+
+### 5. 다음 작업 계획
+
+이번 원격/보안 최종 상태와 영수증·문서 정합성을 확인해 결과를 확정했습니다. 이후 남은 실제 GUI/장치·별도 OS/독립 품질·서명/배포 조건은 진행 요약의 재개 기준을 따르며, 같은 코드의 성공 검사를 반복하지 않습니다.
+
 ## 녹음 목록·정보 저장 후속 후보 — 2026-10-27
 
 ### 1. 작업 개요

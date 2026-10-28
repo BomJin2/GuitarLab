@@ -4,20 +4,22 @@
 
 ### 1. 작업 개요
 
-착수2026-10-27·최종 검증 진행2026-10-28. 녹음 선택/구간 변경과 화면 이탈 뒤 이전 명령·응답을 재사용하는 문제를 수정하는 기능·안정성 슬라이스입니다. 구현·대상/전체 프론트·타입/lint 검사 완료, 최종 빌드/원격 검증은 진행 중입니다. Phase4A 기본 수용과 Phase7의 독립 정확도 미완료는 유지합니다.
+착수2026-10-27·작업/검증 완료2026-10-28. 녹음 선택/구간 변경과 화면 이탈 뒤 이전 명령·응답을 재사용하는 문제를 수정하는 기능·안정성 슬라이스입니다. 구현·대상/전체 프론트·타입/lint/포맷·웹/Windows·독립 ZIP/보안·원격 검증을 완료했습니다. Phase4A 기본 수용과 Phase7의 독립 정확도 미완료는 유지합니다.
 
 ### 2. 구현 및 변경 사항
 
 - `docs/12-API-CONTRACTS.md`: 기존 IPC v1·파일/분석 형식을 유지하는 작업 수명과 취소 경계를 먼저 기록했습니다. `docs/09`, `docs/17`에 회귀/사용 동작을 보완합니다.
 - `src/features/recordings/useTakeExport.ts`: 프로젝트/테이크·SHA·프레임/샘플레이트·상태의 현재 소유권을 확인합니다. 첫 반환부터 이전 안내/오류·진행을 숨기며 선택 변경/이탈 때 취소 요청 후 실제 종료 전 재실행을 막습니다.
 - `src/features/recordings/useRecordedPitches.ts`: 같은 파일 문맥과 분석 시작값/방식·유효 조건을 함께 검증합니다. 입력 변경과 같은 이벤트의 이전 명령, 이전 선택의 취소·입력 명령을 차단합니다. 이름/메모·정렬값 변경은 완료 결과를 유지합니다.
+- `docs/21-QUICKSTART.md`: 기존 녹음의 구간 분석과 취소 대기를 실제 버튼명·초/ms 기준으로 안내합니다.
 - `src/features/recordings/recordingOperationContext.test.tsx`:16개 회귀를 추가했습니다. UI 디자인·네이티브 DSP/실시간 판정·저장 스키마·의존성은 변경하지 않습니다.
 
 ### 3. 테스트 결과
 
 - 수정 전 신규11개 중 **10개 실패/1개 성공**,2.30초로 이전 명령 실행·성공 결과 잔류·취소 잠금/현재 분석 중단을 재현했습니다.
 - 수정 후 `pnpm test src/features/recordings/recordingOperationContext.test.tsx src/features/recordings/RecordedPitchesPanel.test.tsx src/features/recordings/takeExport.test.ts`: **26개/3파일 성공**,2.82초. 신규16개와 기존 방식/후보 표시·취소/내보내기 계약10개를 확인했습니다.
-- 최종 `pnpm test`: **662개/123파일 성공**,38.31초. `pnpm typecheck`, `pnpm lint`: **성공**. 취소 종료 대기를 새 선택에서도 표시하는 마지막 보완을 포함합니다. `pnpm format:check`: **성공**. 최종 `pnpm build`: **성공**,Vite1분32초/기존 큰 chunk 안내입니다. 마지막 보완 전의 최초 웹 빌드(1분50초)와 구분합니다. 내장 자산/Windows·새 Git/원격은 결과 확정 후 갱신합니다. 로그는 `src-tauri/target/runtime-validation/recording-operations-…-20261027.log`입니다.
+- 최종 `pnpm test`: **662개/123파일 성공**,38.31초. `pnpm typecheck`, `pnpm lint`: **성공**. 취소 종료 대기를 새 선택에서도 표시하는 마지막 보완을 포함합니다. `pnpm format:check`: **성공**. 최종 `pnpm build`: **성공**,Vite1분32초/기존 큰 chunk 안내입니다. 마지막 보완 전의 최초 웹 빌드(1분50초)와 구분합니다. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**. `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,13.22초/기존 MSVC 링크 안내입니다. 로그는 `src-tauri/target/runtime-validation/recording-operations-…-20261027.log`입니다.
+- 소스 **fb7b0a6**을 main에 push했습니다. [Windows40625741431](https://github.com/BomJin2/GuitarLab/actions/runs/40625741431)/job122610087649의 최종 로그/상태를 확인했고 프론트662/123파일(100.33초), 기본Rust252/확장256(56.06/104.78초·각29개 기본 제외), 예제1+1·AI113(2.95초)/도구143(18.878초)·Clippy/MSRV1.90(13.15초)·사후 정리까지 **전체 성공**입니다. 최신 ZIP **3,613파일/40,293,889바이트**·CRC/SHA·새 추출/실제 PS5.1·독립 Python3.12.15 검사는 성공했습니다(`VERIFIED_NOT_LAUNCHED`). 새 EXE/ZIP Defender도 위협 없음/전후 SHA 불변입니다. 지문/영수증과 보안 검사는 [Phase8 첫 절](PHASE-08.md)을 따릅니다.
 - 실제 새 GUI/개인 WAV·DB/청취·입력/모니터/REC·별도 Windows: **미실행** — 사용자 앱과 자료를 조작하지 않고 합성 메타데이터와 모의 서비스로 작업 수명만 검증합니다. 로컬 전체 Rust/Python 재실행: **미실행** — 엔진과 의존성을 변경하지 않았습니다.
 
 ### 4. 미구현 및 알려진 문제
@@ -26,7 +28,7 @@
 
 ### 5. 다음 작업 계획
 
-현재 수정의 전체 프론트/빌드·Git/원격 결과를 확정하고 독립 패키지에 반영합니다. 이후 진행 요약의 실제 GUI/장치·별도 OS/독립 품질·배포 조건을 따릅니다. 같은 성공 검사를 반복하거나 이전 후보를 새 소스의 검증으로 혼용하지 않습니다.
+이번 수정의 전체 프론트/빌드·Git/원격과 독립 패키지/보안·문서화를 완료했습니다. 이후 진행 요약의 실제 GUI/장치·별도 OS/독립 품질·배포 조건을 따릅니다. 같은 성공 검사를 반복하거나 이전 후보를 새 소스의 검증으로 혼용하지 않습니다.
 
 ## 후속 — 테이크 정보 저장 중 재생 유지 (2026-10-27)
 
