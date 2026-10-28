@@ -453,7 +453,8 @@ impl ProjectStore {
         } else {
             None
         };
-        let copying = (|| {
+        let mut owned_path = output.as_ref().map(|_| partial.clone());
+        let result = (|| {
             let mut digest = Sha256::new();
             let mut json = Vec::new();
             let mut bytes = 0;
@@ -505,56 +506,55 @@ impl ProjectStore {
                 output.sync_all().map_err(|_| storage_error())?;
             }
             canceled(cancel)?;
-            Ok(hex(digest.finalize().as_ref()))
-        })();
-        drop(output);
-        let digest = match copying {
-            Ok(digest) => digest,
-            Err(error) => {
-                if storage == AssetStorage::Managed {
-                    fs::remove_file(&partial).map_err(|_| storage_error())?;
-                }
-                return Err(error);
+            let digest = hex(digest.finalize().as_ref());
+            drop(output.take());
+            let duplicate = db.query_row(&format!("SELECT {ASSET_COLUMNS} FROM project_assets WHERE project_id=?1 AND kind=?2 AND sha256=?3"),params![project_id,kind.as_str(),digest],asset_row).optional().map_err(|_| storage_error())?;
+            canceled(cancel)?;
+            if let Some(mut row) = duplicate {
+                row.info.available = self.path(&row)?.is_file();
+                return Ok(ImportResult {
+                    asset: row.info,
+                    duplicate: true,
+                });
             }
-        };
-        let duplicate = db.query_row(&format!("SELECT {ASSET_COLUMNS} FROM project_assets WHERE project_id=?1 AND kind=?2 AND sha256=?3"),params![project_id,kind.as_str(),digest],asset_row).optional().map_err(|_| storage_error())?;
-        if let Some(mut row) = duplicate {
+            canceled(cancel)?;
             if storage == AssetStorage::Managed {
-                fs::remove_file(&partial).map_err(|_| storage_error())?;
+                fs::rename(&partial, &destination).map_err(|_| storage_error())?;
+                owned_path = Some(destination.clone());
             }
-            row.info.available = self.path(&row)?.is_file();
-            return Ok(ImportResult {
-                asset: row.info,
-                duplicate: true,
-            });
-        }
-        canceled(cancel)?;
-        if storage == AssetStorage::Managed {
-            fs::rename(&partial, &destination).map_err(|_| storage_error())?;
-        }
-        let tx = db
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| storage_error())?;
-        tx.execute("INSERT INTO project_assets(id,project_id,kind,storage,name,extension,relative_path,external_path,sha256,bytes,created_at_ms) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+            let tx = db
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(|_| storage_error())?;
+            tx.execute("INSERT INTO project_assets(id,project_id,kind,storage,name,extension,relative_path,external_path,sha256,bytes,created_at_ms) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![id,project_id,kind.as_str(),if storage==AssetStorage::Managed {"MANAGED"} else {"REFERENCE"},name,ext,
                 if storage==AssetStorage::Managed {Some(&relative)} else {None},
                 if storage==AssetStorage::Reference {Some(source.to_str().ok_or_else(invalid_file)?)} else {None},digest,i64::try_from(size).map_err(|_|invalid_file())?,now_ms()?]).map_err(|_| storage_error())?;
-        canceled(cancel)?;
-        tx.commit().map_err(|_| storage_error())?;
-        Ok(ImportResult {
-            asset: AssetInfo {
-                id,
-                project_id: project_id.into(),
-                kind,
-                storage,
-                name,
-                sha256: digest,
-                bytes: size,
-                available: true,
-            },
-            duplicate: false,
-        })
+            canceled(cancel)?;
+            tx.commit().map_err(|_| storage_error())?;
+            Ok(ImportResult {
+                asset: AssetInfo {
+                    id,
+                    project_id: project_id.into(),
+                    kind,
+                    storage,
+                    name,
+                    sha256: digest,
+                    bytes: size,
+                    available: true,
+                },
+                duplicate: false,
+            })
+        })();
+        drop(output);
+        if result.as_ref().map_or(true, |imported| imported.duplicate) {
+            if let Some(path) = owned_path {
+                // 이 호출이 새로 만든 복사본만 DB rollback과 함께 정리합니다.
+                fs::remove_file(path).map_err(|_| storage_error())?;
+            }
+        }
+        result
     }
+
     pub fn read_asset(
         &self,
         project_id: &str,

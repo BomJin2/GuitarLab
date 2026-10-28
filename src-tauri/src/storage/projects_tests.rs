@@ -419,6 +419,86 @@ fn blank_score_cancel_write_or_database_failure_leaves_existing_files_and_databa
     );
 }
 
+fn assert_failed_import_preserves_existing_files(commit_failure: bool) {
+    for storage in [AssetStorage::Managed, AssetStorage::Reference] {
+        let f = Fixture::new();
+        let project = f.project();
+        let old_asset = f.asset(&project, AssetStorage::Managed);
+        let cancel = AtomicBool::new(false);
+        let old_revision = f
+            .store
+            .save_revision(&project, 0, &old_asset, score(), workspace(), &cancel)
+            .expect("이전 악보 저장");
+        let folder = f.store.root.join(format!("projects/{project}/assets"));
+        fs::write(folder.join("다른 작업.part"), b"keep partial").expect("다른 작업 보존 표본");
+        let files = || {
+            fs::read_dir(&folder)
+                .expect("자체 자산 폴더")
+                .map(|entry| {
+                    let path = entry.expect("자산 항목").path();
+                    (
+                        path.file_name().expect("이름").to_owned(),
+                        fs::read(&path).expect("내용"),
+                    )
+                })
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+        let before = files();
+        let source = f.root.join("다른 원본.musicxml");
+        let bytes = b"<?xml version=\"1.0\"?><score-partwise version=\"4.0\"/>";
+        fs::write(&source, bytes).expect("새 자체 원본");
+        let db = connect(&f.store.root).expect("자체 DB");
+        if commit_failure {
+            db.execute_batch("CREATE TABLE import_test_parent(id INTEGER PRIMARY KEY);
+                CREATE TABLE import_test_child(parent INTEGER REFERENCES import_test_parent(id) DEFERRABLE INITIALLY DEFERRED);
+                CREATE TRIGGER reject_import AFTER INSERT ON project_assets BEGIN INSERT INTO import_test_child VALUES(1); END;")
+                .expect("commit 실패 재현");
+        } else {
+            db.execute_batch("CREATE TRIGGER reject_import BEFORE INSERT ON project_assets BEGIN SELECT RAISE(ABORT, 'test'); END;")
+                .expect("insert 실패 재현");
+        }
+        let error = f
+            .store
+            .import_asset(
+                &project,
+                &source,
+                AssetKind::ScoreImport,
+                storage,
+                &cancel,
+                |_, _| Ok(()),
+            )
+            .err()
+            .expect("DB 실패");
+        assert_eq!(error.code, "STORAGE_ERROR");
+        assert_eq!(files(), before, "실패한 새 복사본만 정리해야 합니다");
+        assert_eq!(fs::read(&source).expect("외부 원본 유지"), bytes);
+        let (summary, revision, assets) = f.store.open(&project).expect("실패 후 이전 프로젝트");
+        assert_eq!(summary.revision, 1);
+        assert_eq!(
+            revision.expect("이전 revision").revision_id,
+            old_revision.revision_id
+        );
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].id, old_asset);
+        assert_eq!(
+            f.store
+                .read_asset(&project, &old_asset, &cancel, |_, _| Ok(()))
+                .expect("이전 원본 읽기"),
+            fs::read(&f.source).expect("이전 원본")
+        );
+    }
+}
+
+#[test]
+fn import_insert_failure_removes_only_new_copy_and_preserves_previous_revision() {
+    assert_failed_import_preserves_existing_files(false);
+}
+
+#[test]
+fn import_commit_failure_removes_only_new_copy_and_preserves_previous_revision() {
+    assert_failed_import_preserves_existing_files(true);
+}
+
 #[test]
 fn migration_reopens_and_rejects_future_or_corrupt_database_without_overwrite() {
     let f = Fixture::new();

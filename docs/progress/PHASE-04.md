@@ -1,5 +1,33 @@
 # Phase 04 — 프로젝트 저장과 연습 기록
 
+## 후속 — 원본 가져오기 DB 실패의 복사본 정리 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 열린 프로젝트 drop의 관리용 보관 경로를 검토하다 기존 import_asset에서 원본 복사 후 DB 삽입/commit 실패 시 새 파일이 남는 문제를 확인했습니다. 드롭 기능보다 기존 저장 실패 처리를 먼저 보완하는 단일 슬라이스이며 대상21개·타입/포맷 검사, 확장 Rust258개/Clippy·Windows·Rust1.90 검사를 통과했습니다. 새 GitHub Actions와 패키지 검증은 후속입니다.
+
+### 2. 구현 및 변경 사항
+
+- `src-tauri/src/storage/projects.rs`: create_new 성공한 파일의 현재 경로를 추적해 .part→최종 복사본 전환 이후 오류도 같은 작업 범위에서 정리합니다. 중복일 때 새 임시 복사본만 지우고 정상 commit한 파일은 유지합니다. 외부 참조는 정리 대상이 없으며 원본/다른 작업 파일은 삭제하지 않습니다.
+- `projects_tests.rs`: 관리용/외부 참조 각각에 INSERT 실패·지연 FK COMMIT 실패2개 검사를 추가했습니다. 기존 저장 revision/원본 자산·외부 원본 및 다른 작업 .part의 이름/내용 불변을 확인합니다.
+- `docs/12-API-CONTRACTS.md`, `docs/09-TEST-PLAN.md`: 실패 정리와 테스트 기준을 기록했습니다. IPC v1/DB 스키마·UI/오디오/파일 형식·외부 의존성은 변경하지 않습니다. 기존 테스트 창/불변 EXE는 유지합니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml import_ --lib`: **2개 실패/3개 성공**. INSERT/COMMIT 실패 후 새 최종 복사본이 남아 파일 목록/내용 보존 검사가 실패했습니다. `asset-import-rollback-red-20261028.log`입니다.
+- 수정 후 `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml storage::projects_tests --lib`: **21개 성공**,최종2.55초. 두 신규 검사는 관리용/외부 참조 모두 성공하며 기존 정상/중복·복사 취소·손상/잘못된 JSON·저장/reopen/재연결 검사도 통과했습니다. `asset-import-rollback-target-final-20261028.log`입니다.
+- `pnpm typecheck`, `pnpm format:check`, `cargo fmt --check`: **성공**. `cargo test --locked --offline --manifest-path src-tauri/Cargo.toml --all-features`: **258개 성공/29개 기본 제외**,20.28초. `cargo clippy --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: **성공**,10.48초.
+- `cargo build --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol`: **성공**,4.84초(기존 MSVC 링크 안내). `cargo +1.90.0 check --locked --offline --manifest-path src-tauri/Cargo.toml --all-targets --all-features`: **성공**,13.94초. 새 Git/원격·패키지는 후속입니다. 프론트 전체/웹 재빌드: **미실행** — 프론트 소스/내장 dist는 e745059의683개·웹 빌드/원격 성공 이후 변경하지 않았습니다.
+- 실제 개인 자료/디스크 오류·전원 중단: **미실행** — 자체 임시 DB 오류를 주입하며 원본 제품 프로필을 열지 않았습니다. 열린 프로젝트 drop은 **미구현**입니다.
+
+### 4. 미구현 및 알려진 문제
+
+프로세스 강제 종료/전원 중단의 자동 고아 파일 회수나 기존에 남은 파일의 일괄 삭제는 구현하지 않습니다. 이 호출이 만든 파일만 정리하며 정리 자체의 파일 시스템 오류는 STORAGE_ERROR로 표시합니다. 실제 디스크 부족·권한 변경 및 열린 프로젝트의 Explorer 입력 수용은 별도입니다.
+
+### 5. 다음 작업 계획
+
+확장 Rust/Clippy·Windows/원격을 확인하고 결과를 기록합니다. 현재 정상 앱은 재실행하지 않으며, 다음 열린 프로젝트 drop은 제한된 악보 바이트 전달·관리용 복사/참조 정책·취소/미저장 보존을 검토한 뒤 별도 계약/슬라이스로 구현합니다.
+
 ## 후속 — 결과 조회 선택·취소·재시도 (2026-10-27)
 
 ### 1. 작업 개요
