@@ -236,12 +236,7 @@ export function ScoreWorkspace({
         시작합니다. 채점 시작을 누르면 선택한 트랙의 단음을 판정합니다. 녹음은
         저장된 프로젝트에서 명시적으로 REC를 눌렀을 때만 기록합니다.
       </p>
-      {project?.native && (
-        <ProjectStatus
-          project={project}
-          importBlocked={playbackLocked || practice.armed}
-        />
-      )}
+      {project?.native && <ProjectStatus project={project} />}
       {!project?.details && (
         <section
           className="panel"

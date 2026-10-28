@@ -2,6 +2,7 @@ use crate::{
     ipc::AppError,
     recording::{model::record_error, service::RecordingService},
     storage::{
+        audio_upload::{receive_audio, AudioUploadRequest, AudioUploads},
         jobs::{JobSnapshot, StorageJob, StorageJobs},
         project_model::{
             storage_error, validate_uuid, AssetKind, AssetStorage, ProjectMode, ScoreDocument,
@@ -271,6 +272,54 @@ pub async fn import_project_score_bytes(
     });
     Ok(initial)
 }
+#[tauri::command]
+pub async fn begin_project_audio_upload(
+    request: AudioUploadRequest,
+    store: tauri::State<'_, Arc<ProjectStore>>,
+    jobs: tauri::State<'_, Arc<StorageJobs>>,
+    uploads: tauri::State<'_, Arc<AudioUploads>>,
+    recording: tauri::State<'_, Arc<RecordingService>>,
+) -> Result<JobSnapshot, AppError> {
+    request.validate()?;
+    if recording.is_active() {
+        return Err(record_error("RECORDING_BUSY"));
+    }
+    let (job, receiver) = uploads.reserve(&jobs)?;
+    let initial = job.snapshot()?;
+    let id = initial.job_id.clone();
+    let uploads = uploads.inner().clone();
+    let store = store.inner().clone();
+    let recording = recording.inner().clone();
+    launch(job, move |job| {
+        let result = recording.while_idle(|| receive_audio(&store, request, job, receiver));
+        uploads.release(&id)?;
+        let imported = result?;
+        Ok(json!({"schemaVersion":1,"asset":imported.asset,"duplicate":imported.duplicate}))
+    });
+    Ok(initial)
+}
+
+#[tauri::command]
+pub async fn append_project_audio_upload(
+    request: tauri::ipc::Request<'_>,
+    uploads: tauri::State<'_, Arc<AudioUploads>>,
+) -> Result<Value, AppError> {
+    let tauri::ipc::InvokeBody::Raw(body) = request.body() else {
+        return Err(AppError::invalid());
+    };
+    if body.len() <= 44 || body.len() > 1048576 + 44 {
+        return Err(AppError::invalid());
+    }
+    let body = body.clone();
+    let uploads = uploads.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (id, done) = uploads.append(body)?;
+        Ok(json!({"schemaVersion":1,"jobId":id,"receivedBytes":done}))
+    })
+    .await
+    .map_err(|_| storage_error())?
+}
+
 #[tauri::command]
 pub async fn create_blank_project_score(
     request: BlankScoreRequest,

@@ -71,7 +71,7 @@ fn invalid_file() -> AppError {
         false,
     )
 }
-fn extension(path: &Path, kind: AssetKind) -> Result<String, AppError> {
+pub(crate) fn extension(path: &Path, kind: AssetKind) -> Result<String, AppError> {
     let ext = path
         .extension()
         .and_then(|v| v.to_str())

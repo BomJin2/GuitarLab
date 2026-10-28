@@ -102,6 +102,8 @@ mod bundle_tests {
                 "plugin:dialog|message",
                 "open_project",
                 "import_project_score_bytes",
+                "begin_project_audio_upload",
+                "append_project_audio_upload",
                 "update_project_metadata",
                 "list_score_revisions",
                 "read_score_revision",

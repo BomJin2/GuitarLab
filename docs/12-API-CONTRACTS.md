@@ -1,5 +1,13 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 프로젝트 전체 파일 drop·음원 분할 전달 — 2026-10-28
+
+열린 프로젝트의 카피/연습/연주·라이브러리 작업 영역 전체에서 단일 악보 또는 WAV/MP3를 받습니다. 상위 capture에서 한 번만 처리하고 하위 기존 drop과 중복 실행하지 않습니다. 파일 드래그에만 ‘여기에 놓아 적용’ 안내를 표시하고 leave/drop/dragend/blur·문맥 변경에서 해제합니다. 일반 텍스트 드래그는 유지합니다. 관리용 복사/외부 참조 선택을 controller에서 공유하며 REFERENCE에서는 native 파일 선택으로 안내합니다. 녹음·채점·보정·파일 작업 중에는 변경하지 않습니다. 악보 교체는 기존 미저장 확인을 공유하며 음원 교체는 악보/편집 이력을 유지합니다.
+
+기존 raw 악보 v1/8MiB는 유지합니다. 새 `begin_project_audio_upload`는 `{schemaVersion:1,projectId:UUID,name:basename,bytes:1..268435456}`만 받고 WAV/MP3·안전한 파일명을 검증한 뒤 기존 StorageJob v1 RUNNING을 반환합니다. 임의 경로/unknown 필드/참조 저장은 받지 않습니다. `append_project_audio_upload`는 raw body의 처음36 ASCII 바이트에 jobId,다음8바이트 little-endian u64에 원본 offset,나머지에1..1048576바이트를 받습니다. 응답은 `{schemaVersion:1,jobId,receivedBytes}`이며 순서/ID·크기 불일치는 거부합니다. 모든 전송에서 동일 StorageJob을 유지하고 마지막 조각 후 native 원본 검증/관리용 복사·DB commit을 마쳐야 COMPLETED가 됩니다.
+
+전송은 한 조각씩 읽고 최대1개 대기 큐로 native worker에 전달합니다. 진행은 원본 bytes를 total로 삼아 임시 수신/최종 복사를 각각 절반으로 표시합니다. 이 상한은 업로드 조각의 경계이며 기존 음원 재생/읽기의 전체 파일 버퍼 정책은 유지합니다. 취소/전송 단절·30초간 조각 미수신/실패 때 실제 정리 종료까지 잠금을 유지하고 이번 임시 파일/빈 폴더만 정리합니다. 이미 commit한 자산/원본·저장 revision은 자동 삭제하지 않습니다. 강제 종료/전원 중단의 자동 staging 회수는 별도입니다. 네트워크 전송/녹음/새 권한은 추가하지 않습니다.
+
 ## 열린 프로젝트의 관리용 악보 drop — 2026-10-28
 
 새 `import_project_score_bytes`는 로컬 main의 raw IPC body만 받습니다. 앞4바이트 little-endian u32는 UTF-8 JSON 메타데이터 길이(1~1024), 뒤 메타데이터는 `{schemaVersion:1,projectId:UUID,name:basename}`이며 unknown 필드/경로·제어 문자/Windows 예약 파일명·지원 외 확장자를 거부합니다. 나머지 바이트는 비어 있지 않은 최대8MiB GP/MusicXML/GuitarLab JSON 악보입니다. 임의 sourcePath/파일 시스템 권한·외부 참조는 받지 않습니다. Raw body 전체는8MiB+1028 이하입니다. 응답은 기존 StorageJob v1→`{schemaVersion:1,asset,duplicate}`이며 자산은 SCORE_IMPORT/MANAGED/동일 projectId입니다.

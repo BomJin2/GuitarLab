@@ -35,6 +35,30 @@
   --color-secondary: #9ca9b9;
   --color-accent: #38bdf8;
   --color-border: #34404e;
+  --spacing-file-drop-inset: 24px;
+  --spacing-file-drop-padding: 32px;
+  --z-index-file-drop: 100;
+}
+.project-file-drop-frame {
+  display: contents;
+}
+.project-file-drop-overlay {
+  position: fixed;
+  inset: var(--spacing-file-drop-inset);
+  padding: var(--spacing-file-drop-padding);
+  z-index: var(--z-index-file-drop);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  border: 2px dashed var(--color-accent);
+  background: color-mix(in srgb, var(--color-root) 85%, transparent);
+}
+.project-file-drop-notice {
+  position: fixed;
+  top: var(--spacing-file-drop-inset);
+  left: var(--spacing-file-drop-inset);
+  right: var(--spacing-file-drop-inset);
+  z-index: var(--z-index-file-drop);
 }
 .youtube-player-host {
   position: relative;

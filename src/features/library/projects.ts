@@ -9,6 +9,8 @@ import {
 } from '../../shared/validation';
 import { logDiagnostic } from '../../shared/logger';
 import { scoreUploadBody } from './scoreUpload';
+import { sendAudioChunks } from './audioUpload';
+import { validateLocalMediaFile } from '../score/localMediaImport';
 export type ProjectMode = 'copy' | 'practice' | 'performance';
 export type ProjectSummary = {
   id: string;
@@ -248,7 +250,11 @@ export async function runStorageJob(
   request: Record<string, unknown>,
   signal: AbortSignal,
   progress: (value: JobSnapshot) => void,
-  options: { waitForCancellation?: boolean; body?: Uint8Array } = {},
+  options: {
+    waitForCancellation?: boolean;
+    body?: Uint8Array;
+    prepare?: (job: JobSnapshot) => Promise<void>;
+  } = {},
 ): Promise<unknown> {
   if (signal.aborted) throw new DOMException('작업 취소', 'AbortError');
   let snapshot = decodeJob(
@@ -260,7 +266,10 @@ export async function runStorageJob(
     ),
   );
   const id = snapshot.jobId;
+  let cancelRequested = false;
   const cancel = () => {
+    if (cancelRequested) return;
+    cancelRequested = true;
     void invoke('cancel_storage_job', {
       request: { schemaVersion: 1, jobId: id },
     }).catch(() => logDiagnostic('warn', 'STORAGE_CANCEL_FAILED'));
@@ -271,11 +280,33 @@ export async function runStorageJob(
     ? new AbortController().signal
     : signal;
   try {
+    let preparationFailure: { cause: unknown } | null = null;
+    if (options.prepare) {
+      progress(snapshot);
+      try {
+        await options.prepare(snapshot);
+      } catch (cause) {
+        preparationFailure = { cause };
+        cancel();
+      }
+      const next = decodeJob(
+        await invoke<unknown>('get_storage_job', {
+          request: { schemaVersion: 1, jobId: id },
+        }),
+      );
+      if (next.jobId !== id) throw new Error('PROJECT_CONTRACT_INVALID');
+      snapshot = next;
+    }
     while (true) {
       progress(snapshot);
-      if (snapshot.state === 'COMPLETED') return snapshot.result;
-      if (snapshot.state === 'CANCELED')
+      if (snapshot.state === 'COMPLETED') {
+        if (preparationFailure) throw preparationFailure.cause;
+        return snapshot.result;
+      }
+      if (snapshot.state === 'CANCELED') {
+        if (preparationFailure) throw preparationFailure.cause;
         throw new DOMException('작업 취소', 'AbortError');
+      }
       if (snapshot.state === 'ERROR')
         throw new Error(snapshot.errorCode ?? 'STORAGE_ERROR');
       await delay(pollSignal);
@@ -370,6 +401,38 @@ export const projectApi = {
       v.asset.kind !== 'SCORE_IMPORT' ||
       v.asset.storage !== 'MANAGED' ||
       !v.asset.available
+    )
+      throw new Error('PROJECT_CONTRACT_INVALID');
+    return { asset: v.asset, duplicate: v.duplicate };
+  },
+  async importDroppedAudio(
+    projectId: string,
+    file: File,
+    signal: AbortSignal,
+    progress: (v: JobSnapshot) => void,
+  ) {
+    if (!isUuid(projectId)) throw new Error('PROJECT_CONTRACT_INVALID');
+    validateLocalMediaFile('audio', file);
+    const v = envelope(
+      await runStorageJob(
+        'begin_project_audio_upload',
+        { projectId, name: file.name, bytes: file.size },
+        signal,
+        progress,
+        {
+          waitForCancellation: true,
+          prepare: (job) => sendAudioChunks(job, file, signal, progress),
+        },
+      ),
+    );
+    if (
+      !asset(v.asset) ||
+      typeof v.duplicate !== 'boolean' ||
+      v.asset.projectId !== projectId ||
+      v.asset.kind !== 'ORIGINAL' ||
+      v.asset.storage !== 'MANAGED' ||
+      !v.asset.available ||
+      v.asset.bytes !== file.size
     )
       throw new Error('PROJECT_CONTRACT_INVALID');
     return { asset: v.asset, duplicate: v.duplicate };
@@ -517,6 +580,10 @@ export function projectError(error: unknown) {
       return '원본 파일이 없습니다. 같은 파일을 재연결하세요.';
     case 'FILE_INVALID':
       return '파일 형식·크기를 확인하세요. 악보8MiB, 음원256MiB까지 지원합니다.';
+    case 'UPLOAD_TIMEOUT':
+      return '파일 전송이 중단되어 임시 파일을 정리했습니다. 파일을 다시 놓아주세요.';
+    case 'DISK_SPACE_LOW':
+      return '임시 보관과 관리용 복사를 위한 디스크 여유 공간을 확보해주세요.';
     case 'STORAGE_BUSY':
       return '진행 중인 파일 작업을 마치거나 파일 선택 창을 취소하세요.';
     case 'PROJECT_CONTRACT_INVALID':

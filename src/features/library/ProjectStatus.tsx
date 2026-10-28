@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import type { ProjectController } from './useProjects';
 import { ScoreHistoryPanel } from './ScoreHistoryPanel';
-import { ProjectScoreDrop } from './ProjectScoreDrop';
-export function ProjectStatus({
-  project,
-  importBlocked = false,
-}: {
-  project: ProjectController;
-  importBlocked?: boolean;
-}) {
-  const [storage, setStorage] = useState<'MANAGED' | 'REFERENCE'>('MANAGED');
+export function ProjectStatus({ project }: { project: ProjectController }) {
+  const storage = project.importStorage;
+  const setStorage = project.setImportStorage;
   const [showHistory, setShowHistory] = useState(false);
   return (
     <section className="panel project-status" aria-label="프로젝트 저장">
@@ -82,14 +76,10 @@ export function ProjectStatus({
               프로젝트 다시 열기
             </button>
           </div>
-          <ProjectScoreDrop
-            key={project.details.project.id}
-            disabled={project.busy || importBlocked}
-            reference={storage === 'REFERENCE'}
-            onFile={(file) =>
-              project.importAsset('SCORE_IMPORT', storage, file)
-            }
-          />
+          <p>
+            악보·WAV/MP3 파일 한 개를 프로젝트 작업 화면에 놓아도 불러올 수
+            있습니다. 외부 참조는 파일 선택을 사용하세요.
+          </p>
           {project.native && showHistory && (
             <ScoreHistoryPanel
               key={project.details.project.id}

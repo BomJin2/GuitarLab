@@ -1,17 +1,11 @@
 use super::{
-    database::checked_directory,
-    project_model::{storage_error, validate_uuid, AssetKind, AssetStorage},
+    asset_staging::{validate_name, StagedAsset},
+    project_model::{validate_uuid, AssetKind},
     projects::{canceled, ImportResult, ProjectStore},
 };
 use crate::ipc::AppError;
 use serde::Deserialize;
-use std::{
-    fs::{self, OpenOptions},
-    io::Write,
-    path::Path,
-    sync::atomic::AtomicBool,
-};
-use uuid::Uuid;
+use std::{io::Write, sync::atomic::AtomicBool};
 
 const MAX_SCORE_BYTES: usize = 8 * 1024 * 1024;
 
@@ -26,44 +20,10 @@ pub struct ScoreUpload {
 impl ScoreUpload {
     fn validate(&self, bytes: &[u8]) -> Result<(), AppError> {
         validate_uuid(&self.project_id)?;
-        let path = Path::new(&self.name);
-        let stem = self
-            .name
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .trim_end()
-            .to_ascii_uppercase();
-        let port = stem
-            .strip_prefix("COM")
-            .or_else(|| stem.strip_prefix("LPT"));
-        let reserved = ["CON", "PRN", "AUX", "NUL"].contains(&stem.as_str())
-            || port.is_some_and(|suffix| {
-                (suffix.len() == 1 && suffix.as_bytes()[0].is_ascii_digit())
-                    || ["¹", "²", "³"].contains(&suffix)
-            });
-        if self.schema_version != 1
-            || bytes.is_empty()
-            || bytes.len() > MAX_SCORE_BYTES
-            || self.name.is_empty()
-            || self.name.len() > 512
-            || self.name.chars().count() > 200
-            || self.name.trim() != self.name
-            || self.name.ends_with('.')
-            || reserved
-            || self
-                .name
-                .chars()
-                .any(|c| c.is_control() || "/\\:<>\"|?*".contains(c))
-            || !path.file_stem().is_some_and(|v| !v.is_empty())
-            || !path.extension().and_then(|v| v.to_str()).is_some_and(|v| {
-                ["gp", "gp3", "gp4", "gp5", "gpx", "xml", "musicxml", "json"]
-                    .contains(&v.to_ascii_lowercase().as_str())
-            })
-        {
+        if self.schema_version != 1 || bytes.is_empty() || bytes.len() > MAX_SCORE_BYTES {
             return Err(AppError::invalid());
         }
-        Ok(())
+        validate_name(&self.name, AssetKind::ScoreImport)
     }
 
     pub fn decode(body: &[u8]) -> Result<(Self, &[u8]), AppError> {
@@ -89,67 +49,46 @@ impl ProjectStore {
         request: &ScoreUpload,
         bytes: &[u8],
         cancel: &AtomicBool,
-        mut progress: impl FnMut(u64, u64) -> Result<(), AppError>,
+        progress: impl FnMut(u64, u64) -> Result<(), AppError>,
     ) -> Result<ImportResult, AppError> {
         request.validate(bytes)?;
-        canceled(cancel)?;
-        self.open(&request.project_id)?;
-        let parent = checked_directory(
-            &self.root,
-            Path::new(&format!("projects/{}/incoming", request.project_id)),
-        )?;
-        let folder = parent.join(Uuid::new_v4().to_string());
-        fs::create_dir(&folder).map_err(|_| storage_error())?;
-        let source = folder.join(&request.name);
-        let mut created = false;
         let size = bytes.len() as u64;
-        let result = (|| {
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&source)
-                .map_err(|_| storage_error())?;
-            created = true;
-            progress(0, size * 2)?;
-            let mut done = 0;
-            for chunk in bytes.chunks(65536) {
-                canceled(cancel)?;
-                file.write_all(chunk).map_err(|_| storage_error())?;
-                done += chunk.len() as u64;
-                progress(done, size * 2)?;
-            }
-            file.sync_all().map_err(|_| storage_error())?;
-            drop(file);
-            canceled(cancel)?;
-            self.import_asset(
-                &request.project_id,
-                &source,
-                AssetKind::ScoreImport,
-                AssetStorage::Managed,
-                cancel,
-                |done, total| progress(size + done, size + total),
-            )
-        })();
-        // 이번 호출이 만든 임시 파일과 빈 UUID 폴더만 정리합니다.
-        let file_cleanup = if created {
-            fs::remove_file(&source)
-        } else {
-            Ok(())
-        };
-        let directory_cleanup = fs::remove_dir(&folder);
-        file_cleanup
-            .and(directory_cleanup)
-            .map_err(|_| storage_error())?;
-        result
+        self.import_staged_asset(
+            StagedAsset {
+                project_id: &request.project_id,
+                name: &request.name,
+                kind: AssetKind::ScoreImport,
+                bytes: size,
+            },
+            cancel,
+            |file, progress| {
+                let mut done = 0;
+                for chunk in bytes.chunks(65536) {
+                    canceled(cancel)?;
+                    file.write_all(chunk)
+                        .map_err(|_| super::project_model::storage_error())?;
+                    done += chunk.len() as u64;
+                    progress(done, size * 2)?;
+                }
+                Ok(())
+            },
+            progress,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::{database::connect, projects_tests::Fixture};
+    use crate::storage::{
+        database::{checked_directory, connect},
+        project_model::{storage_error, AssetStorage},
+        projects_tests::Fixture,
+    };
     use serde_json::{json, Value};
     use std::sync::atomic::Ordering;
+    use std::{fs, path::Path};
+    use uuid::Uuid;
 
     fn body(metadata: Value, bytes: &[u8]) -> Vec<u8> {
         let json = serde_json::to_vec(&metadata).expect("자체 메타데이터");

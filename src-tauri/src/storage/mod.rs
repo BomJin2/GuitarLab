@@ -1,3 +1,5 @@
+mod asset_staging;
+pub mod audio_upload;
 pub mod backing;
 #[cfg(test)]
 mod backing_tests;

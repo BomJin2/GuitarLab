@@ -32,6 +32,7 @@ vi.mock('./projects', async (original) => ({
     read: vi.fn(),
     import: vi.fn(),
     importDroppedScore: vi.fn(),
+    importDroppedAudio: vi.fn(),
     save: vi.fn(),
     relink: vi.fn(),
     createBlankScore: vi.fn(),
@@ -311,6 +312,95 @@ it('프로젝트 악보 drop은 관리용 원본을 연결하고 저장 head는 
   expect(result.current.session?.document.tracks[0]?.notes[0]?.fret).toBe(3);
   expect(result.current.project.details?.revision).toBeNull();
   expect(result.current.project.scoreSaved).toBe(false);
+  engine.dispose();
+});
+
+it('음원 drop은 기존 악보·편집을 유지하면서 관리용 음원만 플레이어에 연결한다', async () => {
+  const details = projectFixture();
+  const asset = {
+    ...details.assets[0]!,
+    kind: 'ORIGINAL' as const,
+    storage: 'MANAGED' as const,
+    available: true,
+  };
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  vi.mocked(projectApi.importDroppedAudio).mockResolvedValue({
+    asset,
+    duplicate: false,
+  });
+  vi.mocked(projectApi.read).mockResolvedValue({
+    name: 'audio.wav',
+    data: new Uint8Array([1, 2, 3]).buffer,
+  });
+  const confirm = vi.fn().mockReturnValue(true);
+  const { result, engine } = harness(confirm);
+  const load = vi.spyOn(engine, 'load').mockImplementation(() => {});
+  await act(async () => result.current.project.open(details.project.id));
+  const previous = scoreEditingFixture();
+  act(() => result.current.setSession(previous));
+  confirm.mockClear();
+  const file = new File(['RIFF'], 'audio.wav');
+  await act(async () =>
+    result.current.project.importAsset('ORIGINAL', 'MANAGED', file),
+  );
+  expect(projectApi.importDroppedAudio).toHaveBeenCalledWith(
+    details.project.id,
+    file,
+    expect.any(AbortSignal),
+    expect.any(Function),
+  );
+  expect(projectApi.import).not.toHaveBeenCalled();
+  expect(confirm).not.toHaveBeenCalled();
+  expect(result.current.session).toBe(previous);
+  expect(result.current.project.audioAssetId).toBe(asset.id);
+  expect(load).toHaveBeenCalledWith(expect.any(File));
+  expect(result.current.project.details?.revision).toBeNull();
+  engine.dispose();
+});
+
+it('음원 drop의 늦은 완료는 취소 뒤 기존 재생·음원 선택에 적용하지 않는다', async () => {
+  const details = projectFixture();
+  const asset = {
+    ...details.assets[0]!,
+    kind: 'ORIGINAL' as const,
+    storage: 'MANAGED' as const,
+    available: true,
+  };
+  const pending = deferred<{ asset: typeof asset; duplicate: boolean }>();
+  vi.mocked(projectApi.open).mockResolvedValue({
+    ...details,
+    revision: null,
+    assets: [],
+  });
+  vi.mocked(projectApi.importDroppedAudio).mockReturnValue(pending.promise);
+  vi.mocked(projectApi.read).mockResolvedValue({
+    name: 'audio.wav',
+    data: new Uint8Array([1, 2, 3]).buffer,
+  });
+  const { result, engine } = harness();
+  const load = vi.spyOn(engine, 'load').mockImplementation(() => {});
+  await act(async () => result.current.project.open(details.project.id));
+  let operation: Promise<void> = Promise.resolve();
+  await act(async () => {
+    operation = result.current.project.importAsset(
+      'ORIGINAL',
+      'MANAGED',
+      new File(['RIFF'], 'audio.wav'),
+    );
+  });
+  act(() => result.current.project.cancel());
+  expect(result.current.project.busy).toBe(true);
+  await act(async () => {
+    pending.resolve({ asset, duplicate: false });
+    await operation;
+  });
+  expect(result.current.project.busy).toBe(false);
+  expect(result.current.project.audioAssetId).toBeNull();
+  expect(load).not.toHaveBeenCalled();
   engine.dispose();
 });
 

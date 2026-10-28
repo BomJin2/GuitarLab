@@ -69,6 +69,8 @@ it('정렬 REC의 비활성 사유를 표시하고 재생·동기화 후 실제 
     job: null,
     error: null,
     notice: null,
+    importStorage: 'MANAGED',
+    setImportStorage: vi.fn(),
     audioAssetId: take.transport?.backingAssetId ?? null,
     scoreSaved: true,
     refresh: vi.fn(),

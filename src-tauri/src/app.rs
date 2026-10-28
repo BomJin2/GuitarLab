@@ -12,6 +12,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             judgement::calibration_measurement::MeasurementService::default(),
         ))
         .manage(Arc::new(storage::jobs::StorageJobs::default()))
+        .manage(Arc::new(storage::audio_upload::AudioUploads::default()))
         .manage(Arc::new(crate::backing::PlayerService::default()))
         .manage(Arc::new(crate::ai::setup::SetupService::default()))
         .setup(|app| {
@@ -192,6 +193,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::storage_api::save_project_revision,
             commands::storage_api::pick_project_asset,
             commands::storage_api::import_project_score_bytes,
+            commands::storage_api::begin_project_audio_upload,
+            commands::storage_api::append_project_audio_upload,
             commands::storage_api::create_blank_project_score,
             commands::storage_api::relink_project_asset,
             commands::storage_api::read_project_asset,

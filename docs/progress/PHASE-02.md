@@ -1,5 +1,39 @@
 # Phase 02 — 악보 import와 재생 동기화
 
+## 후속 — 전체 프로젝트 drop·최소 안내·음원 분할 보관 (2026-10-28)
+
+### 1. 작업 개요
+
+작업일2026-10-28. 사용자는7f88fb3 고정 앱에서 악보가 실제 불러와짐을 확인했고 좁은 보관 패널 위치를 지적했습니다. 열린 프로젝트 작업 공간 전체의 파일 drop과 최소 안내, WAV/MP3 보관을 추가합니다. 리디자인은 보류하고 기존8MiB 악보/256MiB 음원 제한·원본/미저장·참조 정책을 유지합니다. 대상65프론트/새5native와 최종 전체714프론트/266Rust·타입/lint/포맷/Clippy/MSRV·웹/Windows·내장4개가 성공했습니다. 새 원격/패키지·전체 영역/음원 사용자 수용은 후속입니다.
+
+### 2. 구현 및 변경 사항
+
+- `ProjectFileDrop.tsx`/새 검사: 전용 ProjectScoreDrop/검사를 대체해 부모 capture에서 단 한 번 처리합니다. 파일 enter/내부 이동/leave/drop·blur/dragend/문맥의 최소 안내와 텍스트 통과·잠금/참조 보호를 검사합니다. AppShell 자식을 문맥 key로 재생성하지 않습니다.
+- `App.tsx`, `ProjectStatus.tsx`, `LibraryPage.tsx`, `ScoreWorkspace.tsx`, `styles.css`: 프로젝트 작업 범위에만 공통 drop을 연결하고 기존 좁은 영역을 제거했습니다. 안내만 추가하고 inset/padding/z-index·기존 색상 토큰을 사용합니다.
+- `useProjects.ts`/검사: 원본 보관 선택을 controller에서 공유하고 음원 File을 전송 서비스로 전달합니다. 원본 연결/재생 로드를 재사용하며 취소 뒤 늦은 음원 결과도 적용하지 않도록 읽기 이후 취소 검사를 공통화했습니다. 기존 악보/편집과 저장 head를 유지합니다. RecordingPanel/ResultsPage의 typed mock에 해당 내부 상태2개를 추가했습니다.
+- `audioUpload.ts`, `projects.ts`/새 검사: FileReader로1MiB씩 읽어 같은 job/offset으로 전달하고 받은 확인·최종 자산을 검증합니다. runStorageJob의 준비 단계 실패도 실제 정리 종료까지 관측하고 중복 cancel을 막습니다. 기존 요청은 준비 callback 없이 같은 경로를 유지합니다.
+- `asset_staging.rs`, `score_upload.rs`, `projects.rs`: 악보와 음원의 이름/크기·디스크 여유/자체 staging·기존 import/정리를 공유했습니다. 기존 raw 악보 v1은 유지합니다.
+- `audio_upload.rs`, `storage/mod.rs`, `commands/storage_api.rs`, native `app.rs`/`lib.rs`: 한 작업/1개 대기 큐·조각 ID/offset/크기·단절/30초 미수신·취소를 처리하고 실제 보관 뒤만 완료합니다. 녹음 idle/종료 guard와 원격 접근 거부에 연결했습니다. DB/Python·외부 의존성은 변경하지 않았습니다.
+- `docs/00`,`02`,`04`,`07`,`09`,`12`와 진행 요약에 범위/계약·검증과 미실행을 기록합니다.
+
+### 3. 테스트 결과
+
+- 기존 좁은 영역의 실제 Explorer 악보 불러오기: **사용자 확인 성공**. 그 버전의 저장/reopen은 **미실행**이며 새 전체 영역·음원 수용과 구분합니다. 현재 고정 창을 임의 종료/새로고침하지 않았습니다.
+- 최초 공통 staging 검사에서 cfg(test)의 Path import 누락이 발생해 테스트 import를 보완했습니다. 기존 악보 신규3개는 **성공**,0.55초입니다. 첫 타입 검사에서 내부 controller 상태가 추가된 ResultsPage typed mock 누락을 보완했습니다. 이후 타입/lint **성공**입니다.
+- 새 native 조각 검사 `cargo test … audio_upload --lib`: **5개 성공**,0.73초. 정상/중복·한 job/큐 상한/잘못된 ID·순서/넘침·취소/단절/timeout·DB 실패와 타 작업 파일 보존을 확인했습니다. timeout은 짧은 deadline 주입이며30초 실제 대기는 미실행입니다.
+- 음원 취소 회귀 수정 전 hook31개 중 **1개 실패/30개 성공**,2.79초. 취소 뒤 늦은 완료가 audioAssetId를 바꿨습니다. 읽기 후 공통 signal 검사를 적용해 대상 **65개/5파일 성공**,3.74초입니다. 프로젝트 전체 드롭13개·음원 서비스9개·기존 악보4개/작업8개·hook31개를 포함합니다.
+- 첫 `pnpm test`: **712개/129파일 성공**,50.71초. 최종 서비스 검사2개 추가 뒤 전체도 **714개/129파일 성공**,48.09초입니다. `pnpm build`: **성공**,Vite1분57초/기존 큰 chunk 안내. 생성 CSS의 드롭 안내 클래스/공통 토큰·pointer-events:none도 **성공**으로 확인했습니다.
+- `cargo test --all-features`: **266개 성공/29개 기본 제외**,23.98초. 최초 Clippy는 검사 코드 `.err().expect()` 지적으로 실패했고 `expect_err`로 수정했습니다. 최종 Clippy **성공**,11.73초·Rust1.90 all-targets/all-features **성공**,14.97초입니다.
+- 최종 `pnpm typecheck`,lint/format:check·`cargo fmt --check`는 **성공**입니다. Windows `cargo build … --features custom-protocol` **성공**,26.51초(기존 MSVC 링크 안내)·내장/권한 bundle_tests **4개 성공**,0.01초입니다. 새 Git/원격·패키지는 후속입니다. 실제 새 GUI 전체 영역/안내·음원 청취·저장/reopen/다른OS·256MiB 전체 전달/실제 디스크 부족은 **미실행**입니다. 모의 헤더 바이트를 실제 청취 성공으로 표시하지 않습니다.
+
+### 4. 미구현 및 알려진 문제
+
+전면 시각 디자인·외부 참조 drop·폴더/복수 파일·프로젝트 없는 화면 전체 drop·자동 staging 복구는 미구현/범위 밖입니다. 프로젝트 없는 기존 drop/파일 선택과 기존 재생의 전체 버퍼 정책은 유지합니다. 조각 상한은 전체 프로세스 RSS 상한이 아닙니다. 정리 실패/이미 완료한 commit·OS 강제 종료의 원본 보존 경계를 유지합니다.
+
+### 5. 다음 작업 계획
+
+최종714프론트·타입/포맷·Windows/내장 검사를 마쳤고 Git/원격·독립 ZIP을 확인합니다. 사용자가 기존 고정 창을 저장하고 닫았다고 확인했으며 같은 검증 프로필의 새 고정 실행 파일에서 전체 화면 드래그 안내·악보/음원 적용과 저장/reopen을 짧게 확인합니다. 답변 전 앱을 직접 조작하거나 닫지 않습니다.
+
 ## 후속 — 열린 프로젝트의 관리용 악보 끌어놓기 (2026-10-28)
 
 ### 1. 작업 개요

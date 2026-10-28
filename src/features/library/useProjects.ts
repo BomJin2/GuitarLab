@@ -51,6 +51,8 @@ export function useProjects(
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [importStorage, setImportStorage] =
+    useState<AssetInfo['storage']>('MANAGED');
   const task = useRef(new LatestTask());
   const operation = useRef(0);
   const mounted = useRef(false);
@@ -353,9 +355,9 @@ export function useProjects(
     file?: File,
   ) {
     if (!details) return;
-    if (file && (kind !== 'SCORE_IMPORT' || storage !== 'MANAGED')) {
+    if (file && storage !== 'MANAGED') {
       setError(
-        '악보 drop은 관리용 복사만 지원합니다. 외부 참조·음원은 파일 선택을 사용하세요.',
+        '파일 drop은 관리용 복사만 지원합니다. 외부 참조는 파일 선택을 사용하세요.',
       );
       return;
     }
@@ -366,12 +368,11 @@ export function useProjects(
     await run(
       async (signal, progress) => {
         const imported = file
-          ? await projectApi.importDroppedScore(
-              projectId,
-              file,
-              signal,
-              progress,
-            )
+          ? await (
+              kind === 'SCORE_IMPORT'
+                ? projectApi.importDroppedScore
+                : projectApi.importDroppedAudio
+            )(projectId, file, signal, progress)
           : await projectApi.import(projectId, kind, storage, signal, progress);
         if (!imported.asset.available) throw new Error('FILE_NOT_FOUND');
         const loaded = await projectApi.read(
@@ -381,8 +382,8 @@ export function useProjects(
           progress,
           { waitForCancellation: !!file },
         );
+        signal.throwIfAborted();
         if (kind === 'SCORE_IMPORT') {
-          signal.throwIfAborted();
           const bytes = new Uint8Array(loaded.data);
           const scoreSession: ScoreSession = {
             ...importScoreSession(bytes, loaded.name),
@@ -705,6 +706,8 @@ export function useProjects(
     job,
     error,
     notice,
+    importStorage,
+    setImportStorage,
     audioAssetId,
     scoreSaved,
     refresh,

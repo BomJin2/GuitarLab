@@ -33,6 +33,10 @@
 
 ## 최신 진행 기록
 
+**진행 중 — 2026-10-28 전체 프로젝트 drop·음원**: 부모 capture/최소 안내와 controller의 보관 선택을 연결하고 WAV/MP3를1MiB씩 한 StorageJob으로 보관합니다. 취소 뒤 늦은 음원 적용1개 실패를 재현/수정해 대상65개·기존 악보3개/새native5개,최종714프론트/266Rust·타입/lint/포맷/Clippy/Rust1.90·웹/Windows·내장4개가 성공했습니다. 새 원격/패키지·전체 영역/음원 실제 수용은 후속이며 [Phase2 첫 절](PHASE-02.md)에 파일·계약/오류·검사/미실행을 기록합니다. 사용자 확인은 이전 좁은 영역의 악보 불러오기까지만 성공으로 반영합니다. 이후 사용자가 유지할 내용을 저장하고 창을 닫았다고 확인했습니다. 같은 검증 프로필로 새 실행 파일을 준비합니다.
+
+**사용자 피드백 반영 중 — 2026-10-28 전체 프로젝트 drop/음원**: 7f88fb3 고정 GUI의 실제 악보 드롭은 사용자가 성공했다고 확인했으나 좁은 보관 패널에만 놓을 수 있는 사용성 문제를 보고했습니다. 작업 공간 전체의 단일 drop/최소 안내 미리보기와 WAV/MP3(기존256MiB 제한)의 분할 업로드를 구현합니다. 전면 디자인은 보류하고 기존 원본/미저장·참조 정책/취소 잠금을 유지합니다. 이전 실제 저장/reopen은 아직 미실행이며 새 피드백을 전체 수용 완료로 확대하지 않습니다.
+
 **원격 전체 확정 / 사용자 수용 대기 — 2026-10-28 프로젝트 악보 drop 7f88fb3**: [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813는693프론트/257·261Rust·AI113/도구146·Clippy/MSRV·사후 정리까지 전체 성공입니다. 독립ZIP/PS5.1·Defender·별도 GUI와 기본 설정 복원/내장4개도 성공했습니다. 사용자의 명시적 요청으로 새 고정 GUI를 한 번 실행했고 같은 ‘GUI 확인’ 프로젝트에 standard.musicxml을 놓는 실제 Explorer 검증은 **답변 대기**입니다. 창/EXE·실행 UI 소스를 유지하고 원격 입력/종료를 하지 않습니다. [Phase2](PHASE-02.md)/[Phase8](PHASE-08.md) 첫 절에 지문/명령·오류/해결/미실행을 확정했습니다. 아래 대기는 이전 이력입니다.
 
 **독립 ZIP/GUI 준비 — 2026-10-28 프로젝트 악보 drop 7f88fb3**: 693프론트/261Rust·타입/lint/포맷/Clippy/MSRV·웹/Windows·내장4개와 새 ZIP3,613파일/40,331,534바이트·CRC/SHA·실제PS5.1/독립Python·Defender가 성공했습니다. [Windows40647692164](https://github.com/BomJin2/GuitarLab/actions/runs/40647692164)/job122680240813 최종을 확인 중입니다. 사용자가 기존 창이 닫혔다고 확인했고 명시적 요청 후 별도 `A:\GuitarLab\src-tauri\target\runtime-validation\gui-proofs\project-score-drop-c5dc50c5\GuitarLab.exe`를 한 번 실행했습니다. 같은 테스트 프로필의 ‘GUI 확인’에서 standard.musicxml drop을 요청했으며 **실제 수용은 답변 대기**입니다. 현재 창/EXE·실행 UI 소스를 유지하고 원격 입력/종료는 하지 않습니다. [Phase2](PHASE-02.md)/[Phase8](PHASE-08.md) 첫 절에 파일·오류/해결/명령·지문/미실행을 구분합니다.

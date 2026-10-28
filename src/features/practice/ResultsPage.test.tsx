@@ -20,6 +20,8 @@ function controller(): ProjectController {
   const details = projectFixture();
   return {
     native: true,
+    importStorage: 'MANAGED',
+    setImportStorage: vi.fn(),
     projects: [details.project],
     details,
     busy: false,
