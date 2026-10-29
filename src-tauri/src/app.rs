@@ -34,6 +34,18 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                     return Ok(());
                 }
             }
+            if !matches!(storage::restore_state::pending(&root), Ok(false)) {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.hide()?;
+                }
+                let handle = app.handle().clone();
+                app.dialog()
+                    .message("중단되거나 예약된 데이터 복원 기록이 있습니다. 기존 데이터를 초기화하지 않고 종료합니다. 복구 절차를 완료한 뒤 다시 실행하세요.")
+                    .title("GuitarLab 데이터 복구 필요")
+                    .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+                    .show(move |_| handle.exit(1));
+                return Ok(());
+            }
             let diagnostics = crate::diagnostics::initialize(root.clone());
             diagnostics.record(crate::diagnostics::Code::AppStarted);
             app.manage(diagnostics.clone());

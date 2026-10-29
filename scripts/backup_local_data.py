@@ -130,10 +130,11 @@ def source_files(root):
                 files.append(path)
             if len(files) + len(pending) > MAX_FILES:
                 raise BackupError("BACKUP_LIMIT_EXCEEDED")
-    calibration = root / "input-calibrations.json"
-    if calibration.exists():
-        checked_path(root, calibration)
-        files.append(calibration)
+    for relative in ("input-calibrations.json", "settings/input-calibrations.json"):
+        calibration = root / relative
+        if os.path.lexists(calibration):
+            checked_path(root, calibration)
+            files.append(calibration)
     for path in files:
         safe_member(path.relative_to(root).as_posix())
     return sorted(files)
@@ -243,7 +244,7 @@ def verify(path, *, extract_to=None, progress=lambda *_: None):
             raise BackupError("BACKUP_MANIFEST_INVALID")
         for entry in entries:
             safe_member(entry.filename)
-            if entry.filename not in ("guitarlab.sqlite", "input-calibrations.json", "backup-manifest.json") and not entry.filename.startswith("projects/"):
+            if entry.filename not in ("guitarlab.sqlite", "input-calibrations.json", "settings/input-calibrations.json", "backup-manifest.json") and not entry.filename.startswith("projects/"):
                 raise BackupError("BACKUP_MANIFEST_INVALID")
             if entry.compress_type != zipfile.ZIP_STORED or entry.flag_bits & 1 or entry.is_dir() or stat.S_IFMT(entry.external_attr >> 16) not in (0, stat.S_IFREG):
                 raise BackupError("BACKUP_MANIFEST_INVALID")

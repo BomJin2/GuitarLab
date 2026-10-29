@@ -59,6 +59,23 @@ class BackupTests(unittest.TestCase):
             self.create()
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
 
+    def test_actual_settings_calibration_is_backed_up_without_other_settings(self):
+        settings = self.root / "settings"
+        settings.mkdir()
+        calibration = b'{"schemaVersion":1,"revision":2,"profiles":[]}'
+        (settings / "input-calibrations.json").write_bytes(calibration)
+        (settings / "unrelated.json").write_bytes(b"keep unrelated settings")
+        result = self.create()
+        self.assertEqual(result["files"], 4)
+        with zipfile.ZipFile(self.destination) as archive:
+            self.assertEqual(archive.read("settings/input-calibrations.json"), calibration)
+            self.assertNotIn("settings/unrelated.json", archive.namelist())
+        destination = self.base / "real-calibration-preview"
+        restore_to_new_folder(self.destination, destination, consent=True)
+        self.assertEqual((destination / "settings/input-calibrations.json").read_bytes(), calibration)
+        self.assertEqual((settings / "unrelated.json").read_bytes(), b"keep unrelated settings")
+
+
     def test_exact_payload_limit_excludes_manifest_and_rejects_one_byte_more(self):
         baseline = self.create()
         self.destination = self.base / "exact-limit.zip"

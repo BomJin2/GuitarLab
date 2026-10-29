@@ -1,5 +1,17 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 실제 로컬 복원 엔진 v1 — 2026-10-29 착수 계약
+
+사전 보완:현재 `ProfileStore`의 실제 보정 경로인 `settings/input-calibrations.json`을 source 파일/ZIP 허용목록과 복원 관리 항목에 추가합니다. `settings` 전체는 이동/복원하지 않으며 같은 폴더의 다른 환경 설정은 보존합니다. 기존 루트 `input-calibrations.json`도 이전 v1 ZIP 호환용으로 계속 지원하지만 현재 경로로 자동 해석하지 않습니다. 기존 ZIP의 누락은 소급 복구할 수 없으며 복원 시 보정값 초기화/재측정 가능성을 안내합니다. ZIP manifest/IPC/DB 버전은 유지합니다.
+
+현재 단계는 앱 종료 상태에서만 실행하는 내부 복원/중단 복구 엔진입니다. 아직 React/Rust 공개 명령이나 자동 시작 적용은 추가하지 않으며 기존 백업/미리보기 v1 응답을 변경하지 않습니다. 입력은 앱이 결정하는 절대 root와 사용자가 선택한 로컬 ZIP, 별도의 로컬 자료 동의/실제 교체 확인 두 값입니다. 실제 CLI는 앱 프로세스 부재와 root의 `.app-instance.lock` 독점 사용을 확인해야 합니다. 자체 테스트에만 주입한 guard로 GUI 조작 없이 검사합니다. 앱 통합 시 기존 InstanceGuard 아래에서만 호출하며 이 계약을 먼저 확장합니다.
+
+대상 ZIP은 기존 v1/DB8·9·10/2GiB·경로/링크/전체 지문·DB 무결성/비활성 녹음/삭제 intent 검사를 통과해야 합니다. 기존 데이터도 별도의 새 ZIP으로 만들고 검증한 뒤에만 교체를 시작합니다. 대상 root의 부모 아래 새 UUID 복구 폴더에 준비본·기존 파일·기존 ZIP과 v1 작업 기록을 보존합니다. root에는 이 폴더 UUID/소유 root 지문만 담은 고정 포인터를 신규 생성하며 임의 절대 경로를 상태 파일에서 받아 실행하지 않습니다. 알려지지 않은 상태/추가 필드·경로/링크·충돌은 거부합니다.
+
+교체는 고정된 관리 항목의 개별 이름 이동만 사용하고 각 이동 전에 intent/후에 완료 기록을 저장합니다. 기존 항목은 `previous`, 준비본은 `incoming`으로 분리하고 미분류 root 폴더/AI 모델·외부 원본은 건드리지 않습니다. 파일/SQLite를 함께 반영한 뒤 완료 상태를 기록하고 자신의 포인터만 해제합니다. 취소/오류가 첫 이동 전이면 현재 데이터 불변, 이동 뒤이면 복구 중 취소를 유예하고 역순 이동으로 기존 전체 상태를 복구합니다. 강제 종료 뒤 복구는 진행 중 intent의 두 경로/목록 상태를 검사해 되돌립니다. 추정 불가능한 상태는 `RESTORE_RECOVERY_REQUIRED`로 중단하고 모든 복구 자료를 보존합니다.
+
+완료 메타데이터는 `{schemaVersion:1,state:"LOCAL_DATA_RESTORED",recoveryId,files,bytes,externalReferencesNotCopied,appDataReplaced:true}`입니다. 복구 성공은 `LOCAL_DATA_ROLLED_BACK`/`appDataReplaced:false`, 진행 없음은 `RESTORE_NOT_PENDING`으로 구분합니다. 공개 로그/응답에 절대 경로·음원/메모/DB 원문은 넣지 않습니다. 실패 코드 `RESTORE_CONSENT_REQUIRED`, `RESTORE_PENDING`, `RESTORE_STATE_INVALID`, `RESTORE_SOURCE_CHANGED`, `RESTORE_ROLLED_BACK`, `RESTORE_RECOVERY_REQUIRED`와 기존 백업 오류는 보존합니다. 원래 ZIP·기존 ZIP/복구 폴더는 자동 삭제하지 않습니다.
+
 ## 보관 프로젝트 영구 삭제 v1 — 2026-10-29 구현 계약
 
 두 명령 모두 주입된 native 호출 창 label이 정확히 `main`이어야 합니다. 프론트가 창 이름을 요청 필드로 전달해 승인할 수 없으며,보조/YouTube 창의 호출은 준비/확인창 전에 거부합니다. 원격 ACL 제한도 그대로 유지합니다.
