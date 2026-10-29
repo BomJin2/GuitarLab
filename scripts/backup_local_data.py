@@ -6,6 +6,7 @@ from ctypes import wintypes
 from contextlib import closing
 import hashlib
 import json
+import ntpath
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
@@ -66,11 +67,13 @@ def safe_member(name):
     if not isinstance(name, str):
         raise BackupError("BACKUP_PATH_INVALID")
     path = PurePosixPath(name)
-    if (not isinstance(name, str) or not name or len(name) > 512 or "\\" in name or ":" in name or
+    if (not path.parts or not name or len(name) > 512 or "\\" in name or ":" in name or
             path.is_absolute() or path.as_posix() != name or any(part in (".", "..") for part in path.parts)):
         raise BackupError("BACKUP_PATH_INVALID")
+    reserved = getattr(ntpath, "isreserved", None)
     for part in path.parts:
-        if (part.endswith((".", " ")) or len(part) > 255 or PureWindowsPath(part).is_reserved() or
+        is_reserved = reserved(part) if reserved is not None else PureWindowsPath(part).is_reserved()
+        if (part.endswith((".", " ")) or len(part) > 255 or is_reserved or
                 any(ord(char) < 32 or char in '<>"|?*' for char in part)):
             raise BackupError("BACKUP_PATH_INVALID")
     return path

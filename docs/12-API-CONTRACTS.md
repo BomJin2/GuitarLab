@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 백업 Windows 경로 검사 호환성 — 2026-10-29
+
+백업 ZIP의 상대 경로는 실행 OS와 관계없이 Windows 이름 규칙으로 검사합니다. `.`만으로 된 루트 항목도 `BACKUP_PATH_INVALID`로 거부하며 파일 생성/추출 전에 검사합니다. Python3.13 이상에서는 표준 `ntpath.isreserved`를 우선하고 해당 함수가 없는 기존3.10/번들3.12에서는 `PureWindowsPath.is_reserved`를 사용합니다. 예약 장치명/확장자·대소문자/상위·절대 경로/ADS·제어 문자/끝 점·공백 거부와 기존 정상 한글 이름·원본 보존을 유지합니다. JSONL/IPC v1·ZIP manifest/DB 버전·용량/동의/취소 계약은 변경하지 않습니다.
+
 ## 유선 관측의 임시 프론트 실행 모드 — 2026-10-28
 
 기존 v1 보정 측정 요청/응답과 native 단음 신뢰도0.85 조건은 유지합니다. 프론트 controller/출력 clock에만 PLUCK(기존40ms 클릭)과 CABLE(200ms 유선 관측 신호)을 구분합니다. CABLE은 사용자 명시 시작/기존 선택 입력만 사용하고 REC를 시작하거나 프로필을 저장하지 않습니다. 저장 버튼과 controller 저장 경로를 모두 막으며 native의 일반 보정 저장 API 자체를 새 권한 모델로 변경하지 않습니다.
