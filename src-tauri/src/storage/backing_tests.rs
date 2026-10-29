@@ -125,7 +125,7 @@ fn version_five_migrates_additively_and_database_constraints_reject_wrong_source
     let before = serde_json::to_value(f.store.assets(&id).expect("원본")).expect("기준");
     let db = connect(&f.store.root).expect("DB");
     db.execute_batch(
-        "DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; PRAGMA user_version=5;",
+        "DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; PRAGMA user_version=5;",
     )
     .expect("v5 재현");
     drop(db);
@@ -133,7 +133,7 @@ fn version_five_migrates_additively_and_database_constraints_reject_wrong_source
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
             .expect("버전"),
-        9
+        10
     );
     assert_eq!(
         serde_json::to_value(f.store.assets(&id).expect("보존")).expect("비교"),

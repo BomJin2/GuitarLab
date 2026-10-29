@@ -20,6 +20,9 @@ function controller(): ProjectController {
   const details = projectFixture();
   return {
     native: true,
+    purgePlan: null,
+    preparePurge: vi.fn(),
+    purgeProject: vi.fn(),
     importStorage: 'MANAGED',
     setImportStorage: vi.fn(),
     projects: [details.project],
@@ -60,7 +63,7 @@ it('데이터 없음과 저장 실패를 실제 빈 상태·오류로 표시한�
   vi.mocked(recordApi.list).mockRejectedValue({ code: 'STORAGE_ERROR' });
   render(<ResultsPage project={controller()} />);
   await waitFor(() =>
-    expect(screen.getByRole('alert').textContent).toContain('기존 데이터'),
+    expect(screen.getByRole('alert').textContent).toContain('현재 상태'),
   );
   expect(screen.queryByText('아직 저장된 연습 기록이 없습니다')).toBeNull();
 });

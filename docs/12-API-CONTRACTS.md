@@ -1,5 +1,25 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 보관 프로젝트 영구 삭제 v1 — 2026-10-29 구현 계약
+
+두 명령 모두 주입된 native 호출 창 label이 정확히 `main`이어야 합니다. 프론트가 창 이름을 요청 필드로 전달해 승인할 수 없으며,보조/YouTube 창의 호출은 준비/확인창 전에 거부합니다. 원격 ACL 제한도 그대로 유지합니다.
+
+선택 프로젝트뿐 아니라 다른 프로젝트의 진행 중 연습/녹음도 거부합니다. intent 커밋 후 파일 삭제용 쓰기 트랜잭션을 잡은 뒤 다시 확인해 전역 기록 쓰기를 막는 삭제 작업과 동시에 진행하지 않게 합니다.
+
+intent 이후의 저장 오류는 `PROJECT_PURGE_UNAVAILABLE`로 분류해 원본 전체 보존을 단정하지 않습니다. 공통 UI의 알 수 없는 실패/계약 오류도 ‘목록과 현재 상태 확인’으로 안내하며 완료/미완료를 추측하지 않습니다. 삭제 후 오류/응답 검증 실패·재조회 실패가 ‘기존 데이터 보존’ 성공처럼 표시되지 않아야 합니다.
+
+Windows에서는 삭제용으로 연 동일 파일 핸들을 SHA 확인부터 유지하고 쓰기/삭제 공유를 허용하지 않습니다. 경로를 다시 열어 지우는 간격의 파일 바꿔치기를 피하기 위해 해당 핸들에만 `SetFileInformationByHandle(FileDispositionInfo)`를 적용합니다. 내용/metadata 확인 실패·취소 때는 삭제 표시를 하지 않으며,확인 전 `DELETE_ON_CLOSE`로 파일을 열지 않습니다. BOOLEAN1바이트/유효 File 핸들을 유지하는 작은 FFI 경계만 사용하고 새 라이브러리·임의 native 요청을 노출하지 않습니다. 근거는 [Windows 공식 함수](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfileinformationbyhandle)와 [FILE_DISPOSITION_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info)입니다.
+
+DB10의 `project_purge_intents`는 projectId/trashId/revision/시작 시각만 보존합니다. 일반 프로젝트/다른 marker·현재 revision 불일치·활성 연습/녹음·허용되지 않은 파일을 거부합니다. 시작 intent가 있으면 휴지통 목록에 선택적 `purgeStarted:true`를 표시하고 일반 복원을 `PROJECT_PURGE_IN_PROGRESS`로 거부합니다. 기존3필드 항목은 유지하며 false/unknown 필드는 허용하지 않습니다. 재시작 시 자동 삭제하지 않습니다. 백업은 DB8/9/10을 지원하되 미완료 purge intent가 있는 DB의 백업/복원 미리보기는 거부합니다.
+
+- `prepare_trashed_project_purge`:기존 restore 요청과 같은 `{schemaVersion:1,projectId,trashId}`만 받습니다. 기존 StorageJob v1로 `{schemaVersion:1,state:"PROJECT_PURGE_PREPARED",plan:{projectId,trashId,revision,title,fingerprint,files,logicalBytes,externalReferences,purgeStarted}}`를 반환합니다. fingerprint는 제목/marker/revision·시작 상태와 정렬된 관리 폴더 파일/디렉터리·내용 SHA/크기/시각의 SHA256입니다. 실제 경로/파일 내용은 IPC로 반환하지 않습니다. 준비는 읽기 전용이며 아직 삭제 동의가 아닙니다.
+- `purge_trashed_project`:추가로 `{fingerprint:64소문자hex,confirmedTitle:현재 제목,confirmPermanentDelete:true}`를 받습니다. 프론트는 제목 직접 입력/동의와 마지막 확인이 모두 필요하고,명령은 스냅샷을 재검사한 뒤 intent를 durable commit합니다. 관리 폴더 내 경로를 확인한 파일과 빈 디렉터리만 개별 삭제하며 일반 프로젝트/외부 원본·다른 프로젝트가 참조하는 파일은 보존합니다. 경로/SQL/임의 한도·자동 승인 인자는 받지 않습니다.
+- 성공은 `{schemaVersion:1,state:"PROJECT_PURGED",projectId,trashId,files,logicalBytes,externalReferences}`입니다. 실제 디스크 회수 공간으로 표시하지 않습니다. 최종 DB 트랜잭션은 해당 프로젝트의 연습/테이크/믹스/AI 산출물/악보/자산·intent/보관 marker/프로젝트 행만 제거합니다. FK/trigger/외부 소유권 문제는 파일 삭제 전에 확인합니다.
+
+취소/오류가 intent 이전이면 상태/파일을 유지합니다. intent 이후면 이미 지운 파일을 복원하지 않고 휴지통의 삭제 진행 상태를 유지합니다. 남은 파일이 바뀌면 `PROJECT_PURGE_CHANGED`,외부 참조 충돌은 `PROJECT_PURGE_REFERENCED`,안전하게 읽거나 지우지 못하면 `PROJECT_PURGE_UNAVAILABLE`로 표시하고 다시 준비/확인해야 합니다. 마지막 DB 커밋 뒤 늦은 취소는 완료 삭제를 되돌리지 않습니다. 일반 복원/백업은 intent를 무시하지 않습니다. 기존 기록/스키마가 보존되도록 DB9→10과 이전8/9 백업을 검증합니다.
+
+계획은 최대10,000항목/16단계·30초,실행은300초를 제한으로 사용하고 청크/파일 사이 취소를 확인합니다. 파일 SHA는64KiB로 읽고 메모리/목록은 위 경계로 제한합니다. 진행 바이트는 두 purge 명령에서만 JS 안전 정수까지 허용하며 일반 파일256MiB와 백업2GiB 문맥은 유지합니다. Windows 표준 `OpenOptionsExt`의 디렉터리 핸들/재분석 지점 검사와 삭제 공유 차단을 사용해 부모 교체를 막고,전체 폴더의 재귀 삭제나 링크 추적은 하지 않습니다. API 근거는 [Rust1.90 OpenOptionsExt](https://doc.rust-lang.org/1.90.0/std/os/windows/fs/trait.OpenOptionsExt.html),[Windows CreateFileW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)입니다. 새 외부 라이브러리는 없습니다.
+
 ## 백업 전용2GiB 메타데이터 한도 — 2026-10-29
 
 `backup_local_data`/`verify_local_backup`/`preview_local_backup`만 payload 합계2,147,483,648바이트까지 지원합니다. 요청 필드·응답/StorageJob schemaVersion1·ZIP manifest1/SQLite v8·v9는 유지합니다. files1~9,999·bytes1~2GiB의 안전 정수,검사 VERIFIED/생성 COMPLETED/미리보기 RESTORED_TO_NEW_FOLDER·appDataReplaced=false의 기존 엄격한 필드는 유지합니다. 파일 개수·외부 참조/동의·원본 불변·취소 완료 대기·공간 검사는 완화하지 않습니다.

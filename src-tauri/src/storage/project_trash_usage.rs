@@ -29,7 +29,7 @@ fn unavailable() -> AppError {
         true,
     )
 }
-fn plain(metadata: &fs::Metadata) -> bool {
+pub(super) fn plain(metadata: &fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;

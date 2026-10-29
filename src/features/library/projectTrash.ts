@@ -12,6 +12,7 @@ export type TrashedProject = {
   project: ProjectSummary;
   trashId: string;
   trashedAtMs: number;
+  purgeStarted?: true;
 };
 export type TrashUsage = {
   projectId: string;
@@ -50,7 +51,8 @@ function summary(value: unknown): ProjectSummary {
 export function decodeTrashedProject(value: unknown): TrashedProject {
   if (
     !isRecord(value) ||
-    Object.keys(value).length !== 3 ||
+    Object.keys(value).length !== (value.purgeStarted === true ? 4 : 3) ||
+    ('purgeStarted' in value && value.purgeStarted !== true) ||
     !isUuid(value.trashId) ||
     !isSafeUnsigned(value.trashedAtMs)
   )
@@ -59,6 +61,9 @@ export function decodeTrashedProject(value: unknown): TrashedProject {
     project: summary(value.project),
     trashId: value.trashId,
     trashedAtMs: value.trashedAtMs,
+    ...(value.purgeStarted === true
+      ? { purgeStarted: value.purgeStarted }
+      : {}),
   };
 }
 export function decodeTrashList(value: unknown): TrashedProject[] {

@@ -1,4 +1,5 @@
 import type { ProjectController } from './useProjects';
+import { ProjectPurgeForm } from './ProjectPurgeForm';
 
 export function ProjectTrashPanel({ project }: { project: ProjectController }) {
   return (
@@ -33,11 +34,17 @@ export function ProjectTrashPanel({ project }: { project: ProjectController }) {
             {new Date(entry.trashedAtMs).toLocaleString('ko-KR')}
           </p>
           <button
-            disabled={project.busy}
+            disabled={project.busy || entry.purgeStarted === true}
             onClick={() => void project.restoreProject(entry)}
           >
             복원 · {entry.project.title}
           </button>
+          {entry.purgeStarted && (
+            <p role="alert">
+              영구 삭제 시작 기록이 있어 일반 복원할 수 없습니다. 남은 대상을
+              다시 확인해 삭제를 재개하세요.
+            </p>
+          )}
           <button
             disabled={project.busy || project.trashListBusy}
             onClick={() => void project.inspectTrashUsage(entry)}
@@ -51,9 +58,22 @@ export function ProjectTrashPanel({ project }: { project: ProjectController }) {
               {project.trashUsage.logicalBytes.toLocaleString('ko-KR')}바이트 ·
               외부 참조{' '}
               {project.trashUsage.externalReferences.toLocaleString('ko-KR')}개
-              (크기 조회 제외). 실제 회수 가능 공간이 아닙니다. 영구 삭제는 아직
-              지원하지 않습니다.
+              (크기 조회 제외). 실제 회수 가능 공간이 아닙니다.
             </p>
+          )}
+          <button
+            disabled={project.busy || project.trashListBusy || !project.native}
+            onClick={() => void project.preparePurge(entry)}
+          >
+            영구 삭제 대상 확인 · {entry.project.title}
+          </button>
+          {project.purgePlan?.trashId === entry.trashId && (
+            <ProjectPurgeForm
+              key={project.purgePlan.fingerprint}
+              plan={project.purgePlan}
+              busy={project.busy}
+              onPurge={project.purgeProject}
+            />
           )}
         </article>
       ))}

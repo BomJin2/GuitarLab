@@ -70,7 +70,7 @@ pub fn connect(root: &Path) -> Result<Connection, AppError> {
     let version: u32 = db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(|_| storage_error())?;
-    if version > 9 {
+    if version > 10 {
         return Err(storage_error());
     }
     db.execute_batch("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")
@@ -153,6 +153,15 @@ pub fn connect(root: &Path) -> Result<Connection, AppError> {
             .map_err(|_| storage_error())?;
         transaction
             .execute_batch(include_str!("migrations/009-project-trash.sql"))
+            .map_err(|_| storage_error())?;
+        transaction.commit().map_err(|_| storage_error())?;
+    }
+    if version < 10 {
+        let transaction = db
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| storage_error())?;
+        transaction
+            .execute_batch(include_str!("migrations/010-project-purge-intents.sql"))
             .map_err(|_| storage_error())?;
         transaction.commit().map_err(|_| storage_error())?;
     }

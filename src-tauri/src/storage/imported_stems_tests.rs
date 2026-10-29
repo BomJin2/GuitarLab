@@ -189,7 +189,7 @@ fn version_seven_migrates_additively_and_twenty_item_limit_keeps_previous_stems(
     let flag = AtomicBool::new(false);
     let db = connect(&f.store.root).expect("DB");
     db.execute_batch(
-        "DROP TABLE project_trash;DROP TABLE imported_guitar_stems;PRAGMA user_version=7;",
+        "DROP TABLE project_purge_intents; DROP TABLE project_trash;DROP TABLE imported_guitar_stems;PRAGMA user_version=7;",
     )
     .expect("v7");
     drop(db);
@@ -197,7 +197,7 @@ fn version_seven_migrates_additively_and_twenty_item_limit_keeps_previous_stems(
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        9
+        10
     );
     for _ in 0..20 {
         f.store

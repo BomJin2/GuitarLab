@@ -16,6 +16,11 @@ import { useProjects } from './useProjects';
 import { projectApi } from './projects';
 import { projectTrashApi } from './projectTrash';
 import { projectMetadataApi } from './projectMetadata';
+import { projectPurgeApi, type PurgePlan } from './projectPurge';
+vi.mock('./projectPurge', async (original) => ({
+  ...(await original<typeof import('./projectPurge')>()),
+  projectPurgeApi: { prepare: vi.fn(), purge: vi.fn() },
+}));
 vi.mock('./projectMetadata', async (original) => ({
   ...(await original<typeof import('./projectMetadata')>()),
   projectMetadataApi: { update: vi.fn() },
@@ -288,4 +293,119 @@ it('새로 만든 유일한 프로젝트도 바로 보관하고 복원할 수 �
   fireEvent.click(screen.getByRole('button', { name: '복원 · 보관 테스트' }));
   await screen.findByRole('button', { name: '프로젝트 열기 · 보관 테스트' });
   expect(projectApi.open).not.toHaveBeenCalled();
+});
+
+function purgeFixture() {
+  const project = { ...projectFixture().project, title: '삭제 전용 테스트' };
+  const entry = {
+    project,
+    trashId: '00000000-0000-4000-8000-0000000000f2',
+    trashedAtMs: 42,
+  };
+  const plan: PurgePlan = {
+    projectId: project.id,
+    trashId: entry.trashId,
+    revision: project.revision,
+    title: project.title,
+    fingerprint: 'a'.repeat(64),
+    files: 2,
+    logicalBytes: 42,
+    externalReferences: 1,
+    purgeStarted: false,
+  };
+  vi.mocked(projectApi.list).mockResolvedValue([]);
+  vi.mocked(projectTrashApi.list).mockResolvedValue([entry]);
+  vi.mocked(projectPurgeApi.prepare).mockResolvedValue(plan);
+  return { entry, plan };
+}
+async function showPurgeForm() {
+  fireEvent.click(
+    screen.getByRole('button', { name: '휴지통 목록 다시 읽기' }),
+  );
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: '영구 삭제 대상 확인 · 삭제 전용 테스트',
+    }),
+  );
+  const input = await screen.findByLabelText('삭제할 프로젝트 제목 직접 입력');
+  await waitFor(() => expect(input).toHaveProperty('disabled', false));
+  fireEvent.change(input, { target: { value: '삭제 전용 테스트' } });
+  fireEvent.click(
+    screen.getByRole('checkbox', {
+      name: '이 프로젝트의 관리 파일과 기록을 영구 삭제하는 데 동의합니다.',
+    }),
+  );
+  return screen.getByRole('button', { name: '영구 삭제 · 삭제 전용 테스트' });
+}
+it('삭제 계획은 자동 삭제하지 않으며 명시적 제목/동의 후 완료 대상만 목록에서 지운다', async () => {
+  const { plan } = purgeFixture();
+  vi.mocked(projectPurgeApi.purge).mockResolvedValue(plan);
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  const button = await showPurgeForm();
+  expect(projectPurgeApi.purge).not.toHaveBeenCalled();
+  vi.mocked(projectTrashApi.list).mockResolvedValue([]);
+  fireEvent.click(button);
+  await screen.findByText(/관리 파일 2개와 프로젝트 기록을 영구 삭제했습니다/);
+  expect(projectPurgeApi.purge).toHaveBeenCalledWith(
+    plan,
+    plan.title,
+    true,
+    expect.any(AbortSignal),
+    expect.any(Function),
+  );
+  await screen.findByText('보관된 프로젝트가 없습니다.');
+});
+it('부분 삭제 실패 후 최신 시작 marker를 읽어 일반 복원을 막고 이전 확인 입력을 비운다', async () => {
+  const { entry } = purgeFixture();
+  vi.mocked(projectPurgeApi.purge).mockRejectedValue(
+    new Error('PROJECT_PURGE_UNAVAILABLE'),
+  );
+  render(
+    <Context.Provider value={engine}>
+      <Workspace />
+    </Context.Provider>,
+  );
+  const button = await showPurgeForm();
+  vi.mocked(projectTrashApi.list).mockResolvedValue([
+    { ...entry, purgeStarted: true },
+  ]);
+  fireEvent.click(button);
+  await screen.findByText(/삭제 대상을 안전하게 읽거나 지우지 못했습니다/);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: '복원 · 삭제 전용 테스트' }),
+    ).toHaveProperty('disabled', true),
+  );
+  expect(screen.queryByLabelText('삭제할 프로젝트 제목 직접 입력')).toBeNull();
+  expect(screen.getByText(/영구 삭제 시작 기록이 있어/)).toBeTruthy();
+});
+it('휴지통을 다시 읽거나 화면을 떠나면 이전 계획의 삭제 함수도 실행하지 않는다', async () => {
+  const { plan } = purgeFixture();
+  let current: ReturnType<typeof useProjects> | undefined;
+  function Harness() {
+    const [session, setSession] = useState<ScoreSession | null>(null);
+    const controller = useProjects(session, setSession, () => true);
+    current = controller;
+    return <LibraryPage project={controller} />;
+  }
+  const view = render(
+    <Context.Provider value={engine}>
+      <Harness />
+    </Context.Provider>,
+  );
+  await showPurgeForm();
+  if (!current) throw new Error('컨트롤러 없음');
+  const previous = current.purgeProject;
+  fireEvent.click(
+    screen.getByRole('button', { name: '휴지통 목록 다시 읽기' }),
+  );
+  await act(async () => previous(plan, plan.title, true));
+  expect(projectPurgeApi.purge).not.toHaveBeenCalled();
+  view.unmount();
+  await previous(plan, plan.title, true);
+  expect(projectPurgeApi.purge).not.toHaveBeenCalled();
 });

@@ -141,6 +141,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::project_trash_api::trash_project,
             commands::project_trash_api::restore_trashed_project,
             commands::project_trash_api::inspect_trashed_project_usage,
+            commands::project_purge_api::prepare_trashed_project_purge,
+            commands::project_purge_api::purge_trashed_project,
             commands::ai_api::inspect_ai_runtime,
             commands::backup_api::backup_local_data,
             commands::backup_api::verify_local_backup,

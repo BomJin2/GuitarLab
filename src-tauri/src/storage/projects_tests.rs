@@ -506,14 +506,14 @@ fn migration_reopens_and_rejects_future_or_corrupt_database_without_overwrite() 
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
             .expect("버전"),
-        9
+        10
     );
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "foreign_keys", |row| row.get(0))
             .expect("FK"),
         1
     );
-    db.pragma_update(None, "user_version", 10)
+    db.pragma_update(None, "user_version", 11)
         .expect("향후 버전 fixture");
     drop(db);
     assert_eq!(
@@ -524,7 +524,7 @@ fn migration_reopens_and_rejects_future_or_corrupt_database_without_overwrite() 
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
             .expect("보존"),
-        10
+        11
     );
     drop(db);
     let corrupt = f.root.join("손상 DB");

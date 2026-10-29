@@ -422,8 +422,8 @@ fn version_one_migrates_without_changing_projects_and_input_source_contract_is_s
     let db = connect(&legacy).expect("추가 migration002/003");
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
-            .expect("v9"),
-        9
+            .expect("v10"),
+        10
     );
     assert_eq!(
         db.query_row("SELECT title FROM projects", [], |r| r.get::<_, String>(0))

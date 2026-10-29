@@ -283,14 +283,14 @@ fn version_six_migration_only_adds_sync_table_and_limits_new_contexts() {
     let value = document(&f, &a);
     let flag = AtomicBool::new(false);
     let db = connect(&f.store.root).expect("DB");
-    db.execute_batch("DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; PRAGMA user_version=6;")
+    db.execute_batch("DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; PRAGMA user_version=6;")
         .expect("v6");
     drop(db);
     let db = connect(&f.store.root).expect("v7");
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        9
+        10
     );
     for index in 0..100 {
         let next = ProjectYoutubeSync {

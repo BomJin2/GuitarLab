@@ -21,6 +21,7 @@ import {
   type TrashedProject,
   type TrashUsage,
 } from './projectTrash';
+import { projectPurgeApi, type PurgePlan } from './projectPurge';
 import {
   projectApi,
   projectError,
@@ -48,6 +49,8 @@ export function useProjects(
   const [trashLoaded, setTrashLoaded] = useState(false);
   const [trashListBusy, setTrashListBusy] = useState(false);
   const [trashUsage, setTrashUsage] = useState<TrashUsage | null>(null);
+  const [purgePlan, setPurgePlan] = useState<PurgePlan | null>(null);
+  const activePurgePlan = useRef<PurgePlan | null>(null);
   const [job, setJob] = useState<JobSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -561,6 +564,8 @@ export function useProjects(
   }
   async function refreshTrash() {
     if (!native) return;
+    activePurgePlan.current = null;
+    setPurgePlan(null);
     const epoch = ++trashEpoch.current;
     setTrashListBusy(true);
     try {
@@ -582,7 +587,7 @@ export function useProjects(
       signal: AbortSignal,
       progress: (job: JobSnapshot) => void,
     ) => Promise<void>,
-    options: { refreshTrashAfter?: boolean } = {},
+    options: { refreshTrashAfter?: boolean; cancelNotice?: string } = {},
   ) {
     if (!native || inFlight.current || confirming.current) return;
     inFlight.current = true;
@@ -601,7 +606,8 @@ export function useProjects(
       if (mounted.current && current === operation.current) {
         if (cause instanceof DOMException && cause.name === 'AbortError')
           setNotice(
-            '프로젝트 작업을 취소했습니다. 이미 완료된 저장은 유지됩니다.',
+            options.cancelNotice ??
+              '프로젝트 작업을 취소했습니다. 이미 완료된 저장은 유지됩니다.',
           );
         else setError(projectError(cause));
       }
@@ -658,6 +664,60 @@ export function useProjects(
       }
     });
   }
+  async function preparePurge(entry: TrashedProject) {
+    if (!mounted.current || inFlight.current || confirming.current) return;
+    activePurgePlan.current = null;
+    setPurgePlan(null);
+    await mutateProject(
+      async (signal, progress) => {
+        const plan = await projectPurgeApi.prepare(entry, signal, progress);
+        if (!mounted.current) return;
+        activePurgePlan.current = plan;
+        setPurgePlan(plan);
+        setNotice(
+          '영구 삭제 대상을 읽었습니다. 아직 파일을 지우지 않았습니다.',
+        );
+      },
+      { refreshTrashAfter: false },
+    );
+  }
+  async function purgeProject(
+    plan: PurgePlan,
+    title: string,
+    consent: boolean,
+  ) {
+    if (
+      !mounted.current ||
+      activePurgePlan.current !== plan ||
+      title !== plan.title ||
+      !consent
+    )
+      return;
+    await mutateProject(
+      async (signal, progress) => {
+        const result = await projectPurgeApi.purge(
+          plan,
+          title,
+          consent,
+          signal,
+          progress,
+        );
+        if (!mounted.current) return;
+        activePurgePlan.current = null;
+        setPurgePlan(null);
+        setTrashedProjects((previous) =>
+          previous.filter((entry) => entry.trashId !== result.trashId),
+        );
+        setNotice(
+          `‘${plan.title}’의 관리 파일 ${result.files.toLocaleString('ko-KR')}개와 프로젝트 기록을 영구 삭제했습니다. 외부 원본은 유지했습니다.`,
+        );
+      },
+      {
+        cancelNotice:
+          '삭제 작업을 중단했습니다. 이미 지운 파일은 복구되지 않습니다. 삭제 시작 표시가 있으면 남은 대상을 다시 확인해주세요.',
+      },
+    );
+  }
   const scoreSaved = Boolean(
     session?.savedRevision &&
       session.document === session.savedRevision.document &&
@@ -703,6 +763,7 @@ export function useProjects(
     trashLoaded,
     trashListBusy,
     trashUsage,
+    purgePlan,
     job,
     error,
     notice,
@@ -723,6 +784,8 @@ export function useProjects(
     trashProject,
     restoreProject,
     inspectTrashUsage,
+    preparePurge,
+    purgeProject,
   };
 }
 export type ProjectController = ReturnType<typeof useProjects>;

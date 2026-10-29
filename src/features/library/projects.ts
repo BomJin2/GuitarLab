@@ -199,12 +199,17 @@ export function decodeDetails(v: unknown): ProjectDetails {
 }
 export function decodeJob(v: unknown, command = ''): JobSnapshot {
   const byteLimit = [
-    'backup_local_data',
-    'verify_local_backup',
-    'preview_local_backup',
+    'prepare_trashed_project_purge',
+    'purge_trashed_project',
   ].includes(command)
-    ? localBackupByteLimit
-    : 256 * 1024 * 1024;
+    ? Number.MAX_SAFE_INTEGER
+    : [
+          'backup_local_data',
+          'verify_local_backup',
+          'preview_local_backup',
+        ].includes(command)
+      ? localBackupByteLimit
+      : 256 * 1024 * 1024;
   if (
     !isRecord(v) ||
     v.schemaVersion !== 1 ||
@@ -579,10 +584,20 @@ export function projectError(error: unknown) {
       return '휴지통 상태가 바뀌었습니다. 휴지통 목록을 다시 읽어주세요.';
     case 'PROJECT_USAGE_UNAVAILABLE':
       return '용량을 안전하게 확인하지 못했습니다. 링크·파일 수·폴더 깊이와 접근 권한을 확인하세요. 원본은 변경하지 않았습니다.';
+    case 'PROJECT_PURGE_CONFIRMATION_REQUIRED':
+      return '삭제할 프로젝트 제목을 정확히 입력하고 영구 삭제에 동의해주세요.';
+    case 'PROJECT_PURGE_CHANGED':
+      return '삭제 대상이 바뀌었습니다. 남은 대상을 다시 확인하고 새로 동의해주세요.';
+    case 'PROJECT_PURGE_REFERENCED':
+      return '삭제할 관리 폴더의 파일을 원본이나 다른 프로젝트가 참조하고 있어 삭제하지 않습니다. 먼저 연결을 확인하세요.';
+    case 'PROJECT_PURGE_UNAVAILABLE':
+      return '삭제 대상을 안전하게 읽거나 지우지 못했습니다. 링크·접근 권한·사용 중인 파일을 확인하고 남은 대상을 다시 읽어주세요. 이미 삭제한 파일은 복구되지 않습니다.';
+    case 'PROJECT_PURGE_IN_PROGRESS':
+      return '영구 삭제를 시작한 프로젝트입니다. 일반 복원 대신 휴지통에서 남은 대상을 다시 확인하고 삭제를 재개하세요.';
     case 'PROJECT_IN_USE':
       return '프로젝트의 연습·녹음을 마친 뒤 다시 시도하세요.';
     case 'PROJECT_TRASH_LIMIT':
-      return '휴지통 보관 한도 1000개에 도달했습니다. 기존 항목을 복원할 수 있으며 영구 삭제는 아직 지원하지 않습니다.';
+      return '휴지통 보관 한도 1000개에 도달했습니다. 기존 항목을 복원하거나 삭제 대상을 확인해주세요.';
     case 'REVISION_CONFLICT':
       return '저장 버전이 바뀌었거나 악보가 저장 내용과 다릅니다. 프로젝트를 다시 열거나 변경 내용을 저장하세요.';
     case 'ASSET_MISMATCH':
@@ -598,10 +613,10 @@ export function projectError(error: unknown) {
     case 'STORAGE_BUSY':
       return '진행 중인 파일 작업을 마치거나 파일 선택 창을 취소하세요.';
     case 'PROJECT_CONTRACT_INVALID':
-      return '저장 응답 형식이 맞지 않습니다. 기존 데이터를 보존하고 앱 버전을 확인하세요.';
+      return '저장 응답 형식이 맞지 않습니다. 목록과 현재 상태·앱 버전을 확인하세요.';
     case 'ARCHIVE_EVENT_GAP':
       return '연습 이벤트 기록에 누락이 있어 저장을 중단했습니다. 기존 기록은 보존됩니다.';
     default:
-      return '프로젝트를 읽거나 저장하지 못했습니다. 기존 데이터는 보존됩니다.';
+      return '프로젝트 작업을 완료하지 못했습니다. 목록과 현재 상태를 다시 확인하세요.';
   }
 }

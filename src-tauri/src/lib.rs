@@ -113,6 +113,8 @@ mod bundle_tests {
                 "trash_project",
                 "restore_trashed_project",
                 "inspect_trashed_project_usage",
+                "prepare_trashed_project_purge",
+                "purge_trashed_project",
                 "backup_local_data",
                 "verify_local_backup",
                 "preview_local_backup",

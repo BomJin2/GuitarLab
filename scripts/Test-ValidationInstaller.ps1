@@ -130,12 +130,13 @@ $python = Join-Path $projectRoot 'ai/.venv/Scripts/python.exe'
 import sqlite3,sys
 from pathlib import Path
 with sqlite3.connect((Path(sys.argv[1])/'guitarlab.sqlite').as_uri()+'?mode=ro',uri=True) as db:
- assert db.execute('PRAGMA user_version').fetchone()[0]==9
+ assert db.execute('PRAGMA user_version').fetchone()[0]==10
+ assert db.execute('SELECT COUNT(*) FROM project_purge_intents').fetchone()[0]==0
  assert db.execute('PRAGMA quick_check').fetchall()==[('ok',)]
  assert db.execute('SELECT COUNT(*) FROM projects').fetchone()[0]==0
  assert db.execute('SELECT COUNT(*) FROM project_trash').fetchone()[0]==0
  assert db.execute("SELECT COUNT(*) FROM recorded_takes WHERE state IN ('ARMING','RECORDING','FINALIZING')").fetchone()[0]==0
-print('별도 앱 데이터의 새 v9 DB·빈 보관 목록·녹음 없음 확인')
+print('별도 앱 데이터의 새 v10 DB·빈 보관 목록·녹음 없음 확인')
 '@ | & $python -B -X utf8 - $dataRoot
 if ($LASTEXITCODE -ne 0) { throw '설치 앱 데이터 확인 실패: 앱을 임의 종료하지 않습니다.' }
 function Close-ValidationApplication {

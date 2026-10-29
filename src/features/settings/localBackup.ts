@@ -90,6 +90,8 @@ export function backupError(cause: unknown) {
   const code = cause instanceof Error ? cause.message : '';
   const messages: Record<string, string> = {
     RECORDING_BUSY: '녹음 STOP과 저장을 마친 뒤 백업해주세요.',
+    PROJECT_PURGE_IN_PROGRESS:
+      '영구 삭제를 시작한 프로젝트가 있습니다. 휴지통에서 남은 대상을 확인하고 삭제를 마친 뒤 백업해주세요.',
     STORAGE_BUSY: '다른 파일 작업이 끝난 뒤 백업해주세요.',
     BACKUP_LIMIT_EXCEEDED:
       '이번 백업은 데이터 합계 최대 2GiB·10,000개 미만 파일을 지원합니다.',

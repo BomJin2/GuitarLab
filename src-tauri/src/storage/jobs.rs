@@ -28,7 +28,7 @@ impl StorageJob {
     pub fn progress(&self, completed: u64, total: u64) -> Result<(), AppError> {
         self.progress_with_limit(completed, total, 256 * 1024 * 1024)
     }
-    pub(super) fn progress_with_limit(
+    pub(crate) fn progress_with_limit(
         &self,
         completed: u64,
         total: u64,

@@ -68,7 +68,7 @@ it('목록 오류를 보존하고 명시적 새로고침으로 같은 프로젝�
     usePracticeRecords(true, record.projectId),
   );
   await act(async () => undefined);
-  expect(result.current.error).toContain('기존 데이터');
+  expect(result.current.error).toContain('현재 상태');
   expect(result.current.busy).toBe(false);
   act(() => result.current.refresh());
   expect(result.current.error).toBeNull();

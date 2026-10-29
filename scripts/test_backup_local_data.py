@@ -54,7 +54,7 @@ class BackupTests(unittest.TestCase):
             snapshot.write_bytes(archive.read("guitarlab.sqlite"))
         with closing(sqlite3.connect(snapshot)) as db:
             self.assertEqual(db.execute("SELECT title FROM projects").fetchone()[0], "자체 테스트")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 9)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)
         with self.assertRaises(BackupError):
             self.create()
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
@@ -145,10 +145,10 @@ class BackupTests(unittest.TestCase):
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
 
     def test_database_version_links_low_disk_and_destination_race(self):
-        self.db.execute("PRAGMA user_version=10")
+        self.db.execute("PRAGMA user_version=11")
         with self.assertRaisesRegex(BackupError, "VERSION"):
             self.create()
-        self.db.execute("PRAGMA user_version=9")
+        self.db.execute("PRAGMA user_version=10")
         with patch("backup_local_data.shutil.disk_usage", return_value=type("Disk", (), {"free": 0})()):
             with self.assertRaisesRegex(BackupError, "DISK_SPACE"):
                 self.create()
@@ -299,6 +299,7 @@ class BackupTests(unittest.TestCase):
 
 
     def test_previous_version_eight_backup_and_preview_remain_supported(self):
+        self.db.execute("DROP TABLE project_purge_intents")
         self.db.execute("DROP TABLE project_trash")
         self.db.execute("PRAGMA user_version=8")
         self.db.commit()
@@ -314,18 +315,48 @@ class BackupTests(unittest.TestCase):
             self.assertEqual(restored.execute("SELECT title FROM projects").fetchone()[0], "자체 테스트")
         self.assertEqual(self.db.execute("PRAGMA user_version").fetchone()[0], 8)
 
-    def test_version_nine_trash_marker_and_all_media_are_preserved(self):
+    def test_version_ten_trash_marker_and_all_media_are_preserved(self):
         token = "00000000-0000-4000-8000-000000000001"
         self.db.execute("INSERT INTO project_trash VALUES(?,?,42,0)", ("test", token))
         self.db.commit()
         self.create()
-        target = self.base / "v9 보관 복원 미리보기"
+        target = self.base / "v10 보관 복원 미리보기"
         restore_to_new_folder(self.destination, target, consent=True)
         with closing(sqlite3.connect(target / "guitarlab.sqlite")) as restored:
-            self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 9)
+            self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 10)
             self.assertEqual(restored.execute("SELECT project_id,trash_id,trashed_at_ms,project_revision FROM project_trash").fetchall(), [("test", token, 42, 0)])
         self.assertEqual((target / "projects/test/자체 파일.wav").read_bytes(), b"synthetic test only")
         self.assertEqual(self.db.execute("SELECT trash_id FROM project_trash").fetchone()[0], token)
+
+    def test_previous_version_nine_backup_and_preview_remain_supported(self):
+        self.db.execute("DROP TABLE project_purge_intents")
+        self.db.execute("PRAGMA user_version=9")
+        self.db.commit()
+        self.create()
+        target = self.base / "이전 v9 복원"
+        result = restore_to_new_folder(self.destination, target, consent=True)
+        self.assertFalse(result["appDataReplaced"])
+        with closing(sqlite3.connect(target / "guitarlab.sqlite")) as restored:
+            self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 9)
+
+    def test_partial_purge_refuses_new_backup_and_preview_without_replacing_data(self):
+        token = "00000000-0000-4000-8000-000000000001"
+        self.db.execute("INSERT INTO project_trash VALUES(?,?,42,0)", ("test", token))
+        self.db.execute("INSERT INTO project_purge_intents VALUES(?,?,0,43)", ("test", token))
+        self.db.commit()
+        with self.assertRaisesRegex(BackupError, "BACKUP_PROJECT_PURGE_IN_PROGRESS"):
+            self.create()
+        self.assertFalse(self.destination.exists())
+        with patch("backup_local_data.check_database", return_value=10):
+            self.create()
+        before = self.destination.read_bytes()
+        target = self.base / "중단 자료를 정상 복원하지 않음"
+        with self.assertRaisesRegex(BackupError, "BACKUP_PROJECT_PURGE_IN_PROGRESS"):
+            restore_to_new_folder(self.destination, target, consent=True)
+        self.assertFalse(target.exists())
+        self.assertEqual(self.destination.read_bytes(), before)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM project_purge_intents").fetchone()[0], 1)
+        self.assertFalse(list(self.base.glob(".guitarlab-restore-*")))
 
 
 if __name__ == "__main__":

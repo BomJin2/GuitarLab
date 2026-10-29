@@ -15,6 +15,8 @@ pub struct TrashedProject {
     pub project: ProjectSummary,
     pub trash_id: String,
     pub trashed_at_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purge_started: Option<bool>,
 }
 fn changed() -> AppError {
     AppError::new(
@@ -26,7 +28,7 @@ fn changed() -> AppError {
 impl ProjectStore {
     pub fn trashed_projects(&self) -> Result<Vec<TrashedProject>, AppError> {
         let db = connect(&self.root)?;
-        let mut query = db.prepare("SELECT p.id,p.title,p.artist,p.mode,p.revision,p.revision_id,p.updated_at_ms,t.trash_id,t.trashed_at_ms,t.project_revision FROM project_trash t JOIN projects p ON p.id=t.project_id ORDER BY t.trashed_at_ms DESC,p.id LIMIT 1000").map_err(|_| storage_error())?;
+        let mut query = db.prepare("SELECT p.id,p.title,p.artist,p.mode,p.revision,p.revision_id,p.updated_at_ms,t.trash_id,t.trashed_at_ms,t.project_revision,EXISTS(SELECT 1 FROM project_purge_intents d WHERE d.project_id=p.id) FROM project_trash t JOIN projects p ON p.id=t.project_id ORDER BY t.trashed_at_ms DESC,p.id LIMIT 1000").map_err(|_| storage_error())?;
         let rows = query
             .query_map([], |row| {
                 let timestamp: i64 = row.get(8)?;
@@ -36,6 +38,7 @@ impl ProjectStore {
                         trash_id: row.get(7)?,
                         trashed_at_ms: u64::try_from(timestamp)
                             .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(8, timestamp))?,
+                        purge_started: row.get::<_, bool>(10)?.then_some(true),
                     },
                     row.get::<_, u32>(9)?,
                 ))
@@ -98,6 +101,7 @@ impl ProjectStore {
             project,
             trash_id: Uuid::new_v4().to_string(),
             trashed_at_ms: u64::try_from(timestamp).map_err(|_| storage_error())?,
+            purge_started: None,
         };
         tx.execute("INSERT INTO project_trash(project_id,trash_id,trashed_at_ms,project_revision) VALUES(?1,?2,?3,?4)", params![project_id, entry.trash_id, timestamp, expected_revision]).map_err(|_| storage_error())?;
         canceled(cancel)?;
@@ -130,6 +134,20 @@ impl ProjectStore {
         let project = self.raw_summary(&tx, project_id)?;
         if project.revision != revision {
             return Err(changed());
+        }
+        if tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM project_purge_intents WHERE project_id=?1)",
+                [project_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(|_| storage_error())?
+        {
+            return Err(AppError::new(
+                "PROJECT_PURGE_IN_PROGRESS",
+                "영구 삭제를 시작한 프로젝트입니다. 남은 대상을 다시 확인해 삭제를 재개하세요.",
+                true,
+            ));
         }
         if tx
             .execute(

@@ -358,7 +358,7 @@ fn version_two_migration_preserves_existing_takes_and_wave_bytes() {
     let (f, mix, a, b) = setup();
     let db = connect(&f.store.root).expect("fixture DB");
     db.execute_batch(
-        "DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; DROP TABLE project_mixes; PRAGMA user_version=2;",
+        "DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; DROP TABLE project_mixes; PRAGMA user_version=2;",
     )
     .expect("기존 v2 구조 재현");
     let before: Vec<(String, String)> = db
@@ -373,7 +373,7 @@ fn version_two_migration_preserves_existing_takes_and_wave_bytes() {
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        9
+        10
     );
     let after: Vec<(String, String)> = db
         .prepare("SELECT id,metadata_json FROM recorded_takes ORDER BY id")

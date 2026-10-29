@@ -269,5 +269,5 @@ it('job Error 코드도 안내하고 알 수 없는 오류 원문은 표시하�
   expect(projectError({ code: 'PROJECT_IN_TRASH' })).toMatch(/복원/);
   const message = projectError(new Error('C:\\private\\recording.wav'));
   expect(message).not.toContain('private');
-  expect(message).toMatch(/보존/);
+  expect(message).toMatch(/현재 상태/);
 });

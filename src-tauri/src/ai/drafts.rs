@@ -476,14 +476,14 @@ mod tests {
         let before = serde_json::to_value(f.store.assets(&request.project_id).expect("등록 원본"))
             .expect("기준");
         let db = connect(&f.store.root).expect("DB");
-        db.execute_batch("DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; PRAGMA user_version=3;")
+        db.execute_batch("DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; PRAGMA user_version=3;")
             .expect("기존 v3 재현");
         drop(db);
         let db = connect(&f.store.root).expect("추가004");
         assert_eq!(
             db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
                 .expect("버전"),
-            9
+            10
         );
         assert_eq!(
             serde_json::to_value(f.store.assets(&request.project_id).expect("이전 자산"))

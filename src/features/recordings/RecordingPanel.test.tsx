@@ -54,6 +54,9 @@ it('정렬 REC의 비활성 사유를 표시하고 재생·동기화 후 실제 
   };
   const project: ProjectController = {
     native: true,
+    purgePlan: null,
+    preparePurge: vi.fn(),
+    purgeProject: vi.fn(),
     projects: [],
     details: null,
     busy: false,

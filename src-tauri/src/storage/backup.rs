@@ -101,6 +101,7 @@ fn message(
                 Some("BACKUP_SOURCE_CHANGED") => "BACKUP_SOURCE_CHANGED",
                 Some("BACKUP_DATABASE_VERSION") => "BACKUP_DATABASE_VERSION",
                 Some("BACKUP_RECORDING_ACTIVE") => "RECORDING_BUSY",
+                Some("BACKUP_PROJECT_PURGE_IN_PROGRESS") => "PROJECT_PURGE_IN_PROGRESS",
                 Some("BACKUP_DESTINATION_INVALID") => "EXPORT_DESTINATION_EXISTS",
                 Some("BACKUP_MANIFEST_INVALID") => "BACKUP_MANIFEST_INVALID",
                 Some("BACKUP_PATH_INVALID") => "BACKUP_PATH_INVALID",
@@ -537,7 +538,7 @@ mod tests {
             restored_db
                 .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
                 .expect("버전"),
-            9
+            10
         );
         assert_eq!(
             restored_db
@@ -775,7 +776,7 @@ mod tests {
             database
                 .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
                 .expect("버전"),
-            9
+            10
         );
     }
     #[test]

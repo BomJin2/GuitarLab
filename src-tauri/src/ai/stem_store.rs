@@ -870,7 +870,7 @@ mod tests {
             serde_json::to_value(f.store.assets(&r.project_id).expect("기존 자산")).expect("JSON");
         let db = connect(&f.store.root).expect("DB");
         db.execute_batch(
-            "DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; PRAGMA user_version=4;",
+            "DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; PRAGMA user_version=4;",
         )
         .expect("기존 v4");
         let draft_id = Uuid::new_v4().to_string();
@@ -881,7 +881,7 @@ mod tests {
         assert_eq!(
             db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
                 .expect("버전"),
-            9
+            10
         );
         assert_eq!(
             db.query_row(

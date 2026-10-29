@@ -148,14 +148,16 @@ def readonly_database(path):
 
 def check_database(db):
     version = db.execute("PRAGMA user_version").fetchone()[0]
-    if version not in (8, 9):
+    if version not in (8, 9, 10):
         raise BackupError("BACKUP_DATABASE_VERSION")
     if db.execute("PRAGMA quick_check").fetchall() != [("ok",)] or db.execute("PRAGMA foreign_key_check").fetchone() is not None:
         raise BackupError("BACKUP_DATABASE_INVALID")
     if db.execute("SELECT COUNT(*) FROM recorded_takes WHERE state IN ('ARMING','RECORDING','FINALIZING')").fetchone()[0]:
         raise BackupError("BACKUP_RECORDING_ACTIVE")
-    if version == 9:
+    if version >= 9:
         db.execute("SELECT project_id,trash_id,trashed_at_ms,project_revision FROM project_trash LIMIT 0")
+    if version == 10 and db.execute("SELECT COUNT(*) FROM project_purge_intents").fetchone()[0]:
+        raise BackupError("BACKUP_PROJECT_PURGE_IN_PROGRESS")
     return version
 
 
@@ -250,7 +252,7 @@ def verify(path, *, extract_to=None, progress=lambda *_: None):
             raise BackupError("BACKUP_LIMIT_EXCEEDED")
         receipt = json.loads(archive.read(manifest))
         if (not isinstance(receipt, dict) or len(receipt) != 7 or type(receipt.get("schemaVersion")) is not int or receipt.get("schemaVersion") != 1 or receipt.get("kind") != "GUITARLAB_LOCAL_BACKUP" or
-                type(receipt.get("databaseVersion")) is not int or receipt["databaseVersion"] not in (8, 9) or receipt.get("modelsIncluded") is not False or
+                type(receipt.get("databaseVersion")) is not int or receipt["databaseVersion"] not in (8, 9, 10) or receipt.get("modelsIncluded") is not False or
                 receipt.get("includesLocalMedia") is not True or type(receipt.get("externalReferencesNotCopied")) is not int or not 0 <= receipt["externalReferencesNotCopied"] <= 100000 or not isinstance(receipt.get("files"), list) or
                 any(not isinstance(item, dict) or set(item) != {"path", "bytes", "sha256"} or not isinstance(item["path"], str) or type(item["bytes"]) is not int or not 0 <= item["bytes"] <= MAX_BYTES or not isinstance(item["sha256"], str) or len(item["sha256"]) != 64 or any(c not in "0123456789abcdef" for c in item["sha256"]) for item in receipt["files"]) or
                 len(receipt["files"]) + 1 != len(entries) or

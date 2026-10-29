@@ -14,6 +14,9 @@ pub mod jobs;
 pub mod practice_records;
 pub mod project_metadata;
 pub mod project_model;
+pub mod project_purge;
+#[cfg(test)]
+mod project_purge_tests;
 pub mod project_trash;
 #[cfg(test)]
 mod project_trash_tests;

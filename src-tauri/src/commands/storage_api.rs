@@ -137,13 +137,21 @@ pub(super) fn launch_idle(
     recording: &Arc<RecordingService>,
     work: impl FnOnce(&AtomicBool) -> Result<Value, AppError> + Send + 'static,
 ) -> Result<JobSnapshot, AppError> {
+    launch_idle_job(jobs, recording, "RUNNING", move |job| work(&job.cancel))
+}
+pub(super) fn launch_idle_job(
+    jobs: &StorageJobs,
+    recording: &Arc<RecordingService>,
+    state: &'static str,
+    work: impl FnOnce(&StorageJob) -> Result<Value, AppError> + Send + 'static,
+) -> Result<JobSnapshot, AppError> {
     if recording.is_active() {
         return Err(record_error("RECORDING_BUSY"));
     }
-    let job = jobs.start("RUNNING")?;
+    let job = jobs.start(state)?;
     let initial = job.snapshot()?;
     let recording = recording.clone();
-    launch(job, move |job| recording.while_idle(|| work(&job.cancel)));
+    launch(job, move |job| recording.while_idle(|| work(job)));
     Ok(initial)
 }
 #[tauri::command]
