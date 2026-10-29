@@ -1,5 +1,41 @@
 # Phase8 — 품질·릴리스
 
+## 후속 — 로컬 백업 합계2GiB와 읽기 상한 (2026-10-29)
+
+### 1. 작업 개요
+
+작업일2026-10-29. 실제600초 녹음 수용 후 여러 긴 테이크를 함께 보존할 때 앱 백업 합계256MiB가 부족한 문제를 보완합니다. CLI와 같은2GiB 합계로 앱의 생성·검사·새 폴더 미리보기 계약을 맞추는 Phase8 수직 슬라이스입니다. **구현·정확한2GiB 실제 왕복 완료,새 패키지·원격 및 새 GUI 수용 진행 중**이며 Phase8 전체 완료와 구분합니다. 현재 열린53c552b1 고정 GUI는 이전256MiB 구현입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/00-SCOPE-AND-DECISIONS.md`,`docs/12-API-CONTRACTS.md`,`docs/19-BACKUP-AND-RECOVERY.md`:합계2,147,483,648바이트와 이전 앱 호환 범위·개별 읽기 상한을 먼저 정의했습니다. ZIP manifest/JSONL/IPC는1,DB8/9 계약과 동의·취소·원본/현재 AppData 보존은 유지합니다.
+- `src/features/library/projects.ts`,`projects.test.ts`:백업3개 명령의 처음 응답·준비 완료·상태 조회에만2GiB 진행 상한을 적용합니다. 일반 파일 작업/바이너리는256MiB를 유지하며 명령 문맥을 호출자가 고정합니다.
+- `src/features/settings/localBackup.ts`,`localBackup.test.ts`,`LocalBackupPanel.tsx`:완료 바이트 검사와 최소 용량 안내를 함께 변경했습니다. 디자인/오디오 입력·녹음 형식은 바꾸지 않았습니다.
+- `src-tauri/src/storage/jobs.rs`,`backup.rs`:백업 내부 진행/결과만2GiB로 확장하고 일반 진행·바이너리 상한은 유지합니다. 번들 Python을 사용하는 자체 대용량 왕복 회귀를 추가했습니다.
+- `scripts/backup_local_data.py`,`scripts/test_backup_capacity.py`:통합 모드의256MiB 덮어쓰기를 제거했습니다. 표준 ZIP 읽기를32MiB 이하의 단일 읽기로 제한하고 EOF 요청도 먼저 실제 길이를 계산합니다. 제한은 전체 프로세스 메모리 보장이 아닙니다. 설치 의존성 추가나 ZIP 파서 재구현은 없습니다.
+- `src/test/developmentWatcher.test.mjs`:Windows가 같은 UI 파일 변경 이벤트를 중복 통지해 전체 검사가 실패했습니다. 감시 계약의 핵심인 변경 경로 집합과 무시 경로를 검사하도록 수정했으며 실제 감시 설정은 유지했습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 회귀 **실패 재현**:프론트 대상17개 중7개 실패·10개 성공,Python 통합 모드3분기256MiB 회귀 실패,실제257MiB 백업은 `BACKUP_LIMIT_EXCEEDED`였습니다. 거대한 ZIP 중앙 디렉터리 검사도 기존에는 전체 읽기 후 누락 manifest 오류로 끝났습니다.
+- 프론트 대상 **17개 성공**. 전체 최초731개 중730개 성공/Windows 감시 중복1개 실패를 위 방식으로 고친 후 **731개/129파일 성공**,41.16초입니다. 타입/lint/포맷 검사 **성공**입니다.
+- `cargo test --locked --all-features --manifest-path src-tauri/Cargo.toml` **269개 성공/외부 리소스 조건30개 기본 제외**입니다. `storage::backup::tests -- --include-ignored`로 별도 번들 경로를 지정한 백업6개 **성공**이며 실제257MiB 생성·지문 검사·새 폴더 추출/DB9·원본/ZIP 보존을 포함합니다. 정확히2GiB/ZIP64 실제 왕복은 현재 진행 중으로 최종 결과를 추가합니다.
+- `python -B -W error::DeprecationWarning -X utf8 -m unittest discover -s scripts -p test_*.py` **156개 실행/155개 성공/링크 생성 권한1개 미실행**입니다. 번들 Python3.12.15의 `test_backup*.py`는 **25개 실행/24개 성공/같은 권한1개 미실행**입니다. ZIP 항목513개의 큰 중앙 디렉터리와 EOF/정확한 읽기 경계·원본 보존을 포함합니다.
+- `pnpm build` **성공**,2분19초/기존 큰 청크 안내가 있습니다. `cargo clippy … --all-targets --all-features -- -D warnings`,`cargo +1.90.0 check … --all-targets --all-features`,`cargo build … --features custom-protocol` 및 내장 번들4개 **성공**입니다. Windows 링크 안내는 기존 상태입니다.
+- 로그는 무시된 `src-tauri/target/runtime-validation/backup-2gib-*-20261029.log`에 보존합니다. 사용자14파일 백업/개인 녹음은 테스트 입력으로 읽지 않았습니다. 새 소스의 원격CI·독립 ZIP/Defender·실제 GUI 수용은 **미실행/준비 중**이며 아래 이전 소스의 결과와 혼용하지 않습니다.
+
+최대 경계 후속:처음 실제2GiB 생성은 `BACKUP_FAILED`로 실패했습니다. 기존 `allowZip64=False`와 크기를 모르는 스트리밍 헤더가 원인이었고,작은 정확한 합계 검사도 manifest까지 상한에 포함해 실패했습니다. 신규2개 회귀로 두 조건을 각각 재현한 뒤 표준 ZIP64/실제 파일 크기와 manifest 별도 한도로 보완했습니다. `scripts/test_backup_local_data.py`도 변경 파일에 포함합니다. 수정 후 **정확히2,147,483,648바이트 payload의 native 생성·검사·새 폴더 추출/DB9·원본/ZIP 보존 및 ZIP64 끝 기록2개 확인 성공**,58.77초입니다. 자체 파일/DB만 사용하고 검증한 임시 폴더는 정리했습니다. `GUITARLAB_BACKUP_MAX_BOUNDARY=1`/검증된 번들 경로를 지정해 위 ignored 테스트 하나를 실행했으며 로그는 `backup-2gib-max-boundary-final-20261029.log`입니다. 이후 전체 Python 도구 **158개 실행/157성공/권한1미실행**,26.446초로 확정하며 앞선156개는 수정 전 이력입니다. 번들 Python/Rust 최종 재검사는 진행 중입니다.
+
+### 4. 미구현 및 알려진 문제
+
+최종 후속 검사:번들 Python3.12.15 **27개 실행/26성공/권한1미실행**,51.591초입니다. Rust 전체도 ZIP64 변경 후 **269성공/30기본 제외**,22.49초와 Clippy/MSRV1.90·Windows/관리 도구 빌드 성공을 다시 확인했습니다. `pnpm test:bundle`은 존재하지 않는 명령이라 실패했고 실제 `cargo test … --all-features bundle_tests`로 정정했습니다. 이 도구 명령 오류는 제품 테스트 실패와 구분합니다.
+
+이전 GUI는256MiB 초과 새 ZIP을 거절합니다. 파일 수1~9,999와 새 폴더 미리보기·현재 데이터 미교체 정책을 유지합니다. 실제 최대 크기 왕복은 현재 PC/자체 데이터 한 조건이며 느린 디스크의5분 작업 제한 통과를 보장하지 않습니다.32MiB는 개별 메타데이터 읽기 방어이며 객체/파일 목록·전체 메모리 상한이 아닙니다. 별도 OS·서명/실제 데이터 교체·영구 삭제와 Phase8의 다른 의존성은 그대로 미완료입니다.
+
+### 5. 다음 작업 계획
+
+최대2GiB/ZIP64 실제 경계를 확인하고 새 소스를 Git/원격CI·독립 패키지로 검증합니다. 현재 사용자 창을 유지한 채 후보를 준비한 뒤,사용자 저장/종료 확인 후에만 새 고정 GUI로 전환합니다. GUI는 기존 테스트 자료로 백업 안내·생성/검사를 짧게 확인하며 추가 장시간 연주를 요구하지 않습니다.
+
 ## 후속 — 기타 연결 복원·5분 동시 관측·10분 녹음/백업 수용 (2026-10-29)
 
 ### 1. 작업 개요

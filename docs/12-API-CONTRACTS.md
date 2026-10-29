@@ -1,5 +1,17 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 백업 전용2GiB 메타데이터 한도 — 2026-10-29
+
+`backup_local_data`/`verify_local_backup`/`preview_local_backup`만 payload 합계2,147,483,648바이트까지 지원합니다. 요청 필드·응답/StorageJob schemaVersion1·ZIP manifest1/SQLite v8·v9는 유지합니다. files1~9,999·bytes1~2GiB의 안전 정수,검사 VERIFIED/생성 COMPLETED/미리보기 RESTORED_TO_NEW_FOLDER·appDataReplaced=false의 기존 엄격한 필드는 유지합니다. 파일 개수·외부 참조/동의·원본 불변·취소 완료 대기·공간 검사는 완화하지 않습니다.
+
+Python app 모드도 기존 CLI와 같은2GiB 상한을 사용합니다. native 백업이 내보내는 progress에만 이 상한을 적용하고 공통 StorageJob progress 기본값/binary 저장은256MiB를 유지합니다. 프론트 `runStorageJob`은 최초 실행 명령이 위3개일 때만 진행률의 새 범위를 허용하고,초기/준비 후/반복 poll에서 같은 문맥을 유지합니다. 다른 명령이나 직접 `get_storage_job` 문맥을 백업으로 취급하지 않습니다. 모든 byte payload/악보·음원·테이크 개별 읽기 상한은 변경하지 않으며 JSON에 임의 한도/경로/명령 옵션을 추가하지 않습니다.
+
+큰 ZIP의 목록도 검증 전에 일괄 메모리 읽기가 발생하므로 검사/미리보기의 파일 reader는 단일 읽기 요청을32MiB로 제한합니다. EOF 읽기도 남은 크기를 계산한 고정 길이로 바꿔 파일이 커져도 무제한 읽지 않습니다. 실제 payload는 기존64KiB 청크/CRC·SHA·취소 검사로 처리합니다. 이는 worker 전체 RSS가32MiB라는 의미가 아니며 앱이 만든 기존 ZIP에는 적용 가능한 메타데이터 예산입니다.
+
+데이터 합계는 manifest를 제외하며 manifest 자체는4MiB 이하·ZIP 실제 크기는payload 상한+16MiB 이하로 별도 검사합니다. 표준 ZIP64 쓰기를 허용하고 파일별 실제 크기를 `ZipInfo.file_size`로 지정해 큰 스트리밍 파일 헤더를 준비합니다. 기존 작은 ZIP 형식/압축 없음은 유지합니다. API 근거는 [Python3.12 공식 zipfile 문서](https://docs.python.org/3.12/library/zipfile.html#zipfile.ZipFile.open)입니다.
+
+구버전256MiB 이하 ZIP도 계속 지원합니다. 같은 v1 ZIP이라도256MiB 초과 결과는 구버전 UI가 거부하므로 새 앱/기존2GiB CLI를 사용해야 합니다.2GiB 실데이터 전체/느린 디스크 시간 보장은 별도 검증이며 기존 취소/시간 제한·원본 보존은 계속 적용합니다. 아래 초기256MiB 계약은 당시 이력입니다.
+
 ## 백업 Windows 경로 검사 호환성 — 2026-10-29
 
 백업 ZIP의 상대 경로는 실행 OS와 관계없이 Windows 이름 규칙으로 검사합니다. `.`만으로 된 루트 항목도 `BACKUP_PATH_INVALID`로 거부하며 파일 생성/추출 전에 검사합니다. Python3.13 이상에서는 표준 `ntpath.isreserved`를 우선하고 해당 함수가 없는 기존3.10/번들3.12에서는 `PureWindowsPath.is_reserved`를 사용합니다. 예약 장치명/확장자·대소문자/상위·절대 경로/ADS·제어 문자/끝 점·공백 거부와 기존 정상 한글 이름·원본 보존을 유지합니다. JSONL/IPC v1·ZIP manifest/DB 버전·용량/동의/취소 계약은 변경하지 않습니다.

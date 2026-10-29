@@ -26,8 +26,16 @@ pub struct StorageJob {
 }
 impl StorageJob {
     pub fn progress(&self, completed: u64, total: u64) -> Result<(), AppError> {
+        self.progress_with_limit(completed, total, 256 * 1024 * 1024)
+    }
+    pub(super) fn progress_with_limit(
+        &self,
+        completed: u64,
+        total: u64,
+        byte_limit: u64,
+    ) -> Result<(), AppError> {
         let mut state = self.status.lock().map_err(|_| storage_error())?;
-        if completed > total || total > 256 * 1024 * 1024 {
+        if completed > total || total > byte_limit {
             return Err(AppError::invalid());
         }
         state.completed_bytes = completed;

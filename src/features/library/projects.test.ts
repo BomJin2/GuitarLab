@@ -14,6 +14,72 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
 }));
 beforeEach(() => vi.clearAllMocks());
+const backupCommands = [
+  'backup_local_data',
+  'verify_local_backup',
+  'preview_local_backup',
+];
+it.each(backupCommands)(
+  '%s 작업의 초기·준비 후·poll 진행률은 백업 한도를 사용한다',
+  async (command) => {
+    const base = {
+      schemaVersion: 1,
+      jobId: projectFixtureId,
+      state: 'RUNNING',
+      completedBytes: 0,
+      totalBytes: 512 * 1024 * 1024,
+      result: null,
+      errorCode: null,
+    };
+    let polls = 0;
+    vi.mocked(invoke).mockImplementation(async (name) =>
+      name === command
+        ? base
+        : {
+            ...base,
+            completedBytes: base.totalBytes,
+            state: ++polls === 1 ? 'RUNNING' : 'COMPLETED',
+            result: { verified: true },
+          },
+    );
+    const prepare = vi.fn(async () => {});
+    await expect(
+      runStorageJob(command, {}, new AbortController().signal, () => {}, {
+        prepare,
+      }),
+    ).resolves.toEqual({ verified: true });
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(polls).toBe(2);
+  },
+);
+it('큰 진행률은 백업 문맥에만 허용하며 다른 작업의 256MiB 한도를 유지한다', () => {
+  const base = {
+    schemaVersion: 1,
+    jobId: projectFixtureId,
+    state: 'RUNNING',
+    completedBytes: 1,
+    totalBytes: 2 * 1024 ** 3,
+    result: null,
+    errorCode: null,
+  };
+  for (const command of backupCommands) {
+    expect(decodeJob(base, command).totalBytes).toBe(base.totalBytes);
+    expect(() =>
+      decodeJob({ ...base, totalBytes: base.totalBytes + 1 }, command),
+    ).toThrow();
+  }
+  for (const command of [
+    '',
+    'get_storage_job',
+    'import_project_audio',
+    'open_project',
+    'backup_local_data_extra',
+  ])
+    expect(() =>
+      decodeJob({ ...base, totalBytes: 256 * 1024 * 1024 + 1 }, command),
+    ).toThrow();
+  expect(() => decodeJob(base)).toThrow();
+});
 it('원본 미리보기 읽기는 취소의 실제 종료까지 기다리고 binary를 소비하지 않는다', async () => {
   const base = {
     schemaVersion: 1,

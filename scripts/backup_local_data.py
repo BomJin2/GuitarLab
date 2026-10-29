@@ -5,6 +5,7 @@ import ctypes
 from ctypes import wintypes
 from contextlib import closing
 import hashlib
+import io
 import json
 import ntpath
 import os
@@ -20,10 +21,23 @@ import zipfile
 
 MAX_BYTES = 2 * 1024 * 1024 * 1024
 MAX_FILES = 10000
+MAX_ZIP_READ_BYTES = 32 * 1024 * 1024
 
 
 class BackupError(Exception):
     pass
+
+
+class BoundedZipReader(io.BufferedReader):
+    def read(self, size=-1):
+        if size < 0:
+            position = self.tell()
+            size = max(0, self.seek(0, os.SEEK_END) - position)
+            self.seek(position)
+        # ZIP 목록의 큰 일괄 할당도 막고 실제 파일 데이터는 기존 청크로 읽습니다.
+        if size > MAX_ZIP_READ_BYTES:
+            raise BackupError("BACKUP_MANIFEST_INVALID")
+        return super().read(size)
 
 
 def ensure_app_closed():
@@ -183,13 +197,15 @@ def backup(root, destination, *, consent=False, guard=ensure_app_closed, progres
                    "includesLocalMedia": True, "externalReferencesNotCopied": references,
                    "modelsIncluded": False, "files": []}
         completed = 0
-        with zipfile.ZipFile(part, "x", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
+        with zipfile.ZipFile(part, "x", compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
             for path in [snapshot, *files]:
                 relative = "guitarlab.sqlite" if path == snapshot else path.relative_to(root).as_posix()
                 checked_path(staging if path == snapshot else root, path)
                 digest = hashlib.sha256()
                 count = 0
-                with path.open("rb") as source, archive.open(relative, "w") as output:
+                entry = zipfile.ZipInfo(relative)
+                entry.file_size = path.stat().st_size
+                with path.open("rb") as source, archive.open(entry, "w") as output:
                     for chunk in iter(lambda: source.read(65536), b""):
                         count += len(chunk)
                         completed += len(chunk)
@@ -219,7 +235,7 @@ def backup(root, destination, *, consent=False, guard=ensure_app_closed, progres
 def verify(path, *, extract_to=None, progress=lambda *_: None):
     if not path.is_file() or path.stat().st_size > MAX_BYTES + 16 * 1024 * 1024:
         raise BackupError("BACKUP_LIMIT_EXCEEDED")
-    with zipfile.ZipFile(path) as archive:
+    with BoundedZipReader(path.open("rb", buffering=0)) as source, zipfile.ZipFile(source) as archive:
         entries = archive.infolist()
         if len(entries) > MAX_FILES or len({entry.filename.casefold() for entry in entries}) != len(entries):
             raise BackupError("BACKUP_MANIFEST_INVALID")
@@ -230,7 +246,7 @@ def verify(path, *, extract_to=None, progress=lambda *_: None):
             if entry.compress_type != zipfile.ZIP_STORED or entry.flag_bits & 1 or entry.is_dir() or stat.S_IFMT(entry.external_attr >> 16) not in (0, stat.S_IFREG):
                 raise BackupError("BACKUP_MANIFEST_INVALID")
         manifest = archive.getinfo("backup-manifest.json")
-        if manifest.file_size > 4 * 1024 * 1024 or sum(e.file_size for e in entries) > MAX_BYTES:
+        if manifest.file_size > 4 * 1024 * 1024 or sum(e.file_size for e in entries if e.filename != "backup-manifest.json") > MAX_BYTES:
             raise BackupError("BACKUP_LIMIT_EXCEEDED")
         receipt = json.loads(archive.read(manifest))
         if (not isinstance(receipt, dict) or len(receipt) != 7 or type(receipt.get("schemaVersion")) is not int or receipt.get("schemaVersion") != 1 or receipt.get("kind") != "GUITARLAB_LOCAL_BACKUP" or
@@ -292,7 +308,7 @@ def restore_to_new_folder(archive, destination, *, consent=False, progress=lambd
     parent = destination.parent.resolve(strict=True)
     destination = parent / destination.name
     verify(archive, progress=lambda _, total: progress(0, total))
-    with zipfile.ZipFile(archive) as source:
+    with BoundedZipReader(archive.open("rb", buffering=0)) as reader, zipfile.ZipFile(reader) as source:
         total = sum(entry.file_size for entry in source.infolist())
     if shutil.disk_usage(parent).free < total + 16 * 1024 * 1024:
         raise BackupError("DISK_SPACE_LOW")
@@ -328,8 +344,6 @@ def main():
             print(json.dumps({"schemaVersion": 1, "state": "PROGRESS", "completedBytes": done, "totalBytes": total}), flush=True)
             last_progress = time.monotonic()
     if integrated:
-        global MAX_BYTES
-        MAX_BYTES = 256 * 1024 * 1024
         def read_cancel():
             line = os.read(0, 64)
             if line == b"cancel\n" or not line:

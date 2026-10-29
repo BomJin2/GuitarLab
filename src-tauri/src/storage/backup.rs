@@ -14,6 +14,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+const MAX_BACKUP_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 fn error(code: &'static str) -> AppError {
     AppError::new(
@@ -39,7 +40,7 @@ impl BackupResult {
         if self.schema_version != 1
             || !["COMPLETED", "VERIFIED", "RESTORED_TO_NEW_FOLDER"].contains(&self.state.as_str())
             || !(1..10000).contains(&self.files)
-            || !(1..=256 * 1024 * 1024).contains(&self.bytes)
+            || !(1..=MAX_BACKUP_BYTES).contains(&self.bytes)
             || self.external_references_not_copied > 100000
             || self.restore_supported
             || if self.state == "RESTORED_TO_NEW_FOLDER" {
@@ -72,7 +73,7 @@ fn message(
             let total = value["totalBytes"]
                 .as_u64()
                 .ok_or_else(|| error("BACKUP_PROTOCOL_INVALID"))?;
-            job.progress(done, total)?;
+            job.progress_with_limit(done, total, MAX_BACKUP_BYTES)?;
             Ok(None)
         }
         Some("COMPLETED" | "VERIFIED" | "RESTORED_TO_NEW_FOLDER") => {
@@ -360,6 +361,48 @@ mod tests {
         }
     }
     #[test]
+    fn backup_progress_and_results_accept_two_gib_without_widening_other_jobs() {
+        let jobs = super::super::jobs::StorageJobs::default();
+        let job = jobs.start("RUNNING").expect("백업 용량 계약");
+        let limit = 2 * 1024 * 1024 * 1024_u64;
+        for size in [256 * 1024 * 1024 + 1, limit] {
+            let progress = serde_json::json!({"schemaVersion":1,"state":"PROGRESS","completedBytes":size,"totalBytes":size});
+            message(
+                &serde_json::to_vec(&progress).expect("진행 JSON"),
+                &job,
+                "COMPLETED",
+            )
+            .expect("큰 백업 진행");
+            assert!(job.progress(size, size).is_err());
+            for state in ["COMPLETED", "VERIFIED", "RESTORED_TO_NEW_FOLDER"] {
+                let mut result = serde_json::json!({"schemaVersion":1,"state":state,"files":3,"bytes":size,"externalReferencesNotCopied":0,"restoreSupported":false});
+                if state == "RESTORED_TO_NEW_FOLDER" {
+                    result["appDataReplaced"] = serde_json::json!(false);
+                }
+                message(
+                    &serde_json::to_vec(&result).expect("결과 JSON"),
+                    &job,
+                    state,
+                )
+                .expect("큰 결과");
+                result["bytes"] = serde_json::json!(limit + 1);
+                assert!(message(
+                    &serde_json::to_vec(&result).expect("초과 JSON"),
+                    &job,
+                    state
+                )
+                .is_err());
+            }
+        }
+        let overflow = serde_json::json!({"schemaVersion":1,"state":"PROGRESS","completedBytes":0,"totalBytes":limit+1});
+        assert!(message(
+            &serde_json::to_vec(&overflow).expect("초과 진행"),
+            &job,
+            "COMPLETED"
+        )
+        .is_err());
+    }
+    #[test]
     fn backup_idle_guard_blocks_recording_start_and_releases_after_failure() {
         use crate::recording::model::{RecordSource, StartRecordingRequest};
         use crate::storage::calibration::MonitorEnvironment;
@@ -645,6 +688,97 @@ mod tests {
                 .starts_with(".guitarlab-backup-")));
     }
     #[test]
+    #[ignore = "검증된 번들 Python과 자체257MiB 또는2GiB 파일의 생성/검사/새 폴더 왕복이 필요합니다"]
+    fn actual_bundled_large_backup_roundtrip_preserves_source_and_archive() {
+        use std::io::{Read, Seek, SeekFrom};
+        let resources = std::path::PathBuf::from(
+            std::env::var_os("GUITARLAB_BACKUP_RESOURCES").expect("검증된 번들 상위 경로"),
+        );
+        let f = Fixture::new();
+        let project = f.project();
+        f.asset(&project, AssetStorage::Managed);
+        let relative = std::path::PathBuf::from("projects")
+            .join(&project)
+            .join("capacity.bin");
+        let source = f.store.root.join(&relative);
+        let file = std::fs::File::create(&source).expect("자체 대용량 파일");
+        let service = recorder(&f);
+        let parent = f.store.root.parent().expect("자체 테스트 상위");
+        let archive = parent.join("large-backup.zip");
+        let jobs = super::super::jobs::StorageJobs::default();
+        let job = jobs.start("RUNNING").expect("큰 백업 작업");
+        let exact_limit = std::env::var("GUITARLAB_BACKUP_MAX_BOUNDARY").as_deref() == Ok("1");
+        let size = if exact_limit {
+            let baseline = create(
+                &f.store,
+                &service,
+                &resources,
+                &parent.join("baseline.zip"),
+                &job,
+            )
+            .expect("DB와 악보의 실제 바이트 합계");
+            MAX_BACKUP_BYTES - baseline.bytes
+        } else {
+            257 * 1024 * 1024_u64
+        };
+        file.set_len(size).expect("큰 버퍼 없이 파일 크기 설정");
+        drop(file);
+        let created =
+            create(&f.store, &service, &resources, &archive, &job).expect("256MiB 초과 실제 백업");
+        assert!(created.bytes > size && created.bytes <= MAX_BACKUP_BYTES);
+        if exact_limit {
+            assert_eq!(created.bytes, MAX_BACKUP_BYTES);
+            let mut zip = std::fs::File::open(&archive).expect("ZIP64 결과");
+            zip.seek(SeekFrom::End(-4096)).expect("ZIP64 끝 기록");
+            let mut tail = Vec::new();
+            zip.read_to_end(&mut tail).expect("마지막4KiB만 읽기");
+            for signature in [b"PK\x06\x06", b"PK\x06\x07"] {
+                assert!(tail.windows(4).any(|chunk| chunk == signature));
+            }
+        }
+        let before = std::fs::metadata(&archive).expect("새 ZIP 정보");
+        let checked = verify(&f.store, &service, &resources, &archive, &job).expect("큰 ZIP 지문");
+        assert_eq!(
+            (checked.bytes, checked.files),
+            (created.bytes, created.files)
+        );
+        let destination = parent.join("large-backup-preview");
+        let restored = preview(&f.store, &service, &resources, &archive, &destination, &job)
+            .expect("큰 ZIP 새 폴더 추출");
+        assert_eq!(
+            (restored.bytes, restored.files),
+            (created.bytes, created.files)
+        );
+        assert_eq!(restored.app_data_replaced, Some(false));
+        let mut reader = std::fs::File::open(destination.join(relative)).expect("복사본");
+        assert_eq!(reader.metadata().expect("크기").len(), size);
+        let mut sample = [1_u8; 4];
+        reader.read_exact(&mut sample).expect("처음 구간");
+        assert_eq!(sample, [0; 4]);
+        reader.seek(SeekFrom::End(-4)).expect("마지막 구간");
+        reader.read_exact(&mut sample).expect("마지막 바이트");
+        assert_eq!(sample, [0; 4]);
+        let after = std::fs::metadata(&archive).expect("기존 ZIP 유지");
+        assert_eq!(before.len(), after.len());
+        assert_eq!(
+            before.modified().expect("시각"),
+            after.modified().expect("시각")
+        );
+        assert_eq!(std::fs::metadata(source).expect("원본 유지").len(), size);
+        assert_eq!(f.store.list().expect("기존 프로젝트").len(), 1);
+        let database = rusqlite::Connection::open_with_flags(
+            destination.join("guitarlab.sqlite"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("복사본 DB");
+        assert_eq!(
+            database
+                .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
+                .expect("버전"),
+            9
+        );
+    }
+    #[test]
     fn strict_backup_protocol_rejects_overflow_private_path_unknown_fields_and_fake_success() {
         let jobs = super::super::jobs::StorageJobs::default();
         let job = jobs.start("RUNNING").expect("작업");
@@ -687,7 +821,7 @@ mod tests {
         .is_err());
         for (key, value) in [
             ("schemaVersion", serde_json::json!(2)),
-            ("bytes", serde_json::json!(268435457)),
+            ("bytes", serde_json::json!(2147483649_u64)),
             ("files", serde_json::json!(0)),
             ("restoreSupported", serde_json::json!(true)),
             ("path", serde_json::json!("private")),

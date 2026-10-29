@@ -69,6 +69,7 @@ export type JobSnapshot = {
   result: unknown;
   errorCode: string | null;
 };
+export const localBackupByteLimit = 2 * 1024 * 1024 * 1024;
 export function isUuid(v: unknown): v is string {
   return (
     typeof v === 'string' &&
@@ -196,12 +197,19 @@ export function decodeDetails(v: unknown): ProjectDetails {
     throw new Error('PROJECT_CONTRACT_INVALID');
   return { schemaVersion: 1, project, revision, assets };
 }
-export function decodeJob(v: unknown): JobSnapshot {
+export function decodeJob(v: unknown, command = ''): JobSnapshot {
+  const byteLimit = [
+    'backup_local_data',
+    'verify_local_backup',
+    'preview_local_backup',
+  ].includes(command)
+    ? localBackupByteLimit
+    : 256 * 1024 * 1024;
   if (
     !isRecord(v) ||
     v.schemaVersion !== 1 ||
     !isUuid(v.jobId) ||
-    !isSafeUnsigned(v.totalBytes, 256 * 1024 * 1024) ||
+    !isSafeUnsigned(v.totalBytes, byteLimit) ||
     !isSafeUnsigned(v.completedBytes, v.totalBytes) ||
     (v.errorCode !== null && typeof v.errorCode !== 'string')
   )
@@ -264,6 +272,7 @@ export async function runStorageJob(
         request: { schemaVersion: 1, ...request },
       },
     ),
+    command,
   );
   const id = snapshot.jobId;
   let cancelRequested = false;
@@ -293,6 +302,7 @@ export async function runStorageJob(
         await invoke<unknown>('get_storage_job', {
           request: { schemaVersion: 1, jobId: id },
         }),
+        command,
       );
       if (next.jobId !== id) throw new Error('PROJECT_CONTRACT_INVALID');
       snapshot = next;
@@ -314,6 +324,7 @@ export async function runStorageJob(
         await invoke<unknown>('get_storage_job', {
           request: { schemaVersion: 1, jobId: id },
         }),
+        command,
       );
       if (next.jobId !== id) throw new Error('PROJECT_CONTRACT_INVALID');
       snapshot = next;

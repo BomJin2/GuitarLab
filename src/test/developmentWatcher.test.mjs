@@ -63,7 +63,8 @@ test('문서·네이티브 산출물은 제외하고 UI 소스는 계속 감시�
       .toBe(true);
     // 비동기 감시 이벤트가 도착할 시간을 주어 제외 경로의 실제 변경도 확인합니다.
     await setTimeout(300);
-    expect(changed).toEqual([join(root, 'src/main.ts')]);
+    // Windows는 한 번의 쓰기에도 중복 이벤트를 보낼 수 있어 변경 경로를 검증합니다.
+    expect(new Set(changed)).toEqual(new Set([join(root, 'src/main.ts')]));
   } finally {
     await server?.close();
     await removeTestDirectory(root);

@@ -1,5 +1,9 @@
 import { isTauri } from '@tauri-apps/api/core';
-import { runStorageJob, type JobSnapshot } from '../library/projects';
+import {
+  localBackupByteLimit,
+  runStorageJob,
+  type JobSnapshot,
+} from '../library/projects';
 import { isRecord, isSafeUnsigned } from '../../shared/validation';
 
 type BackupSummary = {
@@ -29,7 +33,7 @@ export function decodeLocalBackup(
     value.state !== expectedState ||
     !isSafeUnsigned(value.files, 9999) ||
     value.files === 0 ||
-    !isSafeUnsigned(value.bytes, 256 * 1024 * 1024) ||
+    !isSafeUnsigned(value.bytes, localBackupByteLimit) ||
     value.bytes === 0 ||
     !isSafeUnsigned(value.externalReferencesNotCopied, 100000) ||
     value.restoreSupported !== false
@@ -88,7 +92,7 @@ export function backupError(cause: unknown) {
     RECORDING_BUSY: '녹음 STOP과 저장을 마친 뒤 백업해주세요.',
     STORAGE_BUSY: '다른 파일 작업이 끝난 뒤 백업해주세요.',
     BACKUP_LIMIT_EXCEEDED:
-      '이번 백업은 최대 256MiB·10,000개 미만 파일을 지원합니다.',
+      '이번 백업은 데이터 합계 최대 2GiB·10,000개 미만 파일을 지원합니다.',
     DISK_SPACE_LOW: '백업할 디스크의 여유 공간이 부족합니다.',
     EXPORT_DESTINATION_EXISTS:
       '기존 파일·폴더는 덮어쓰지 않습니다. 새 ZIP 이름이나 다른 상위 폴더를 선택해주세요.',

@@ -24,10 +24,10 @@ export function LocalBackupPanel() {
     <section className="panel" aria-label="로컬 데이터 백업">
       <h2>로컬 데이터 백업</h2>
       <p>
-        프로젝트·악보·기록·녹음·보정값을 새 ZIP에 보존합니다. 최대 256MiB이며
-        모델·캐시·외부 참조 음원은 제외합니다. 복원 미리보기는 선택한 상위
-        폴더에 새 GuitarLab-backup-preview 폴더를 만듭니다. 기존 폴더와 현재 앱
-        데이터는 교체하지 않습니다.
+        프로젝트·악보·기록·녹음·보정값을 새 ZIP에 보존합니다. 데이터 합계 최대
+        2GiB이며 모델·캐시·외부 참조 음원은 제외합니다. 복원 미리보기는 선택한
+        상위 폴더에 새 GuitarLab-backup-preview 폴더를 만듭니다. 기존 폴더와
+        현재 앱 데이터는 교체하지 않습니다.
       </p>
       <label>
         <input

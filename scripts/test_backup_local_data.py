@@ -59,6 +59,29 @@ class BackupTests(unittest.TestCase):
             self.create()
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
 
+    def test_exact_payload_limit_excludes_manifest_and_rejects_one_byte_more(self):
+        baseline = self.create()
+        self.destination = self.base / "exact-limit.zip"
+        with patch("backup_local_data.MAX_BYTES", baseline["bytes"]):
+            self.assertEqual(self.create()["bytes"], baseline["bytes"])
+            self.assertEqual(verify(self.destination)["bytes"], baseline["bytes"])
+            (self.root / "projects/test/extra.bin").write_bytes(b"x")
+            self.destination = self.base / "over-limit.zip"
+            with self.assertRaisesRegex(BackupError, "BACKUP_LIMIT_EXCEEDED"):
+                self.create()
+            self.assertFalse(self.destination.exists())
+
+    def test_zip64_streaming_records_survive_verify_and_new_folder_preview(self):
+        with patch.object(zipfile, "ZIP64_LIMIT", 1024):
+            created = self.create()
+            self.assertEqual(verify(self.destination)["bytes"], created["bytes"])
+            restored = restore_to_new_folder(self.destination, self.base / "zip64-preview", consent=True)
+            self.assertEqual(restored["bytes"], created["bytes"])
+            self.assertFalse(restored["appDataReplaced"])
+        raw = self.destination.read_bytes()
+        self.assertIn(b"PK\x06\x06", raw[-4096:])
+        self.assertIn(b"PK\x06\x07", raw[-4096:])
+
     def test_readonly_verification_reports_monotonic_payload_progress_and_cancels_without_writes(self):
         created = self.create()
         before = self.destination.read_bytes()
