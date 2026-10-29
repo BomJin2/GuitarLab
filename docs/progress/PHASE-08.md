@@ -4,7 +4,7 @@
 
 ### 1. 작업 개요
 
-사용자가 추가 수동 테스트 없이 진행하도록 요청해 Phase8의 독립적인 백업 경로 호환성을 보완합니다. 기존 CI Python3.13에서 나온 예약 이름 API 폐기 경고와 단독 `.` 항목 허용을 자동 회귀로 재현했습니다. 현재 고정 GUI/오디오·개인 데이터는 변경하지 않으며 전체 출시 완료와 구분합니다.
+사용자가 추가 수동 테스트 없이 진행하도록 요청해 Phase8의 독립적인 백업 경로 호환성을 보완했습니다. 기존 CI Python3.13에서 나온 예약 이름 API 폐기 경고와 단독 `.` 항목 허용을 자동 회귀로 재현/수정하고 전체 원격 검사·Windows/독립 ZIP을 검증했습니다. **이번 호환성 슬라이스는 완료**이며 Phase8 전체는 진행 중입니다. 현재 고정 GUI/오디오·개인 데이터는 변경하지 않았습니다.
 
 ### 2. 구현 및 변경 사항
 
@@ -20,7 +20,10 @@
 - 같은 경고 오류 옵션의 전체 도구: **153개 실행/152개 성공/심볼릭 링크 생성 권한1개 미실행**,20.312초입니다. 자체 임시 데이터만 사용했습니다. 로그=`src-tauri/target/runtime-validation/backup-path-compat-tools-20261029.log`.
 - 정확한 고정 GUI 폴더의 번들 Python3.12.15 `-I -B -W error::DeprecationWarning -X utf8 -m unittest discover … -p test_backup*.py`: **22개 실행/21개 성공/같은 링크 권한1개 미실행**,12.126초입니다. 로그=`backup-path-compat-python312-20261029.log`.
 - `GUITARLAB_BACKUP_RESOURCES=<현재 불변 GUI 리소스>`의 `cargo test --locked --all-features … storage::backup::tests -- --include-ignored`: **4개 성공**,빌드37.50초/검사43.68초입니다. 실제 번들 Python을 호출한 자체 DB/백업·ZIP 검사/새 폴더 추출·원본/취소 보존과 오류 경계를 확인했습니다. 로그=`backup-path-compat-native-20261029.log`.
-- Windows `cargo build --locked … --features custom-protocol` **성공**,26.27초/기존 MSVC 링크 안내입니다. Prettier/Git diff·추가 한자/일본어 검사도 **성공**입니다. 실제 CI Python3.13/새 독립 패키지는 **후속 확인**입니다. 변경 없는 프론트 전체·실제 GUI/개인 ZIP 재검사는 이번 로컬 작업에서 **미실행**이며 현재 수동 테스트 불가 요청을 따릅니다.
+- Windows `cargo build --locked … --features custom-protocol` **성공**,26.27초/기존 MSVC 링크 안내입니다. Prettier/Git diff·추가 한자/일본어 검사도 **성공**입니다. 실제 CI Python3.13/새 독립 패키지는 아래 최종 결과와 구분합니다. 변경 없는 프론트 전체·실제 GUI/개인 ZIP 재검사는 이번 로컬 작업에서 **미실행**이며 현재 수동 테스트 불가 요청을 따릅니다.
+- 소스19ac545의 관리 도구 재빌드 **성공**,20.46초·내장 UI/권한 경계4개 **성공**,0.01초입니다. 새 독립 ZIP **성공/제품 앱 미실행**:3,613파일/40,387,431바이트·전체 CRC/SHA·실제 PS5.1/최소 PATH·독립 Python3.12.15를 확인했습니다. EXE41,657,856바이트/SHA256=`9eaeb576b2a5b94500a2f71f090945dfccd3e082fbdc72047a6e919d43d98676`,ZIP SHA256=`4f84fbbdff09b4c4d320687a383296dc22cf958cd16c768d99b2554c736cbf8b`입니다.
+- 이하 `src-tauri/target/runtime-validation/` 기준:영수증=`backup-path-compat-package-receipt-3306b35e-6558-4972-b50d-fd0713111379.json`,후보=`backup-path-compat-candidate-03aee287-032f-4c61-b201-e8ad07d9b40f.json`,ZIP=`validation-packages/ab65b641-9014-4176-a139-d72f595a2689/GuitarLab-validation.zip`,추출=`backup-path-compat-roundtrip-51cdf69c-53d8-4203-9bcb-14d0f962e7e6`입니다. 해당 EXE/ZIP의 Defender는 자동 치료 없이 각각 **exit0/탐지 없음·전후 SHA 불변**이며 영수증=`backup-path-compat-defender-20261029.json`입니다. 기존 고정 GUI SHA도 불변입니다. 검증 패키지와 리소스는 Git에 추가하지 않았습니다.
+- 소스19ac545의 [Windows40833133381](https://github.com/BomJin2/GuitarLab/actions/runs/40833133381)/job123311667029는 사후 정리까지 **전체 성공**입니다. 프론트724개/129파일·기본 Rust264개(51.38초)/확장268개(88.19초,각29개 의도된 기본 제외)·자체 예제 각1개·AI113개(2.21초)·Python3.13.16 도구153개(18.856초,건너뜀 없음)·Clippy·Rust1.90 컴파일이 성공했습니다. Python 도구는 DeprecationWarning을 오류로 처리한 상태로 통과했습니다. 현재 앱 재실행/실제 개인 ZIP 검사는 **미실행**이며 로컬 결과와 원격을 섞어 수치를 확대하지 않습니다.
 
 ### 4. 미구현 및 알려진 문제
 
@@ -28,7 +31,7 @@
 
 ### 5. 다음 작업 계획
 
-자동 native/빌드·원격3.13 결과를 확인하고 이 절/진행 표를 갱신합니다. 사용자가 테스트 가능하다고 할 때까지 GUI 실행/재시작·추가 연주나 연결 검증을 요청하지 않습니다. 원래 기타 배선 복원은 아래 실제 관측 절의 미확인 항목으로 유지합니다.
+자동 native/빌드·원격3.13 결과를 확정했습니다. 사용자가 테스트 가능하다고 할 때까지 GUI 실행/재시작·추가 연주나 연결 검증을 요청하지 않습니다. 원래 기타 배선 복원은 아래 실제 관측 절의 미확인 항목으로 유지하며 별도 OS/장기 부하·실제 데이터 교체/서명과 고급 판정의 독립 정확도 수용은 계속 미완료로 둡니다.
 
 ## 후속 — 실제 유선 관측 표본 수용 (2026-10-29)
 
