@@ -20,4 +20,6 @@ public/fixtures/*
 !public/fixtures/sine.mp3
 
 fixtures/external/
+# 수동 복원 검증에서 사용자가 만든 로컬 데이터 백업
+/fixtures/GuitarLab-restore-A.zip
 scripts/native-basic-pitch-probe/target/
