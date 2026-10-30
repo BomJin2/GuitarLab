@@ -110,3 +110,14 @@ USER_IMPORTED 파일을 같은 프로젝트 불변 UUID의 IMPORTED_STEM 믹스 
 - [MVSep 공식 API](https://www.mvsep.com/en/full_api)는 API token과 오디오 제출 경로를 사용합니다. 기본 로컬 정책을 변경하거나 개인 파일을 업로드하지 않았습니다.
 
 이번 재확인은 문서 검토만 수행했습니다. 모델/코드 다운로드·설치/추론/실제 두 기타 정답 비교는 **미실행**이고 특화 AI·전체 Phase6B는 계속 미완료입니다. 사용자 제공 파일의 로컬 믹스/녹음과 기존 전체 기타 분리는 유지합니다.
+
+## 2026-10-31 특화 후보와 출처 재확인
+
+| 후보/근거 | 이번에 확인한 내용 | 채택 전 남은 조건 |
+|---|---|---|
+| [Sound Razor 작성자 README](https://github.com/pedromtcosta/sound-razor/blob/d59c0e0aa48993b40ac4bbc15810240a420434ea/README.md) | listra92 모델은 리드를 예측하고 입력에서 이를 뺀 값을 리듬으로 제공합니다. 작성자는 가중치의 원 학습 출처와 재배포 조건을 여전히 미확인으로 설명합니다. | 별도 가중치 이용 조건·독립 리듬 정답 비교. 코드 MIT만으로 가중치 허가를 대신하지 않음 |
+| [배포 목록의 HTDemucs4 후보](https://huggingface.co/noblebarkrr/mvsepless_resources/blob/90c5baab074bf5984263c3df9c0fd1b5b3286222/models.json) | `demucs4_lead_rhythm_guitar_drypaint`가 HTDemucs/lead·rhythm 출력으로 등록돼 있습니다. 이는 목록 제공자의 설명이며 원저자의 지원·품질 보증으로 확대하지 않습니다. | 원저자 배포 경로/가중치 조건·실제 파일 무결성/안전한 로딩·Windows 호환성·정답 품질. [배포 저장소 첫 화면](https://huggingface.co/noblebarkrr/mvsepless_resources)에는 모델 카드가 없음 |
+| [HTDemucs guitar fine-tune 작성자 카드](https://huggingface.co/adityalakhani/htdemucs-6s-guitar-ft#limitations) | 여러 기타를 하나의 기타 출력으로 모으며 개별 기타 레이어를 분리하지 않는다는 제한이 유지됩니다. | Phase6B의 두 역할 분리 요구를 해결하는 후보로 선정하지 않음 |
+| [MVSep 공식 API](https://www.mvsep.com/en/full_api) | 모델101에 lead/rhythm과 1단계/2단계 옵션이 있습니다. API token 및 오디오 제출이 필요한 서비스입니다. | 별도 클라우드 범위/전송 동의가 없는 현재 로컬 경로에 연결하지 않음. 서비스 자체 지표를 GuitarLab 측정값으로 사용하지 않음 |
+
+결론은 **후보 존재 확인, 제품 채택 보류**입니다. 로컬 두 파트 모델이 전혀 없다고 단정하지 않으며 커뮤니티 목록만으로 이용 허가·성능을 확정하지 않습니다. 이번에는 공개 문서/메타데이터만 읽었고 가중치·외부 실행 코드를 내려받거나 설치·실행하지 않았습니다. 개인 음원 전송, 모델 변경, 새 GUI 조작도 없습니다. 특화 모델의 조건과 별도 다운로드 요청이 확보되면 고정 가중치 검증 → 격리 환경 호환성 → 자체 두 기타 정답 비교 → 명시적 청취/역할 승인 순으로 진행합니다. 기존 사용자 WAV와 GUITAR_FULL/ACCOMPANIMENT 폴백은 유지합니다.
