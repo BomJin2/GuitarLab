@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 박자 단위 레가토의 미지원 경계 — 2026-10-30
+
+alphaTab1.6.1의 `Beat.isLegatoOrigin/isLegatoDestination`으로 연결된 레가토 양끝은 `Note.isHammerPullOrigin/isHammerPullDestination`과 별개로 검사합니다. 일반 피킹으로 확정하지 않고 기존 `judgementSupport:UNSUPPORTED`와 감점 제외/기본 편집 소실 거부를 재사용합니다. 인접 정상 피킹·원래 pitch/tick·ID/싱크·원본 GP는 유지하며 구형 원본 기반 metadata 복원에도 적용합니다. 이미 정규화 편집본에 소실된 주법을 추정해서 다시 만들지 않습니다. 새 IPC/DB/지원 주법/실제 레가토 검출·과거 점수 재계산은 추가하지 않습니다. 파서/GP 왕복·반복·기존 데이터 보존 검증이 완료되기 전 완료 표시하지 않습니다.
+
 ## 실제 복원 예약·재실행 적용 v1 — 2026-10-30 구현 계약
 
 WAL 방식의 독립 ZIP snapshot은 검증 때에만 `mode=ro&immutable=1`로 읽어 새 WAL/SHM 파일을 만들지 않습니다. 변경 가능한 현재 DB의 백업은 기존 일반 읽기/SQLite backup을 유지합니다. 준비 지문을 확인한 파일 목록을 실제 이동 엔진까지 넘겨 최신 현재 자료를 백업하는 사이 준비본이 바뀌어도 적용 전에 거부합니다. 근거는 [SQLite URI immutable](https://www.sqlite.org/uri.html)이며 immutable은 변경 가능한 현재 DB에는 사용하지 않습니다.

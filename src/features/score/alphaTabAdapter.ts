@@ -156,6 +156,8 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.isTrill ||
     note.ornament !== model.NoteOrnament.None ||
     note.beat.graceType !== model.GraceType.None ||
+    note.beat.isLegatoOrigin ||
+    note.beat.isLegatoDestination ||
     note.beat.tap ||
     note.beat.slap ||
     note.beat.pop ||
