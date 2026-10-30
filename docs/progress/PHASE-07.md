@@ -12,9 +12,15 @@
 
 ### 3. 테스트 결과
 
+원격 최종 확인:구현 ca44388의 [Windows41052533414](https://github.com/BomJin2/GuitarLab/actions/runs/41052533414)/job124051992019이 **전체 success**입니다.751프론트/134파일·기본285/확장289Rust(외부 조건32기본 제외)·AI113·Python3.13 도구193개(제외0)·Clippy/MSRV·정리까지 성공했습니다. 아래 원격/패키지 대기는 중간 상태 이력입니다. 새 GUI는 아직 실행하지 않았으며 사용자 기존 창 종료/새 실행 요청 대기입니다.
+
 수정 전 대상27개 중 **신규1실패/기존26성공**으로 시작/도착음 모두 지원 표기가 없던 문제를 재현했습니다. 파서의 note hammer/pull 플래그가 모두 false이고 beat 레가토 양끝은 true인 상태를 먼저 검증해 원인을 구분했습니다. 설치된 패키지의1.6.1 타입과 실제 AlphaTex/GP reader/writer 구현을 확인했으며 새 패키지는 사용하지 않습니다. 두 조건 보완/반복 회귀 추가 후 대상28개 성공(2.90초),`pnpm verify:app`의 타입/lint·전체751개/134파일·Vite(1분40초)/포맷·기본Clippy/Rust285개(외부 조건32기본 제외,25.19초)가 성공했습니다. 손상 파일 거부 테스트의 `SCORE_IMPORT_FAILED` stderr와 Vite 대형 청크/캐시 hardlink 대체 경고는 예상 결과이며 실패가 아닙니다. Windows/내장·native 미지원 대상·새 원격은 진행 중/미실행입니다. 로그는 무시된 `beat-legato-*-20261030.log`입니다.
 
 ### 4. 미구현 및 알려진 문제
+
+새 후보/패키지 후속:구현 ca443881b1bb6a5fdf8b4631850500dbdffbeaa5를 GitHub에 올렸고 [Windows41052533414](https://github.com/BomJin2/GuitarLab/actions/runs/41052533414)/job124051992019은 진행 중입니다. 제품 EXE42,554,880바이트/SHA`73bdc7bc8bff1b3f7e0af4e74447cf3bffe13f31d290d194b33d35ed60aa5da7`,독립ZIP3,613파일/40,581,177바이트/SHA`4351ad806a500831970c38beeee2dbffffdc274b855ce0cafc467a6804250b3f`입니다. 전체 지문·실제PowerShell5.1·최소PATH Python3.12.15 두 번이 성공했고 사용자 자료/모델은 포함하지 않았습니다. 새 Defender/installer/별도 OS는 미실행입니다.
+
+GUI 후보는 `src-tauri/target/runtime-validation/gui-proofs/beat-legato-ed5481a2/GuitarLab.exe`,제목 ‘GuitarLab · 박자 레가토 보호 ed5481a2’,EXE42,555,392바이트/SHA`676e70b9b2c14ef532b3cf0d5dfd125c52deadefc1a116f85aee2b9be78b6b51`이며 빌드17.05초/해당 리소스 최소PATH inspect2회 성공입니다. 이전 복원 테스트와 같은 일회성 프로필 `com.guitarlab.validation.restore8cd45d33fb3d4d2cb7eaa759e1dd7c45`을 사용해 A/프렛4를 유지하고 개인 프로필을 사용하지 않습니다. 아직 실행하지 않았으며 현재 앱35740/세션52346의 사용자 저장·종료/새 실행 요청을 기다립니다. 재개 포인터/검사 receipt는 `beat-legato-current-proof.json`,`beat-legato-package-verified-20261030.json`,실행기는 `launch-beat-legato-at-user-request-20261030.ps1`입니다. 검사 파일은 `beat-legato-current-fixture.json`이 가리키는 자체 GP이며 외부 음원이 아닙니다.
 
 로컬 빌드 후속:Windows 제품/동일 native 소스 관리 도구 빌드 성공23.68초,새 웹 자산 내장4개·기존 native 미지원 감점 제외/저장 복원 대상6개가 성공했습니다. 자체4음 레가토 GP를 무시된 검증 폴더에 생성해 새 GUI 편집 거부 확인에만 사용할 준비를 했습니다. 새 원격·독립 패키지/GUI 적용은 아직 미실행이며 기존 사용자 앱은 유지합니다. Rust/모델 소스 변경이 없어 별도 AI·MSRV 전체 재실행은 미실행(직전53ef1c1 성공과 구분)입니다.
 
