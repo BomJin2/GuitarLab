@@ -18,6 +18,7 @@ const backupCommands = [
   'backup_local_data',
   'verify_local_backup',
   'preview_local_backup',
+  'restore_local_backup',
 ];
 it.each(backupCommands)(
   '%s 작업의 초기·준비 후·poll 진행률은 백업 한도를 사용한다',
