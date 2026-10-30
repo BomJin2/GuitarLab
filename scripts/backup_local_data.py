@@ -140,11 +140,11 @@ def source_files(root):
     return sorted(files)
 
 
-def readonly_database(path):
+def readonly_database(path, *, immutable=False):
     # SQLite URI는 Windows 확장 드라이브 접두사를 authority로 오인합니다.
     if sys.platform == "win32" and len(path.drive) == 6 and path.drive.startswith("\\\\?\\"):
         path = Path(str(path)[4:])
-    return sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5)
+    return sqlite3.connect(path.as_uri() + ("?mode=ro&immutable=1" if immutable else "?mode=ro"), uri=True, timeout=5)
 
 
 def check_database(db):
@@ -320,7 +320,8 @@ def restore_to_new_folder(archive, destination, *, consent=False, progress=lambd
         restored = staging / "restored"
         restored.mkdir()
         result = verify(archive, extract_to=restored, progress=progress)
-        with closing(readonly_database(restored / "guitarlab.sqlite")) as database:
+        # ZIP의 독립 snapshot 검사로 WAL/SHM를 새로 만들지 않습니다.
+        with closing(readonly_database(restored / "guitarlab.sqlite", immutable=True)) as database:
             check_database(database)
         progress(result["bytes"], result["bytes"])
         # Windows rename은 새 목적지만 허용합니다. 실제 AppData 교체는 하지 않습니다.

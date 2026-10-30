@@ -29,6 +29,7 @@ mod recording_window;
 pub mod recordings;
 #[cfg(test)]
 pub(crate) mod recordings_tests;
+pub(crate) mod restore_requests;
 pub(crate) mod restore_state;
 pub mod score_history;
 pub mod score_upload;

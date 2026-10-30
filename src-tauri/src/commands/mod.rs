@@ -17,6 +17,7 @@ pub mod backup_api;
 pub mod cache_cleanup_api;
 pub mod close_api;
 pub mod diagnostics_api;
+pub mod local_restore_api;
 pub mod mixer_api;
 pub mod project_metadata_api;
 pub mod project_purge_api;

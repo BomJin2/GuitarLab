@@ -35,16 +35,34 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                 }
             }
             if !matches!(storage::restore_state::pending(&root), Ok(false)) {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.hide()?;
+                let outcome = app.path().resource_dir().map_err(|_| ()).and_then(|resources| {
+                    storage::restore_state::recover(&root, &resources, &app.state::<crate::instance::InstanceGuard>()).map_err(|_| ())
+                });
+                if let Ok(state) = outcome {
+                    let message = if state == "LOCAL_DATA_ROLLED_BACK" {
+                        "중단된 데이터 복원을 되돌렸습니다. 기존 데이터로 시작하며 백업과 복구 폴더는 보존했습니다."
+                    } else if state == "LOCAL_DATA_RESTORE_FAILED" {
+                        "데이터 복원을 적용하지 못했습니다. 현재 데이터로 시작하며 예약 상태와 복구 자료를 확인해주세요."
+                    } else {
+                        "완료된 데이터 복원 기록을 확인했습니다. 복원한 데이터로 시작하며 기존 백업과 복구 폴더는 보존했습니다."
+                    };
+                    app.dialog()
+                        .message(message)
+                        .title("GuitarLab 데이터 복구 결과")
+                        .show(|_| {});
+                } else {
+                    eprintln!("GuitarLab 시작 전 데이터 복구 실패: RESTORE_RECOVERY_REQUIRED");
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.hide()?;
+                    }
+                    let handle = app.handle().clone();
+                    app.dialog()
+                        .message("중단되거나 예약된 데이터 복원 기록이 있습니다. 기존 데이터를 초기화하지 않고 종료합니다. 복구 절차를 완료한 뒤 다시 실행하세요.")
+                        .title("GuitarLab 데이터 복구 필요")
+                        .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+                        .show(move |_| handle.exit(1));
+                    return Ok(());
                 }
-                let handle = app.handle().clone();
-                app.dialog()
-                    .message("중단되거나 예약된 데이터 복원 기록이 있습니다. 기존 데이터를 초기화하지 않고 종료합니다. 복구 절차를 완료한 뒤 다시 실행하세요.")
-                    .title("GuitarLab 데이터 복구 필요")
-                    .kind(tauri_plugin_dialog::MessageDialogKind::Error)
-                    .show(move |_| handle.exit(1));
-                return Ok(());
             }
             let diagnostics = crate::diagnostics::initialize(root.clone());
             diagnostics.record(crate::diagnostics::Code::AppStarted);
@@ -159,6 +177,9 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::backup_api::backup_local_data,
             commands::backup_api::verify_local_backup,
             commands::backup_api::preview_local_backup,
+            commands::local_restore_api::get_local_restore_status,
+            commands::local_restore_api::restore_local_backup,
+            commands::local_restore_api::cancel_local_restore,
             commands::diagnostics_api::get_local_diagnostics,
             commands::cache_cleanup_api::inspect_model_download_cache,
             commands::cache_cleanup_api::clear_model_download_cache,

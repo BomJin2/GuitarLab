@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import stat
 import sys
 from uuid import UUID, uuid4
 import zipfile
@@ -181,6 +182,10 @@ def _pending(root):
         raise _error("RESTORE_STATE_INVALID")
     vault = root.parent / (".guitarlab-restore-" + session_id)
     backup.checked_path(root.parent, vault, directory=True)
+    return vault, _read_state(root, vault, pointer)
+
+
+def _read_state(root, vault, pointer):
     state = _read_json(vault, vault / "state.json")
     fields = {"pointer", "phase", "originalNames", "incomingNames", "originalFiles", "incomingFiles",
               "saved", "installed", "action", "result"}
@@ -229,7 +234,7 @@ def _pending(root):
         raise _error("RESTORE_STATE_INVALID")
     backup.checked_path(vault, vault / "incoming", directory=True)
     backup.checked_path(vault, vault / "previous", directory=True)
-    return vault, state
+    return state
 
 
 def _locations(root, vault, action):
@@ -330,27 +335,57 @@ def _result(state, applied):
             "recoveryId": state["pointer"]["recoveryId"], **result, "appDataReplaced": applied}
 
 
+def _recover_owned(root):
+    if not os.path.lexists(root / POINTER):
+        return {"schemaVersion": 1, "state": "RESTORE_NOT_PENDING"}
+    vault, state = _pending(root)
+    result = _result(state, state["phase"] == "COMPLETED")
+    with _directories(_restore_parents(root, vault, state)):
+        if state["phase"] == "COMPLETED":
+            if _names(root) != state["incomingNames"] or _inventory(root) != state["incomingFiles"]:
+                raise _error("RESTORE_RECOVERY_REQUIRED")
+            _clear_pointer(root, state)
+        elif state["phase"] == "ROLLED_BACK":
+            if _names(root) != state["originalNames"] or _inventory(root) != state["originalFiles"]:
+                raise _error("RESTORE_RECOVERY_REQUIRED")
+            _clear_pointer(root, state)
+        else:
+            _rollback(root, vault, state)
+    return result
+
+
 def recover_closed_app(root, *, guard=backup.ensure_app_closed):
     root = _root(root)
     guard()
     with _exclusive(root), _directories((root.parent, root)):
-        if not os.path.lexists(root / POINTER):
-            return {"schemaVersion": 1, "state": "RESTORE_NOT_PENDING"}
-        vault, state = _pending(root)
-        result = _result(state, state["phase"] == "COMPLETED")
-        parents = _restore_parents(root, vault, state)
-        with _directories(parents):
-            if state["phase"] == "COMPLETED":
-                if _names(root) != state["incomingNames"] or _inventory(root) != state["incomingFiles"]:
-                    raise _error("RESTORE_RECOVERY_REQUIRED")
-                _clear_pointer(root, state)
-            elif state["phase"] == "ROLLED_BACK":
-                if _names(root) != state["originalNames"] or _inventory(root) != state["originalFiles"]:
-                    raise _error("RESTORE_RECOVERY_REQUIRED")
-                _clear_pointer(root, state)
-            else:
-                _rollback(root, vault, state)
-        return result
+        return _recover_owned(root)
+
+
+def _recover_from_inherited_lock(root):
+    root = _root(root)
+    _require_inherited_lock(root)
+    with _directories((root.parent, root)):
+        return _recover_owned(root)
+
+
+def _require_inherited_lock(root):
+    expected = backup.checked_path(root, root / ".app-instance.lock")
+    actual = os.fstat(0)
+    if (not stat.S_ISREG(actual.st_mode) or actual.st_size != 0 or expected.st_size != 0 or
+            actual.st_ino == 0 or (actual.st_dev, actual.st_ino) != (expected.st_dev, expected.st_ino)):
+        raise _error("RESTORE_LOCK_REQUIRED")
+
+
+def _worker_recover():
+    try:
+        if len(sys.argv) != 2:
+            raise _error("RESTORE_STATE_INVALID")
+        result = _recover_from_inherited_lock(Path(sys.argv[1]))
+        print(json.dumps(result), flush=True)
+    except (backup.BackupError, OSError, ValueError, TypeError, KeyError, sqlite3.Error, KeyboardInterrupt) as cause:
+        code = str(cause) if isinstance(cause, backup.BackupError) else "RESTORE_RECOVERY_REQUIRED"
+        print(json.dumps({"schemaVersion": 1, "state": "FAILED", "errorCode": code}), flush=True)
+        raise SystemExit(1) from None
 
 
 def _restore_parents(root, vault, state):
@@ -389,7 +424,7 @@ def _apply_prepared(root, vault, state, guard, progress):
                 raise _error("RESTORE_SOURCE_CHANGED")
             # 준비본은 WAL 없는 독립 snapshot이므로 검사가 sidecar를 새로 만들지 않게 합니다.
             database = root / "guitarlab.sqlite"
-            with closing(sqlite3.connect(database.as_uri() + "?mode=ro&immutable=1", uri=True)) as db:
+            with closing(backup.readonly_database(database, immutable=True)) as db:
                 backup.check_database(db)
             state["phase"] = "COMPLETED"
             _write_json(vault / "state.json", state)
@@ -413,7 +448,7 @@ def restore_closed_app(root, archive, *, consent=False, confirm=False,
     root = _root(root)
     guard()
     with _exclusive(root), _directories((root.parent, root)):
-        if os.path.lexists(root / POINTER):
+        if os.path.lexists(root / POINTER) or os.path.lexists(root / ".local-restore-request.json"):
             raise _error("RESTORE_PENDING")
         if not archive.is_absolute():
             raise _error("BACKUP_PATH_INVALID")
@@ -423,16 +458,26 @@ def restore_closed_app(root, archive, *, consent=False, confirm=False,
         vault.mkdir(exist_ok=False)
         backup.checked_path(root.parent, vault, directory=True)
         prepared = backup.restore_to_new_folder(archive, vault / "incoming", consent=True, progress=progress)
-        backup.backup(root, vault / "previous.zip", consent=True, guard=guard, progress=progress)
-        backup.verify(vault / "previous.zip", progress=progress)
-        (vault / "previous").mkdir(exist_ok=False)
-        state = {"pointer": _pointer(root, session_id), "phase": "PREPARED",
-                 "originalNames": _names(root), "incomingNames": _names(vault / "incoming"),
-                 "originalFiles": _inventory(root, progress), "incomingFiles": _inventory(vault / "incoming", progress),
-                 "saved": [], "installed": [], "action": None,
-                 "result": {name: prepared[name] for name in ("files", "bytes", "externalReferencesNotCopied")}}
-        _result(state, False)
-        return _apply_prepared(root, vault, state, guard, progress)
+        return _apply_incoming(root, vault, prepared, guard, progress)
+
+
+def _apply_incoming(root, vault, prepared, guard=lambda: None, progress=lambda *_: None, *, expected_files=None):
+    backup.checked_path(root.parent, vault, directory=True)
+    session_id = str(UUID(vault.name.removeprefix(".guitarlab-restore-")))
+    if vault.name != ".guitarlab-restore-" + session_id or vault.parent != root.parent:
+        raise _error("RESTORE_STATE_INVALID")
+    backup.backup(root, vault / "previous.zip", consent=True, guard=guard, progress=progress)
+    backup.verify(vault / "previous.zip", progress=progress)
+    (vault / "previous").mkdir(exist_ok=False)
+    state = {"pointer": _pointer(root, session_id), "phase": "PREPARED",
+             "originalNames": _names(root), "incomingNames": _names(vault / "incoming"),
+             "originalFiles": _inventory(root, progress), "incomingFiles": _inventory(vault / "incoming", progress),
+             "saved": [], "installed": [], "action": None,
+             "result": {name: prepared[name] for name in ("files", "bytes", "externalReferencesNotCopied")}}
+    _result(state, False)
+    if expected_files is not None and state["incomingFiles"] != expected_files:
+        raise _error("RESTORE_SOURCE_CHANGED")
+    return _apply_prepared(root, vault, state, guard, progress)
 
 
 def main():

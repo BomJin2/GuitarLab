@@ -207,6 +207,7 @@ export function decodeJob(v: unknown, command = ''): JobSnapshot {
           'backup_local_data',
           'verify_local_backup',
           'preview_local_backup',
+          'restore_local_backup',
         ].includes(command)
       ? localBackupByteLimit
       : 256 * 1024 * 1024;

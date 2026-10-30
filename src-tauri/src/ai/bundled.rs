@@ -184,6 +184,53 @@ fn python_command(root: &Path, python: &Path, base: &Path) -> Result<Command, Ap
 }
 
 pub(super) fn backup_command(root: &Path, cancel: &AtomicBool) -> Result<Command, AppError> {
+    tool_command(
+        root,
+        cancel,
+        include_str!("../../../scripts/backup_local_data.py"),
+    )
+}
+
+pub(super) fn restore_command(root: &Path, cancel: &AtomicBool) -> Result<Command, AppError> {
+    let backup = include_str!("../../../scripts/backup_local_data.py");
+    let restore = include_str!("../../../scripts/restore_local_data.py");
+    if [backup, restore]
+        .iter()
+        .any(|source| source.encode_utf16().count() >= 30_000)
+    {
+        return Err(error("RESTORE_WORKER_SOURCE_LIMIT"));
+    }
+    let bootstrap = "import os,sys,types; b=types.ModuleType('backup_local_data'); sys.modules[b.__name__]=b; exec(os.environ.pop('GUITARLAB_INTERNAL_BACKUP_SOURCE'),b.__dict__); r=types.ModuleType('guitarlab_restore'); exec(os.environ.pop('GUITARLAB_INTERNAL_RESTORE_SOURCE'),r.__dict__); r._worker_recover()";
+    let mut command = tool_command(root, cancel, bootstrap)?;
+    command
+        .env("GUITARLAB_INTERNAL_BACKUP_SOURCE", backup)
+        .env("GUITARLAB_INTERNAL_RESTORE_SOURCE", restore);
+    Ok(command)
+}
+
+pub(super) fn restore_request_command(
+    root: &Path,
+    cancel: &AtomicBool,
+) -> Result<Command, AppError> {
+    let backup = include_str!("../../../scripts/backup_local_data.py");
+    let restore = include_str!("../../../scripts/restore_local_data.py");
+    let requests = include_str!("../../../scripts/restore_requests.py");
+    if [backup, restore, requests]
+        .iter()
+        .any(|s| s.encode_utf16().count() >= 30_000)
+    {
+        return Err(error("RESTORE_WORKER_SOURCE_LIMIT"));
+    }
+    let bootstrap = "import os,sys,types; b=types.ModuleType('backup_local_data'); sys.modules[b.__name__]=b; exec(os.environ.pop('GUITARLAB_INTERNAL_BACKUP_SOURCE'),b.__dict__); r=types.ModuleType('restore_local_data'); sys.modules[r.__name__]=r; exec(os.environ.pop('GUITARLAB_INTERNAL_RESTORE_SOURCE'),r.__dict__); q=types.ModuleType('restore_requests'); exec(os.environ.pop('GUITARLAB_INTERNAL_RESTORE_REQUEST_SOURCE'),q.__dict__); q.worker()";
+    let mut command = tool_command(root, cancel, bootstrap)?;
+    command
+        .env("GUITARLAB_INTERNAL_BACKUP_SOURCE", backup)
+        .env("GUITARLAB_INTERNAL_RESTORE_SOURCE", restore)
+        .env("GUITARLAB_INTERNAL_RESTORE_REQUEST_SOURCE", requests);
+    Ok(command)
+}
+
+fn tool_command(root: &Path, cancel: &AtomicBool, source: &str) -> Result<Command, AppError> {
     let bundle = plan()?;
     verify(root, &bundle.files, cancel)?;
     let root = root
@@ -194,7 +241,7 @@ pub(super) fn backup_command(root: &Path, cancel: &AtomicBool) -> Result<Command
         &root.join("runtime/python/python.exe"),
         &root.join("runtime/python"),
     )?;
-    command.args(["-c", include_str!("../../../scripts/backup_local_data.py")]);
+    command.args(["-c", source]);
     Ok(command)
 }
 

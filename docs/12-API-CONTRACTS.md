@@ -1,6 +1,26 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 실제 복원 예약·재실행 적용 v1 — 2026-10-30 구현 계약
+
+WAL 방식의 독립 ZIP snapshot은 검증 때에만 `mode=ro&immutable=1`로 읽어 새 WAL/SHM 파일을 만들지 않습니다. 변경 가능한 현재 DB의 백업은 기존 일반 읽기/SQLite backup을 유지합니다. 준비 지문을 확인한 파일 목록을 실제 이동 엔진까지 넘겨 최신 현재 자료를 백업하는 사이 준비본이 바뀌어도 적용 전에 거부합니다. 근거는 [SQLite URI immutable](https://www.sqlite.org/uri.html)이며 immutable은 변경 가능한 현재 DB에는 사용하지 않습니다.
+
+공개 main 창의 `restore_local_backup`은 `{schemaVersion:1,consentReplaceLocalData:true}`만 받습니다. native ZIP 선택→지문/DB 검증·별도 준비본→파일 수/크기·외부 참조·기존 데이터 백업/재실행 교체를 알리는 마지막 native 확인→예약 순서이며 현재 DB/파일은 바꾸지 않습니다. 기존 StorageJob의 선택/진행·취소 종료 잠금을 재사용하고 이 작업의 진행 상한만2GiB입니다. 취소 후에도 예약의 실제 상태를 다시 확인하며 이미 게시한 예약은 늦은 취소로 해제했다고 표시하지 않습니다.
+
+`get_local_restore_status`는 `{schemaVersion:1}`로 조회합니다. 기록 없음은 `{schemaVersion:1,state:"IDLE"}`,그 외는 `{schemaVersion:1,state,recoveryId,files,bytes,externalReferencesNotCopied,databaseVersion,restartRequired,errorCode}`의9필드입니다. state는 `SCHEDULED/APPLYING/COMPLETED/ROLLED_BACK/CANCELED/FAILED`,작업 내부 준비 응답에만 `PREPARED`를 허용합니다. files1~9,999·bytes1~2GiB·외부 참조0~100,000·백업DB8/9/10·UUID·errorCode는 고정 코드 또는null이며 공개 응답에 root/경로/소유권 지문을 내보내지 않습니다. restartRequired는 SCHEDULED일 때만true입니다. 과거 완료 결과는 현재 파일의 불변성 주장이 아닙니다.
+
+Python→native의 준비 응답만 계획 `fingerprint`를 더한10필드이며 공개 StorageJob 결과로 전달하지 않습니다. native 마지막 확인 뒤 같은 UUID/지문으로 예약하고 외부 참조 수는 실제 준비 DB와 ZIP manifest가 일치해야 합니다.
+
+`cancel_local_restore`는 `{schemaVersion:1,recoveryId,confirmCancel:true}`로 현재 UUID의 SCHEDULED만 해제합니다. 이전 예약/적용 중/완료 기록을 해제하지 않으며 사용자 자료를 삭제하지 않습니다. 준비본/이전 ZIP·복구 폴더는 보존될 수 있고 외부 원본·AI 환경/모델·다른 settings는 바꾸지 않습니다.
+
+앱이 결정한 root의 `.local-restore-request.json`은11필드 `{schemaVersion:1,kind:"GUITARLAB_LOCAL_RESTORE_REQUEST",phase,recoveryId,rootSha256,fingerprint,files,bytes,externalReferencesNotCopied,databaseVersion,errorCode}`입니다. 별도 UUID 폴더의 준비 기록과 root 소유권·파일 지문을 대조합니다. 알 수 없는 필드/상태·링크/변경·충돌은 거부하며 경로를 이 기록에서 입력받지 않습니다. SCHEDULED/APPLYING은 시작 전 처리 대상이고 terminal 기록은 결과 표시용으로 보존합니다.
+
+다음 실행은 InstanceGuard 아래 예약을 APPLYING으로 기록하고 최신 현재 데이터를 새 ZIP/원본 폴더에 보존한 뒤 교체합니다. 중간 종료 때는 활성 이동 기록부터 되돌리고 예약을 자동 재시도하지 않습니다. 완료/되돌림은 terminal 결과를 남겨 이후 일반 시작에서 반복 적용하지 않습니다. 실제 이동 전 실패는 현재 데이터를 그대로 사용하고 FAILED를 표시합니다. 모호한 부분 상태는 정상 DB 초기화를 차단합니다. 실제 사용자 저장소 교체는 에이전트가 수행하지 않으며 별도 테스트 저장소만으로 수용합니다.
+
 ## 실제 로컬 복원 엔진 v1 — 2026-10-29 착수 계약
+
+2026-10-30 앱 연결 계약:Windows InstanceGuard는 잠금 파일의 공유를 허용하지 않고,검증한 복원 자식에게 복제한 파일 핸들을 stdin으로 넘깁니다. 부모가 종료돼도 자식이 끝날 때까지 동일 root의 다른 실행은 거부됩니다. 자식은 stdin이 일반 빈 파일이며 현재 root의 잠금 파일과 device/inode가 같은지 확인한 뒤에만 이미 소유한 잠금 아래 복구합니다. 공개 CLI의 앱 종료/독점 잠금 검사는 우회하지 않습니다. 새 공개 IPC는 아직 없으며 정상 시작 이전 중단 복구만 우선 연결합니다.
+
+worker는 검증한 번들 Python만 사용합니다. 결합 소스가 Windows 명령줄32,767자를 넘으므로 두 내장 소스를 각각32,767자 미만의 별도 자식 환경 값으로 넘기고 짧은 고정 bootstrap이 읽어 제거합니다. 사용자 코드/경로를 스크립트로 해석하거나 디스크의 미검증 Python 파일을 실행하지 않습니다. 진행 결과/오류는8KiB 이하의 단일 JSON이며300초·직접 자식 종료 확인 한도를 둡니다. 중단 복구가 실패하면 DB 초기화 전에 종료하고 원본·복구 자료를 보존합니다. 근거는 [Microsoft 환경 변수](https://learn.microsoft.com/en-us/windows/win32/procthread/environment-variables),[CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw)입니다.
 
 사전 보완:현재 `ProfileStore`의 실제 보정 경로인 `settings/input-calibrations.json`을 source 파일/ZIP 허용목록과 복원 관리 항목에 추가합니다. `settings` 전체는 이동/복원하지 않으며 같은 폴더의 다른 환경 설정은 보존합니다. 기존 루트 `input-calibrations.json`도 이전 v1 ZIP 호환용으로 계속 지원하지만 현재 경로로 자동 해석하지 않습니다. 기존 ZIP의 누락은 소급 복구할 수 없으며 복원 시 보정값 초기화/재측정 가능성을 안내합니다. ZIP manifest/IPC/DB 버전은 유지합니다.
 

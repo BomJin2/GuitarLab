@@ -111,7 +111,7 @@ export function backupError(cause: unknown) {
     BACKUP_DATABASE_INVALID:
       '백업 데이터베이스 검사를 통과하지 못했습니다. 기존 데이터는 유지했습니다.',
     BACKUP_DATABASE_VERSION:
-      '현재 앱에서 지원하는 v8/v9 백업 데이터베이스가 아닙니다.',
+      '현재 앱에서 지원하는 v8/v9/v10 백업 데이터베이스가 아닙니다.',
     AI_RUNTIME_INTEGRITY: '내장 실행 환경의 무결성을 확인하지 못했습니다.',
   };
   return messages[code] ?? '백업을 완료하지 못했습니다. 원본은 유지했습니다.';

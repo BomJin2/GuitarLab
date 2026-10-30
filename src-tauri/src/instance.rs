@@ -54,13 +54,20 @@ impl InstanceGuard {
             Err(cause) if cause.kind() != std::io::ErrorKind::NotFound => return Err(invalid()),
             _ => {}
         }
-        let lock = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(&path)
-            .map_err(|_| invalid())?;
+        let mut options = OpenOptions::new();
+        options.read(true).write(true).create(true).truncate(false);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.share_mode(0).custom_flags(0x00200000);
+        }
+        let lock = options.open(&path).map_err(|cause| {
+            if cfg!(windows) && cause.raw_os_error() == Some(32) {
+                InstanceError::Busy
+            } else {
+                invalid()
+            }
+        })?;
         let info = lock.metadata().map_err(|_| invalid())?;
         if !info.is_file() || info.len() != 0 || reparse(&info) {
             return Err(invalid());
@@ -70,6 +77,13 @@ impl InstanceGuard {
             TryLockError::Error(_) => invalid(),
         })?;
         Ok(Self { _lock: lock })
+    }
+
+    pub(crate) fn child_stdin(&self) -> Result<std::process::Stdio, InstanceError> {
+        self._lock
+            .try_clone()
+            .map(std::process::Stdio::from)
+            .map_err(|_| InstanceError::Unavailable)
     }
 }
 
@@ -135,6 +149,20 @@ mod tests {
                     .as_path()
             )
         );
+        if std::env::var("GUITARLAB_INSTANCE_INHERITED_STDIN").as_deref() == Ok("1") {
+            let started = std::time::Instant::now();
+            while !root.join("parent-guard-closed").exists()
+                && started.elapsed() < std::time::Duration::from_secs(10)
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            assert!(root.join("parent-guard-closed").exists(), "부모 종료 신호");
+            assert_eq!(
+                InstanceGuard::acquire(&root).expect_err("상속한 핸들의 공유 차단"),
+                InstanceError::Busy
+            );
+            return;
+        }
         if std::env::var("GUITARLAB_INSTANCE_EXPECT_BUSY").as_deref() == Ok("1") {
             assert_eq!(
                 InstanceGuard::acquire(&root).expect_err("다른 프로세스 잠금"),
@@ -177,6 +205,41 @@ mod tests {
         assert_eq!(
             fs::read(root.join("guitarlab.sqlite")).expect("DB 보존"),
             original
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn inherited_stdin_keeps_root_exclusive_after_parent_guard_is_dropped() {
+        let fixture = Fixture::new();
+        let root = &fixture.store.root;
+        let before = fs::read(root.join("guitarlab.sqlite")).expect("자체 DB");
+        let guard = InstanceGuard::acquire(root).expect("부모 잠금");
+        let child = std::process::Command::new(std::env::current_exe().expect("검사 실행 파일"))
+            .args([
+                "--exact",
+                "instance::tests::instance_child",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("GUITARLAB_INSTANCE_TEST_ROOT", root)
+            .env("GUITARLAB_INSTANCE_INHERITED_STDIN", "1")
+            .stdin(guard.child_stdin().expect("잠금 핸들 복제"))
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("자체 자식 실행");
+        drop(guard);
+        fs::write(root.join("parent-guard-closed"), b"").expect("부모 핸들 종료 신호");
+        assert!(child
+            .wait_with_output()
+            .expect("자식 종료")
+            .status
+            .success());
+        let _again = InstanceGuard::acquire(root).expect("자식 종료 후 해제");
+        assert_eq!(
+            fs::read(root.join("guitarlab.sqlite")).expect("DB 보존"),
+            before
         );
     }
 

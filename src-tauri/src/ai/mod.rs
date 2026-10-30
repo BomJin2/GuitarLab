@@ -18,6 +18,18 @@ pub(crate) fn local_backup_command(
 ) -> Result<Command, AppError> {
     bundled::backup_command(&resources.join("ai-runtime"), cancel)
 }
+pub(crate) fn local_restore_command(
+    resources: &std::path::Path,
+    cancel: &AtomicBool,
+) -> Result<Command, AppError> {
+    bundled::restore_command(&resources.join("ai-runtime"), cancel)
+}
+pub(crate) fn local_restore_request_command(
+    resources: &std::path::Path,
+    cancel: &AtomicBool,
+) -> Result<Command, AppError> {
+    bundled::restore_request_command(&resources.join("ai-runtime"), cancel)
+}
 pub mod drafts;
 pub mod installation;
 pub mod managed;

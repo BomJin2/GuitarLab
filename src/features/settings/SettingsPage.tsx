@@ -4,6 +4,7 @@ import type { AudioInputController } from '../practice/useAudioInput';
 import type { ClockState } from '../player/useCaptureClock';
 import { CalibrationPanel } from './CalibrationPanel';
 import { LocalBackupPanel } from './LocalBackupPanel';
+import { LocalRestorePanel } from './LocalRestorePanel';
 import { LocalDiagnosticsPanel } from './LocalDiagnosticsPanel';
 import type { CalibrationController } from './useCalibration';
 import type { MeasurementController } from './useCalibrationMeasurement';
@@ -30,6 +31,7 @@ export function SettingsPage({
       />
       <AiRuntimePanel />
       <LocalBackupPanel />
+      <LocalRestorePanel />
       <LocalDiagnosticsPanel />
     </>
   );

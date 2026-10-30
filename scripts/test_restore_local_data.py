@@ -340,6 +340,12 @@ restore.restore_closed_app(root, archive, consent=True, confirm=True, guard=lamb
                 self.root.rename(self.base / "unexpected-move")
         self.assert_original()
 
+    def test_inherited_entry_rejects_regular_test_stdin_without_the_matching_lock(self):
+        with restore._exclusive(self.root):
+            with self.assertRaisesRegex(backup.BackupError, "RESTORE_LOCK_REQUIRED"):
+                restore._recover_from_inherited_lock(self.root)
+        self.assert_original()
+
 
 if __name__ == "__main__":
     unittest.main()
