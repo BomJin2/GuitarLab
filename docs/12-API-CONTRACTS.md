@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 렛링·스타카토의 미지원 경계 — 2026-10-31
+
+alphaTab1.6.1의 `Note.isLetRing/isStaccato` 표기는 현재 기본 단음 판정이 지속/끊기 주법을 검증하지 않으므로 기존 `judgementSupport:UNSUPPORTED`와 감점 제외를 재사용합니다. 기본 편집/정규화 MusicXML 출력에서 표기를 지워 저장하지 않도록 기존 거부에 연결하며 원본 GP 보기/재생은 유지합니다. 일반 피킹·인접 음표와 음정/tick/ID/동기 앵커·원본 바이트는 보존하고 구형 원본 기반 metadata 복원에도 적용합니다. 원본 없는 NORMALIZED 편집본의 잃어버린 주법을 추정하지 않습니다. 새 IPC/DB/필드/기록 버전·실제 주법 검출이나 과거 점수 재계산은 없습니다. 실제 파서·GP 왕복/반복·복원 회귀가 통과하기 전 완료로 표시하지 않습니다.
+
 ## 박자 단위 레가토의 미지원 경계 — 2026-10-30
 
 alphaTab1.6.1의 `Beat.isLegatoOrigin/isLegatoDestination`으로 연결된 레가토 양끝은 `Note.isHammerPullOrigin/isHammerPullDestination`과 별개로 검사합니다. 일반 피킹으로 확정하지 않고 기존 `judgementSupport:UNSUPPORTED`와 감점 제외/기본 편집 소실 거부를 재사용합니다. 인접 정상 피킹·원래 pitch/tick·ID/싱크·원본 GP는 유지하며 구형 원본 기반 metadata 복원에도 적용합니다. 이미 정규화 편집본에 소실된 주법을 추정해서 다시 만들지 않습니다. 새 IPC/DB/지원 주법/실제 레가토 검출·과거 점수 재계산은 추가하지 않습니다. 파서/GP 왕복·반복·기존 데이터 보존 검증이 완료되기 전 완료 표시하지 않습니다.

@@ -150,6 +150,8 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.isLeftHandTapped ||
     note.isGhost ||
     note.isPalmMute ||
+    note.isLetRing ||
+    note.isStaccato ||
     note.isDead ||
     note.isHarmonic ||
     note.vibrato !== model.VibratoType.None ||

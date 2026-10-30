@@ -1,5 +1,36 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 렛링·스타카토 표기 보호 (2026-10-31)
+
+### 1. 작업 개요
+
+작업일2026-10-31. 레가토 보호 수용 뒤 같은 미지원 주법 경계를 확인하다 렛링/스타카토가 기본 단음으로 통과하고 정규화 편집으로 표기를 잃을 수 있는 누락을 재현했습니다. 두 주법의 안전 처리만 보완하며 실제 지속/끊기 판정과 전체 Phase7은 미완료입니다. 전체 검사/Windows 빌드는 통과했으며 독립 패키지/원격 확인은 후속입니다. 실제 새 GUI 수용은 미실행입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/05-REALTIME-JUDGEMENT.md`: 기존 UNSUPPORTED 계약을 렛링/스타카토 원본 표기에 적용하는 범위를 먼저 기록했습니다. 새 필드/IPC·DB·의존성·DSP/임계값·기록 버전은 없습니다.
+- `src/features/score/alphaTabAdapter.ts`: `Note.isLetRing/isStaccato` 두 조건을 기존 공유 판별에 추가했습니다. 감점 제외·기본 편집/정규화 MusicXML의 표기 소실 거부·구형 원본 metadata 복원은 기존 경로를 재사용합니다. 일반 피킹·인접 음표와 원본 보기/재생은 유지합니다.
+- `src/features/score/alphaTabAdapter.test.ts`: 기존 실제 AlphaTex/GP 왕복 표에 `lr/st`, 반복/구형 복원 표에 두 주법을 추가했습니다. 원본 바이트·ID/싱크/기존 문서와 인접 정상 목표 보존을 함께 확인합니다. 제품 UI나 사용자 자료는 수정하지 않습니다.
+
+### 3. 테스트 결과
+
+- 설치된 alphaTab1.6.1의 타입/실제 파서·GP exporter/reader 확인: **성공**. 두 플래그는 GP 왕복 후 유지되고 박자 길이는 둘 다960tick이므로 기존 길이 검사만으로 표기 소실을 막을 수 없습니다. 새 외부 라이브러리는 사용하지 않았습니다.
+- 수정 전 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts`: **신규4개 실패/기존28개 성공**. `judgementSupport` 누락과 구형 복원 미반영을 재현했습니다.
+- 수정 후 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts src/features/score/scoreEditing.test.ts src/features/practice/practice.test.ts`: **43개 성공**. 손상 입력 검사에서의 `SCORE_IMPORT_FAILED`는 예상 stderr입니다.
+- `pnpm verify:app`: **성공**. 타입/린트·755개/134파일·Vite1분16초·Prettier·cargo fmt/기본Clippy·Rust285개(외부 조건32개 기본 제외/25.21초)가 통과했습니다. 로그는 무시된 `src-tauri/target/runtime-validation/let-ring-staccato-verify-20261031.log`입니다. Vite 큰 청크/캐시 hardlink 대체·linker 출력 경고는 실패가 아닙니다.
+- `cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol --bin guitarlab --example manage_ai_model`: **성공20.72초**. 같은 웹 자산을 포함한 Windows 제품 실행 파일/모델 관리 도구를 빌드했으며 앱은 실행하지 않았습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol bundle_tests`: **4개 성공**. 내장 entry/script·로컬 창 권한/파일 drop/녹음 안내 경계를 확인했습니다.
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml unsupported`: **6개 성공**. 기존 미지원 감점 제외/저장 계약을 확인했으며 실제 렛링/스타카토 오디오 검출 결과는 아닙니다.
+- 독립 패키지/새 원격·새 GUI 수용: **미실행**. 후속 검사에서 확인하며 앞선 레가토 수용과 이번 변경의 검증을 구분합니다. 별도 AI/MSRV 전체 재실행도 **미실행** — Python/Rust/의존성은 변경하지 않았고 원격 전체 검사는 업로드 후 확인합니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 렛링/스타카토 검출·지속시간/끊기 정확도·실제 감점률은 미검증이며 고급 채점은 연결하지 않습니다. 원본 없이 이미 정규화된 과거 편집본의 잃어버린 주법을 복원하지 않고 과거 점수도 재계산하지 않습니다. 현재 고정 앱ed5481a2/PID36428·세션74670은 변경/재실행하지 않습니다.
+
+### 5. 다음 작업 계획
+
+전체 검사와 Windows/내장 자산·독립 패키지를 확인하고 Git/원격에 반영합니다. 새 고정 후보를 준비하더라도 실제 앱 전환/마우스·키보드 검증은 AGENTS11절에 따라 사용자 요청·수동 진행으로 구분합니다. 특화 모델 이용 조건·독립 정답/별도 Windows 같은 기존 외부 조건은 유지합니다.
+
 ## 완료 — 박자 레가토 표기의 안전 처리 (2026-10-30~31)
 
 ### 1. 작업 개요

@@ -176,6 +176,8 @@ CPAL capture(callback, sample frame + sampleIndex)
 
 ## Phase7 미지원 주법 보호 — 2026-10-20
 
+2026-10-31 보완 범위:렛링·스타카토의 원본 표기도 현재 지속/끊기 평가가 없는 기본 피킹으로 확정하지 않습니다. 기존 미지원 정규화/감점 제외·기본 편집 소실 거부와 구형 원본 metadata 복원을 공유하고 인접 일반 음표는 유지합니다. 이는 악보 표기 보호이며 실제 주법 감지 성공이나 과거 점수의 재계산이 아닙니다. 검증 완료 여부는 PHASE-07 최신 절을 따릅니다.
+
 2026-10-24 보완: note의 왼손 태핑과 별개로 박자의 tap/slap/pop/deadSlapped·fade/volume swell·rasgueado 표기도 미지원으로 보존합니다. import/반복·구형 원본 복원→감점 제외·편집 소실 거부 경로를 같은 계약으로 검증합니다. 이 보완은 표기된 미지원 음의 안전 처리이며 실제 연주 주법을 감지하거나 채점 지원하는 기능이 아닙니다.
 
 원본 주법 표기를 `NoteEvent.judgementSupport=UNSUPPORTED`로 보존하고 `PracticeTarget.unsupported`에 전달합니다. 음정/오음 점수 대신 정상 마감 때 NOT_SCORED/UNSUPPORTED로 제외하며 중단/불완전 윈도는 SKIPPED 우선입니다. 미지원 목표에 더 가까운 onset을 인접 지원 음의 정답/오음 근거로 넘기지 않습니다. 새 기록 버전은 monophonic-poc-v2이며 기존 기록은 재계산하지 않습니다. 원본 재열기 시 예전 metadata를 비파괴 보완하고 저장을 안내합니다. 기본 편집/MusicXML 정규화는 주법을 보존하지 못하므로 거부하고 원본 보기·재생을 유지합니다. 주법 인식기가 아니며 악보에 표시되지 않은 주법의 검출이나 모든 표기 형식 지원을 보장하지 않습니다.
