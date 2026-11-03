@@ -23,3 +23,5 @@ fixtures/external/
 # 수동 복원 검증에서 사용자가 만든 로컬 데이터 백업
 /fixtures/GuitarLab-restore-A.zip
 scripts/native-basic-pitch-probe/target/
+# Claude/Codex 교차 리뷰 루프의 라운드별 프롬프트·결과
+.claude/review-runs/
