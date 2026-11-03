@@ -1,5 +1,13 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## MusicXML X 음표 머리의 미지원 경계 — 2026-11-03
+
+alphaTab1.6.1은 MusicXML `<notehead>x</notehead>`와 `circle-x`를 화면 모양(`Note.style.noteHead`)으로만 읽고 `Note.isDead`로 기록하지 않습니다. 기타 악보에서 X 머리는 데드·뮤트 음을 뜻하는데, 확인 결과 이 음표가 음정 있는 일반 피킹으로 채점되고 기본 편집에서 X 표기가 지워질 수 있었습니다. X 계열 머리(일반·원형, 모든 음가)를 기존 `judgementSupport:UNSUPPORTED`, 감점 제외, 편집 소실 거부, 구형 원본 metadata 복원에 연결합니다. `cross`(+)와 `diamond` 등 다른 머리 모양은 바꾸지 않습니다. 새 IPC/DB/필드/기록 버전·실제 뮤트 검출·과거 점수 재계산은 없으며, 실제 파서 회귀가 통과하기 전 완료로 표시하지 않습니다.
+
+## MusicXML 박자 범위 팜뮤트·렛링의 미지원 경계 — 2026-11-03
+
+alphaTab1.6.1의 MusicXML 읽기는 `<words>P.M.</words>`·`<words>LetRing</words>` 뒤의 `<dashes>` 범위를 음표가 아닌 `Beat.isPalmMute/isLetRing`에만 기록합니다. 확인 결과 기존 음표 단위 검사(`Note.isPalmMute/isLetRing`)로는 걸러지지 않아 해당 음표가 일반 피킹으로 채점되고 기본 편집이 허용됐습니다. 박자 값도 기존 `judgementSupport:UNSUPPORTED`, 감점 제외, 편집 소실 거부, 구형 원본 metadata 복원에 연결합니다. 범위는 alphaTab이 해석한 박자 값을 그대로 따릅니다. 따라서 문구 없는 `stop`처럼 alphaTab이 범위를 끝내지 않는 경우 이후 음표도 함께 제외됩니다. GP 형식은 음표 하나라도 표시가 있으면 박자 값을 켜기 때문에, 박자 값은 **그 박자에서 새로 치는(타이 도착음이 아닌) 음표에 같은 표시가 없을 때만**(MusicXML 범위에서 온 경우) 반영합니다. 타이 도착음은 연습 대상에서 빠지므로, 그 음의 표시만으로 범위 보호를 해제하면 같은 박자의 새 공격음이 일반 피킹으로 채점될 수 있기 때문입니다. 그 대가로 GP에서 '팜뮤트·렛링 타이 도착음 + 새로 치는 다른 음' 조합이면 새 음도 보수적으로 제외됩니다. 따라서 GP 화음에서 표시 없는 정상 음은 그대로 지원 상태로 남습니다. 새 IPC/DB/필드/기록 버전·실제 주법 검출·과거 점수 재계산은 없으며, 실제 파서 회귀가 통과하기 전 완료로 표시하지 않습니다.
+
 ## 슬러 양끝의 미지원 경계 — 2026-11-03
 
 alphaTab1.6.1은 MusicXML `<slur>`와 AlphaTex `slur`를 `Note.isSlurOrigin/isSlurDestination`으로 읽습니다. 이 값은 해머링·풀링 표기(`isHammerPullOrigin`, MusicXML `<hammer-on>/<pull-off>`)와 별개이며, 확인 결과 슬러 양끝 음표가 일반 피킹으로 채점되고 기본 편집으로 표기가 지워질 수 있었습니다. 기타 TAB에서 슬러는 레가토 연결을 뜻하는 경우가 많으므로, 박자 레가토와 같이 양끝을 기존 `judgementSupport:UNSUPPORTED`와 감점 제외, 기본 편집 소실 거부, 구형 원본 metadata 복원에 연결합니다. alphaTab이 슬러의 시작·끝 음표에만 값을 두므로 긴 프레이즈 슬러의 중간 음표는 일반 음표로 남습니다. 단순 프레이징 슬러도 보수적으로 제외되며 원본 보기/재생은 유지합니다. 새 IPC/DB/필드/기록 버전·실제 레가토 검출·과거 점수 재계산은 없습니다. 실제 파서 회귀가 통과하기 전 완료로 표시하지 않습니다.

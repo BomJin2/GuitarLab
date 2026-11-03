@@ -1,5 +1,71 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — MusicXML X 음표 머리(데드 음) 보호 (2026-11-03)
+
+### 1. 작업 개요
+
+작업일 2026-11-03. MusicXML 읽기 경로의 `<notations>`·`<technical>`·`<ornaments>`·`<articulations>`·`<notehead>`를 alphaTab 1.6.1 코드와 하나씩 대조했습니다. 그 결과 `<notehead>x</notehead>`와 `circle-x`(기타 악보의 데드·뮤트 음 관례)가 화면 모양(`Note.style.noteHead`)으로만 남고 `isDead`로 기록되지 않는다는 것을 확인했습니다. 이 때문에 음정 없는 음표가 일반 음정 피킹으로 채점되고 편집에서 X 표기가 사라질 수 있었습니다. 이번 작업은 안전 처리만 하며, 실제 뮤트 감지와 전체 Phase 7은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/05-REALTIME-JUDGEMENT.md`: X 계열 머리를 기존 UNSUPPORTED 계약에 연결하는 범위를 먼저 기록했습니다. `cross`(+)와 `diamond` 등 다른 머리 모양은 제외 대상이 아닙니다.
+- `src/features/score/alphaTabAdapter.ts`: X 계열 머리 8종(일반·원형 × 네 가지 음가)을 `deadNoteHeads`로 묶고, 공유 판별에서 `note.style?.noteHead`를 검사합니다.
+- `src/features/score/alphaTabAdapter.test.ts`: 테스트 3개를 추가했습니다.
+  - `x`, `circle-x` 각각에 대해 확인하는 내용은 다음과 같습니다. 전제 조건으로 `isDead`는 false입니다. 해당 음표만 UNSUPPORTED가 되고 감점에서 제외되며 편집이 거부됩니다. 구형 복원에서도 같은 결과가 나옵니다.
+  - 반대 방향 확인: `normal`, `diamond`, `cross` 머리는 제외되지 않습니다.
+- 대조했지만 바꾸지 않은 항목: MusicXML의 스타카토, 하모닉, 해머링·풀링, 벤드, 태핑, smear·wavy-line(비브라토), 골페, 트릴, 턴·모던트, 트레몰로, glissando·slide는 이미 기존 판별 필드로 들어옵니다. 액센트, 운지 번호, 피킹 방향(up/down-bow)은 음정·시작 시각에 영향을 주지 않아 대상이 아닙니다. `<words>`는 `LetRing`·`P.M.`만 해석되며 앞 작업에서 보호했습니다. 앱이 받는 나머지 형식도 같은 방식으로 대조했습니다(`ScoreWorkspace.tsx`의 accept: `.gp,.gp3,.gp4,.gp5,.gpx,.xml,.musicxml,.json`). GP3·4·5 파서가 설정하는 주법 필드는 모두 기존 판별에 있습니다. 와와 페달, 피킹 방향, 브러시, 음 길이 비율, 셈여림은 음정·시작 시각에 영향이 없습니다. `beat.ottava`는 표시 음 높이(`displayValue`)만 바꾸고, 판정에 쓰는 `realValue`(프렛+개방현)에는 들어가지 않습니다. GPX는 GP7과 같은 GPIF 파서를 씁니다.
+
+### 3. 테스트 결과
+
+- 수정 전 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts -t "음표 머리"`: **x·circle-x 2개 실패**. 기대값 UNSUPPORTED에 대해 undefined가 나왔습니다. 반대 방향 테스트 1개는 성공했습니다.
+- 수정 후 대상 3파일: **50개 성공**. `pnpm typecheck` 성공.
+- 저장소 fixture(`public/fixtures`, `fixtures`)의 MusicXML에는 `<notehead>`가 없어 기존 정상 악보에는 영향이 없습니다.
+- `pnpm verify:app`: **전체 성공**. 프론트 762개/134파일, Vite 빌드 1분 7초, Prettier, cargo fmt, Clippy, Rust 285개 성공(32개 기본 제외)입니다. 로그는 `src-tauri/target/runtime-validation/xhead-verify-20261103.log`입니다.
+- Windows 제품 빌드, 독립 패키지, GUI, Codex 리뷰, 커밋, 원격: **미실행**. 리뷰와 커밋은 사용자 요청이 있을 때만 진행합니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 뮤트 음 검출은 하지 않습니다. X 머리를 다른 뜻으로 쓴 악보도 보수적으로 제외됩니다. 다이아몬드 머리만 있고 `<harmonic>`이 없는 하모닉 표기는 일반 음표로 남습니다. 과거 점수는 재계산하지 않습니다.
+
+### 5. 다음 작업 계획
+
+사용자 요청 시 Codex 리뷰와 커밋을 진행합니다. 외부 조건(독립 정답, 특화 모델, 별도 OS, 서명)이 필요한 남은 항목은 그대로입니다.
+
+## 후속 — MusicXML 박자 범위 팜뮤트·렛링 보호 (2026-11-03)
+
+### 1. 작업 개요
+
+작업일 2026-11-03. 슬러 보호에 이어 alphaTab 1.6.1의 MusicXML 읽기 경로를 점검했습니다. `<words>P.M.</words>`와 `<words>LetRing</words>` 뒤의 `<dashes>` 범위가 음표가 아닌 `Beat.isPalmMute/isLetRing`에만 기록되어, 기존 음표 단위 검사로는 걸러지지 않는다는 것을 실제 파서로 재현했습니다. 해당 음표는 일반 피킹으로 채점되고 편집도 허용되고 있었습니다. 이번 작업은 박자 값을 기존 보호에 연결하는 안전 처리만 하며, 실제 팜뮤트·렛링 감지와 전체 Phase 7은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/05-REALTIME-JUDGEMENT.md`: 박자 범위 값을 기존 UNSUPPORTED 계약에 연결한다는 내용과 그 한계를 먼저 기록했습니다. 범위는 alphaTab의 해석을 그대로 따르므로, 문구 없는 `stop`처럼 alphaTab이 범위를 끝내지 않는 경우에는 이후 음표도 함께 제외됩니다.
+- `src/features/score/alphaTabAdapter.ts`: 박자의 `isPalmMute`·`isLetRing` 값을 공유 판별에 추가했습니다. 단, 그 박자의 어떤 음표에도 같은 표시가 없을 때만 반영합니다. 처음에는 박자 값만 보았는데, Codex 리뷰(R1-1)에서 GP 화음 `(0.1{pm} 3.2)`의 표시 없는 정상 음까지 UNSUPPORTED로 바뀌는 회귀가 지적됐습니다. 재현으로 확인한 뒤 위 조건으로 고쳤습니다. 이어 3라운드(R2-1)에서 또 다른 경우가 지적됐습니다. 범위 안 화음에서 음표 표시가 **타이 도착음에만** 있으면, 그 음은 연습 대상에서 빠지고 같은 박자의 새 공격음만 남습니다. 이때 화음 제외 규칙도 적용되지 않아 일반 피킹으로 채점됐습니다. 처음에는 '화음은 같은 시각이라 판정 엔진이 채점하지 않는다'는 근거로 거절했으나, 이 경로를 확인하고 받아들였습니다. 최종 조건은 '새로 치는(타이 도착음이 아닌) 음표에 같은 표시가 없을 때만 박자 값 반영'입니다.
+- `src/features/score/alphaTabAdapter.test.ts`: MusicXML 작성 도우미를 `tabMusicXml`로 일반화하고, `P.M.`·`LetRing` 범위 테스트 2개를 추가했습니다. 테스트에서 확인하는 내용은 다음과 같습니다.
+  - 전제 조건: 박자 값은 true이고 음표 값은 false입니다.
+  - 범위 안의 두 음표만 UNSUPPORTED가 되고, 범위 밖 음표는 그대로입니다.
+  - 해당 음표는 감점에서 제외되고 편집이 거부됩니다.
+  - 구형 복원에서도 같은 결과가 나오고 원본 문서는 바뀌지 않습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 임시 탐침(삭제함): 범위 안 음표 4개의 `judgementSupport`가 모두 undefined였고 편집이 허용됐습니다. 이 탐침은 문구 없는 `stop`을 썼기 때문에 네 박자 모두 범위로 처리됐습니다.
+- 수정 전 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts -t "박자 범위"`: **신규 2개 실패**. 기대값 UNSUPPORTED에 대해 undefined가 나왔고, 박자 전제 조건은 통과했습니다.
+- 수정 후 대상 3파일(adapter·scoreEditing·practice): **47개 성공**.
+- Codex 리뷰 R1-1 대응: GP 화음 회귀 테스트 `pm`·`lr` 2개를 추가했습니다. AlphaTex와 GP7 왕복 결과에 구형 복원까지 거치게 했고, 고치기 전에 **2개 실패**하는 것을 확인했습니다. 수정 후 대상 3파일 **52개 성공**, `pnpm typecheck`·`pnpm lint` 성공. 이어서 `pnpm verify:app`도 **전체 성공**했습니다(프론트 764개/134파일, Rust 285개). 로그는 `review-r1-verify-20261103.log`입니다.
+- Codex 리뷰 R2-1 대응: 타이 화음 회귀 테스트 1개를 추가했습니다. 실제 MusicXML 파서로 읽은 결과를 `normalizeScore → buildPracticeTargets`와 구형 복원까지 이어서 확인합니다. 고치기 전에 **실패**(채점 대상 `[64, 62, 69, 71]`에 범위 안 D4가 포함)하는 것을 확인했습니다. 수정 후 대상 3파일 **53개 성공**, `pnpm typecheck`·`pnpm lint` 성공.
+- `pnpm verify:app`: **전체 성공**. typecheck, lint, 프론트 759개/134파일, Vite 빌드 1분 1초, Prettier, cargo fmt, Clippy, Rust 285개 성공(32개 기본 제외)입니다. 로그는 `src-tauri/target/runtime-validation/beat-range-verify-20261103.log`입니다.
+- Windows 제품 빌드, 독립 패키지, GUI: **미실행**. 변경은 프론트 판별 조건 두 줄입니다.
+- Codex 리뷰, 커밋, 원격: **미실행**. 사용자 지시에 따라 요청이 있을 때만 진행합니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 팜뮤트·렛링 검출은 하지 않습니다. alphaTab이 범위를 끝내지 않는 MusicXML(문구 없는 `stop`)에서는 이후 음표가 모두 제외되고 편집도 막힙니다. 과거 점수는 재계산하지 않습니다.
+
+### 5. 다음 작업 계획
+
+사용자 요청 시 Codex 리뷰와 커밋을 진행합니다. 다른 MusicXML 방향 표기도 같은 방식으로 점검할 수 있습니다.
+
 ## 후속 — 슬러 양끝 표기 보호 (2026-11-03)
 
 ### 1. 작업 개요

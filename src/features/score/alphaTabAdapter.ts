@@ -138,8 +138,21 @@ export function normalizeScore(
   };
 }
 
+// MusicXML x/circle-x noteheads mean dead notes but alphaTab stores them as style only.
+const deadNoteHeads: ReadonlySet<model.MusicFontSymbol> = new Set([
+  model.MusicFontSymbol.NoteheadXDoubleWhole,
+  model.MusicFontSymbol.NoteheadXWhole,
+  model.MusicFontSymbol.NoteheadXHalf,
+  model.MusicFontSymbol.NoteheadXBlack,
+  model.MusicFontSymbol.NoteheadCircleXDoubleWhole,
+  model.MusicFontSymbol.NoteheadCircleXWhole,
+  model.MusicFontSymbol.NoteheadCircleXHalf,
+  model.MusicFontSymbol.NoteheadCircleX,
+]);
 function hasUnsupportedTechnique(note: model.Note): boolean {
   return (
+    (note.style?.noteHead !== undefined &&
+      deadNoteHeads.has(note.style.noteHead)) ||
     note.hasBend ||
     note.isContinuedBend ||
     note.slideInType !== model.SlideInType.None ||
@@ -161,6 +174,11 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.isTrill ||
     note.ornament !== model.NoteOrnament.None ||
     note.beat.graceType !== model.GraceType.None ||
+    // MusicXML P.M./LetRing dashes set only the beat flag; GP raises it from an attacked note's flag, which must not spread to chord mates.
+    (note.beat.isPalmMute &&
+      !note.beat.notes.some((n) => n.isPalmMute && !n.isTieDestination)) ||
+    (note.beat.isLetRing &&
+      !note.beat.notes.some((n) => n.isLetRing && !n.isTieDestination)) ||
     note.beat.isLegatoOrigin ||
     note.beat.isLegatoDestination ||
     note.beat.tap ||

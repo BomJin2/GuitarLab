@@ -64,7 +64,179 @@ const slurTuning = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4']
   .join('');
 const slurNote = (fret: number, step: string, slur = '') =>
   `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><string>1</string><fret>${fret}</fret></technical>${slur}</notations></note>`;
-const slurMusicXml = `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Gtr</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>TAB</sign><line>5</line></clef><staff-details><staff-lines>6</staff-lines>${slurTuning}</staff-details></attributes>${slurNote(0, 'E', '<slur type="start" number="1"/>')}${slurNote(3, 'G', '<slur type="stop" number="1"/>')}${slurNote(5, 'A')}${slurNote(7, 'B')}</measure></part></score-partwise>`;
+const tabMusicXml = (body: string) =>
+  `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Gtr</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>TAB</sign><line>5</line></clef><staff-details><staff-lines>6</staff-lines>${slurTuning}</staff-details></attributes>${body}</measure></part></score-partwise>`;
+const slurMusicXml = tabMusicXml(
+  `${slurNote(0, 'E', '<slur type="start" number="1"/>')}${slurNote(3, 'G', '<slur type="stop" number="1"/>')}${slurNote(5, 'A')}${slurNote(7, 'B')}`,
+);
+it.each(['x', 'circle-x'])(
+  'MusicXML %s 음표 머리를 데드 음으로 보고 일반 피킹에서 제외하며 다른 음표와 구형 복원을 유지한다',
+  (head) => {
+    const xHead = `<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notehead>${head}</notehead><notations><technical><string>1</string><fret>0</fret></technical></notations></note>`;
+    const score = importScore(
+      new TextEncoder().encode(
+        tabMusicXml(
+          `${xHead}${slurNote(3, 'G')}${slurNote(5, 'A')}${slurNote(7, 'B')}`,
+        ),
+      ),
+    );
+    const notes = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats.map(
+      (b) => b.notes[0]!,
+    );
+    // alphaTab keeps the X head as display style only.
+    expect(notes.map((n) => n.isDead)).toEqual([false, false, false, false]);
+    const document = normalizeScore(score);
+    const flags = ['UNSUPPORTED', undefined, undefined, undefined];
+    expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+      flags,
+    );
+    expect(
+      buildPracticeTargets(document, 0, 3000, null).map(
+        (n) => n.unsupported ?? false,
+      ),
+    ).toEqual([true, false, false, false]);
+    expect(() => validateEditable(document)).toThrow('미지원 주법');
+    const legacy = structuredClone(document);
+    for (const track of legacy.tracks)
+      for (const note of track.notes) delete note.judgementSupport;
+    expect(
+      restoreJudgementSupport(legacy, score).tracks[0]!.notes.map(
+        (n) => n.judgementSupport,
+      ),
+    ).toEqual(flags);
+  },
+);
+
+it('MusicXML의 일반·다이아몬드 음표 머리는 X 머리 보호로 제외하지 않는다', () => {
+  const head = (name: string, fret: number, step: string) =>
+    `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notehead>${name}</notehead><notations><technical><string>1</string><fret>${fret}</fret></technical></notations></note>`;
+  const document = normalizeScore(
+    importScore(
+      new TextEncoder().encode(
+        tabMusicXml(
+          `${head('normal', 0, 'E')}${head('diamond', 3, 'G')}${head('cross', 5, 'A')}${slurNote(7, 'B')}`,
+        ),
+      ),
+    ),
+  );
+  expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual([
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ]);
+});
+
+it.each(['pm', 'lr'])(
+  'GP 화음의 한 음에만 있는 %s는 박자 표시로 번지지 않아 같은 박자의 정상 음을 유지한다',
+  (effect) => {
+    const score = importer.ScoreLoader.loadAlphaTex(
+      `. (0.1{${effect}} 3.2).4 5.1.4 7.1.4 8.1.4`,
+    );
+    const chord = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!;
+    // Beat.finish raises the beat flag when any note has it.
+    expect(chord.isPalmMute || chord.isLetRing).toBe(true);
+    const flags = ['UNSUPPORTED', undefined, undefined, undefined, undefined];
+    for (const source of [
+      score,
+      importScore(new exporter.Gp7Exporter().export(score)),
+    ]) {
+      const document = normalizeScore(source);
+      expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+        flags,
+      );
+      const legacy = structuredClone(document);
+      for (const track of legacy.tracks)
+        for (const note of track.notes) delete note.judgementSupport;
+      expect(
+        restoreJudgementSupport(legacy, source).tracks[0]!.notes.map(
+          (n) => n.judgementSupport,
+        ),
+      ).toEqual(flags);
+    }
+  },
+);
+
+it('MusicXML P.M. 범위 안에서 음표 표시가 타이 도착음에만 있어도 같은 박자의 새 공격음을 채점하지 않는다', () => {
+  const tied = (type: 'start' | 'stop', extra = '') =>
+    `<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><tie type="${type}"/><type>quarter</type>${extra}<notations><tied type="${type}"/><technical><string>1</string><fret>0</fret></technical></notations></note>`;
+  const chordMate = `<note><chord/><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><string>2</string><fret>3</fret></technical></notations></note>`;
+  const score = importScore(
+    new TextEncoder().encode(
+      tabMusicXml(
+        `${tied('start')}${rangeDirection('P.M.', 'start')}${tied('stop', '<play><mute>palm</mute></play>')}${chordMate}${rangeDirection('P.M.', 'stop')}${slurNote(5, 'A')}${slurNote(7, 'B')}`,
+      ),
+    ),
+  );
+  const beat = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[1]!;
+  // Precondition from the review: only the tie destination carries the note flag.
+  expect(beat.isPalmMute).toBe(true);
+  expect(beat.notes.map((n) => [n.isTieDestination, n.isPalmMute])).toEqual([
+    [true, true],
+    [false, false],
+  ]);
+  const document = normalizeScore(score);
+  const attacks = buildPracticeTargets(document, 0, 3000, null);
+  expect(attacks.filter((t) => !t.unsupported).map((t) => t.pitchMidi)).toEqual(
+    [64, 69, 71],
+  );
+  const legacy = structuredClone(document);
+  for (const track of legacy.tracks)
+    for (const note of track.notes) delete note.judgementSupport;
+  expect(
+    restoreJudgementSupport(legacy, score).tracks[0]!.notes.map(
+      (n) => n.judgementSupport,
+    ),
+  ).toEqual(document.tracks[0]!.notes.map((n) => n.judgementSupport));
+});
+
+const rangeDirection = (words: string, type: 'start' | 'stop') =>
+  `<direction><direction-type><words>${words}</words></direction-type><direction-type><dashes type="${type}"/></direction-type></direction>`;
+
+it.each(['P.M.', 'LetRing'])(
+  'MusicXML %s 박자 범위의 음표를 일반 피킹에서 제외하고 범위 밖 음표와 구형 복원을 유지한다',
+  (words) => {
+    const score = importScore(
+      new TextEncoder().encode(
+        tabMusicXml(
+          `${rangeDirection(words, 'start')}${slurNote(0, 'E')}${slurNote(3, 'G')}${rangeDirection(words, 'stop')}${slurNote(5, 'A')}${slurNote(7, 'B')}`,
+        ),
+      ),
+    );
+    const beats = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats;
+    // The range lives on the beat only, so the existing note-level checks miss it.
+    expect(beats.map((b) => b.isPalmMute || b.isLetRing)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(
+      beats.some((b) => b.notes[0]!.isPalmMute || b.notes[0]!.isLetRing),
+    ).toBe(false);
+    const document = normalizeScore(score);
+    const flags = ['UNSUPPORTED', 'UNSUPPORTED', undefined, undefined];
+    expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+      flags,
+    );
+    expect(
+      buildPracticeTargets(document, 0, 3000, null).map(
+        (n) => n.unsupported ?? false,
+      ),
+    ).toEqual([true, true, false, false]);
+    expect(() => validateEditable(document)).toThrow('미지원 주법');
+    const legacy = structuredClone(document);
+    for (const track of legacy.tracks)
+      for (const note of track.notes) delete note.judgementSupport;
+    const before = JSON.stringify(legacy);
+    expect(
+      restoreJudgementSupport(legacy, score).tracks[0]!.notes.map(
+        (n) => n.judgementSupport,
+      ),
+    ).toEqual(flags);
+    expect(JSON.stringify(legacy)).toBe(before);
+  },
+);
 
 it.each([
   ['MusicXML', () => importScore(new TextEncoder().encode(slurMusicXml))],
