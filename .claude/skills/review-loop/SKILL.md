@@ -54,12 +54,22 @@ Claude가 지적을 검증·수정하는 과정을 **최대 3라운드** 반복�
 
 ```bash
 codex exec --sandbox read-only --ephemeral \
+  -c model_reasoning_effort='"high"' \
   --output-schema .claude/skills/review-loop/review.schema.json \
   -o .claude/review-runs/<run>/round-N.json \
-  - < .claude/review-runs/<run>/round-N-prompt.md
+  - < .claude/review-runs/<run>/round-N-prompt.md \
+  > .claude/review-runs/<run>/round-N.log 2>&1
 ```
 
-- Bash timeout은 600000ms로 준다. 시간 초과·인증 오류·JSON 파싱 실패 시 1회 재시도하고, 다시 실패하면 **루프를 멈추고 보고**한다.
+- 추론 강도는 사용자가 2026-11-03에 지정한 **`high`** 로 고정한다. `~/.codex/config.toml`(데스크톱 앱과 공유)의
+  기본값은 바꾸지 않고 이 실행에만 `-c`로 덮어쓴다. 모델은 공유 설정의 기본 모델을 따른다.
+  실행 후 `round-N.log`의 `reasoning effort:` 줄이 `high`인지 확인한다.
+- `high`는 오래 걸릴 수 있으므로 Bash 도구의 `run_in_background`로 실행하고 완료 알림을 기다린다.
+- 오류 처리:
+  - **인증 오류·사용량 한도·모델 미지원**(`model_not_found`) → 재시도하지 않고 **즉시 루프를 멈추고 보고**한다.
+  - **일시적 오류**(네트워크·5xx 등)나 **JSON 출력 누락/파싱 실패** → 1회 재시도하고, 다시 실패하면 멈추고 보고한다.
+- 정체 처리: 시작 후 30분이 지나도 완료 알림이 없으면 `round-N.log`를 확인한다. 진행 흔적이 없으면
+  해당 백그라운드 작업을 중지(TaskStop)하고 멈춘 사실과 로그 마지막 부분을 보고한다. 자동 재실행하지 않는다.
 - 결과 JSON을 읽어 사용자에게 라운드 요약(판정, 심각도별 개수)을 짧게 보여 준다.
 
 ## 2. Claude 검증 및 수정
