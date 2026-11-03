@@ -70,8 +70,8 @@
     },
     {
       "path": "notices/README.md",
-      "bytes": 865,
-      "sha256": "a96e3c34cf94e763a35ed5a817dead089d61297ea1ed6c880f6480b4a3326196"
+      "bytes": 1183,
+      "sha256": "33f8fc040decfca23959173a2f2347d4fae9ec169aeccbc35213c266b3279708"
     },
     {
       "path": "runtime/python/DLLs/_asyncio.pyd",
@@ -9174,6 +9174,11 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
+      "path": "runtime/python/concrt140.dll",
+      "bytes": 374200,
+      "sha256": "54716f0738af891f283d213b5c8d11b25896bb8ee3097d301eae718560cf974e"
+    },
+    {
       "path": "runtime/python/include/Python.h",
       "bytes": 2854,
       "sha256": "729ef157f6026e6e1b3104593f87dddc597c3b83b60c7c2965878c62a56c6f7d"
@@ -10412,6 +10417,31 @@
       "path": "runtime/python/libs/winsound.lib",
       "bytes": 1750,
       "sha256": "58174d1ffac9cca046bd1a833b908ed00f76e4e5e2f21d407216657b37869b03"
+    },
+    {
+      "path": "runtime/python/msvcp140.dll",
+      "bytes": 643512,
+      "sha256": "7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca"
+    },
+    {
+      "path": "runtime/python/msvcp140_1.dll",
+      "bytes": 35768,
+      "sha256": "206c931bf90fdad8816de3b5e2ef80b2bcaa9406c89ecc05fe6fddffe251e982"
+    },
+    {
+      "path": "runtime/python/msvcp140_2.dll",
+      "bytes": 274872,
+      "sha256": "d50d7883f20d1dc6191768d3746f52dd9cac89c346ffaed5be1f110c2f34a838"
+    },
+    {
+      "path": "runtime/python/msvcp140_atomic_wait.dll",
+      "bytes": 57792,
+      "sha256": "3d0cbfaa1bf3eecf5a3f4491d2960ee803cb994f30292c6adc4a07c498f60e2b"
+    },
+    {
+      "path": "runtime/python/msvcp140_codecvt_ids.dll",
+      "bytes": 31160,
+      "sha256": "8a65c7596ef2e6938731f5a1058e7e40145b6d97967cc649231a076b9a608d78"
     },
     {
       "path": "runtime/python/python.exe",
@@ -16784,14 +16814,24 @@
       "sha256": "06f679a910ccf05f9daa329654bd5e27a2791f5374a19b14706c9780c1d3aa24"
     },
     {
+      "path": "runtime/python/vcomp140.dll",
+      "bytes": 212920,
+      "sha256": "95d4ce4a6802d1e18b5e0e1722cc30ea72ca7e033f83828f05c0b7b993fe7cbf"
+    },
+    {
       "path": "runtime/python/vcruntime140.dll",
-      "bytes": 124544,
-      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+      "bytes": 178616,
+      "sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7"
     },
     {
       "path": "runtime/python/vcruntime140_1.dll",
-      "bytes": 49792,
-      "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+      "bytes": 50112,
+      "sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e"
+    },
+    {
+      "path": "runtime/python/vcruntime140_threads.dll",
+      "bytes": 38840,
+      "sha256": "40f39e8cee5f5a531b4010e18b807e8fe265b908dc58f959ecb7ebc6ea6cb11a"
     },
     {
       "path": "worker/fixtures/sine.wav",
@@ -16825,8 +16865,8 @@
     },
     {
       "path": "worker/guitarlab_ai/install_managed.py",
-      "bytes": 18312,
-      "sha256": "cfbde44f327fb1e361c931abf8deac7daeed0e394c911cf63a1260f9ef46cd9f"
+      "bytes": 18293,
+      "sha256": "fe3f6ea25dfc879704f98a8ace064fb97e1a821bade76fce1c88c8874293850b"
     },
     {
       "path": "worker/guitarlab_ai/installation.py",
@@ -16845,8 +16885,8 @@
     },
     {
       "path": "worker/guitarlab_ai/model_cache.py",
-      "bytes": 8361,
-      "sha256": "24147269c7aa6b1eb1216a92e7b2de30c9256270433e3467792921a4d68d520b"
+      "bytes": 8445,
+      "sha256": "e459594e5bada1d1f141c019c8adf032edd45f200df45dc5abc07b1cc4bd4ab9"
     },
     {
       "path": "worker/guitarlab_ai/model_integrity.py",
@@ -16870,8 +16910,8 @@
     },
     {
       "path": "worker/guitarlab_ai/runtime_bundle.py",
-      "bytes": 8325,
-      "sha256": "0de2500154958040c0139786960a4253aee246cc4ccda8a67efe2b3b818d994d"
+      "bytes": 11035,
+      "sha256": "419ce3629dae0aad676904fd5cd7a34952d333e0166f78c11399da14f58650da"
     },
     {
       "path": "worker/guitarlab_ai/runtime_compatibility.py",
@@ -16880,8 +16920,8 @@
     },
     {
       "path": "worker/guitarlab_ai/runtime_packages.py",
-      "bytes": 8127,
-      "sha256": "1089bb2d3080216e5626fbaf781c2a39c5247e89d477806a5457cf89bb9c3c5c"
+      "bytes": 8209,
+      "sha256": "439ba30a53407a4e0a71000a143a3ebf306e5fe16a3e73976c18d31ad476731c"
     },
     {
       "path": "worker/guitarlab_ai/runtime_paths.py",
@@ -16912,6 +16952,11 @@
       "path": "worker/guitarlab_ai/separation/wav.py",
       "bytes": 2961,
       "sha256": "26cd99b2423ab5c9f9986a141c3358a40bdac25a6711c1e3538fdc0fb6c2c553"
+    },
+    {
+      "path": "worker/guitarlab_ai/tls.py",
+      "bytes": 600,
+      "sha256": "5dcf438f4833e5f0207f8af6f15b29bc2c26af57a518f4ae68f6d4b369cb219c"
     },
     {
       "path": "worker/guitarlab_ai/transcription/__init__.py",

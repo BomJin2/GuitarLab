@@ -23,7 +23,7 @@ impl ModelId {
             Self::BasicPitch => ModelSetupPlan {
                 id: "basic-pitch",
                 version: "0.4.0",
-                folder: "basic-pitch-0.4.0-cp310",
+                folder: "environments/basic-pitch-0.4.0-cp310",
                 cache: "basic-pitch-0.4.0-windows-cp310",
                 marker: "basic-pitch-active.json",
                 plan_hash: "55a4a2252034be7389673313f35b36ea7cfd49c54984b0827bd6b29699218c2a",
@@ -33,7 +33,7 @@ impl ModelId {
             Self::Demucs => ModelSetupPlan {
                 id: "htdemucs_6s",
                 version: "4.1.0",
-                folder: "demucs-4.1.0-cp310",
+                folder: "environments/demucs-4.1.0-cp310",
                 cache: "demucs-4.1.0-htdemucs-6s-windows-cp310",
                 marker: "demucs-active.json",
                 plan_hash: "0b4407faad80689e6b0a0c51816a1077eb7650cb20ec094ee1dc6132adc5e33d",
@@ -47,14 +47,14 @@ impl ModelId {
         if portable {
             match self {
                 Self::BasicPitch => {
-                    plan.folder = "basic-pitch-0.4.0-onnx1-cp312";
+                    plan.folder = "env/bp312";
                     plan.cache = "basic-pitch-0.4.0-onnx1-windows-cp312";
                     plan.marker = "basic-pitch-cp312-active.json";
                     plan.plan_hash =
                         "e4d75fa2a10e92de7dbb1c828d2102bc0bd76092f766892e41ddb7cde44989f1";
                 }
                 Self::Demucs => {
-                    plan.folder = "demucs-4.1.0-cp312";
+                    plan.folder = "env/dm312";
                     plan.cache = "demucs-4.1.0-htdemucs-6s-windows-cp312";
                     plan.marker = "demucs-cp312-active.json";
                     plan.plan_hash =
@@ -135,6 +135,16 @@ pub fn verify_with_resources(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portable_environment_paths_fit_max_path_without_long_path_setting() {
+        // 새 Windows 기본 LongPathsEnabled=0. 설치 파일 최대 상대 경로는 2026-11-03 실측(setuptools 132, torch 헤더 138).
+        for (model, longest) in [(ModelId::BasicPitch, 132), (ModelId::Demucs, 138)] {
+            let folder = model.setup_for(true).folder;
+            let base = r"C:\Users\".len() + 20 + r"\AppData\Roaming\com.guitarlab.app\ai\".len();
+            let total = base + folder.len() + 1 + 36 + longest;
+            assert!(total <= 259, "{folder}: {total}자");
+        }
+    }
     #[test]
     fn installation_report_requires_exact_model_version_and_no_quality_claim() {
         let value = json!({"schemaVersion":1,"modelId":"basic-pitch","modelVersion":"0.4.0","pythonVersion":"3.10.8","state":"FILES_VERIFIED"});

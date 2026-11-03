@@ -4,12 +4,11 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type DragEvent,
   type Dispatch,
+  type MutableRefObject,
   type SetStateAction,
 } from 'react';
 import { importLocalMedia } from './localMediaImport';
-import { droppedLocalMedia, mediaDropError } from './mediaDrop';
 import { scoreArchiveErrorMessage } from './scoreArchive';
 import { blankScoreFile } from './blankScore';
 import type { ScoreSession } from './scoreSession';
@@ -39,6 +38,9 @@ import type { ProjectController } from '../library/useProjects';
 import { ScoreTrackSelector } from './ScoreTrackSelector';
 import { ScoreEditor } from './ScoreEditor';
 import type { ScoreEditingController } from './useScoreEditing';
+import type { LocalMediaKind } from './localMediaImport';
+
+export type LocalDrop = (kind: LocalMediaKind, file: File) => Promise<void>;
 import {
   getActiveTrackIndex,
   selectScoreTrack,
@@ -61,6 +63,7 @@ export function ScoreWorkspace({
   display,
   onDisplayChange,
   playbackLocked = false,
+  localDrop,
 }: {
   session: ScoreSession | null;
   setSession: Dispatch<SetStateAction<ScoreSession | null>>;
@@ -74,6 +77,8 @@ export function ScoreWorkspace({
   display: ScoreDisplaySettings;
   onDisplayChange: (settings: ScoreDisplaySettings) => void;
   playbackLocked?: boolean;
+  /** 프로젝트가 없을 때 App의 화면 전체 드롭이 부르는 로컬 불러오기 */
+  localDrop?: MutableRefObject<LocalDrop | null>;
 }) {
   const { engine, state } = usePlayer();
   const [draft, setDraft] = useState<SyncAnchor[]>(
@@ -187,29 +192,21 @@ export function ScoreWorkspace({
       event.target.value = '';
       if (file) void load(kind, async () => file);
     };
-  function dropMedia(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (
-      playbackLocked ||
-      practice.armed ||
-      project?.busy ||
-      importing.current ||
-      loading ||
-      state.status === 'loading'
-    ) {
-      setNotice(
-        '녹음·채점·파일 처리를 마친 뒤 파일을 놓아주세요. 현재 작업을 유지했습니다.',
-      );
-      return;
-    }
-    try {
-      const { kind, file } = droppedLocalMedia(event.dataTransfer);
-      void load(kind, async () => file);
-    } catch (cause) {
-      setError(mediaDropError(cause));
-    }
-  }
+  useEffect(() => {
+    if (!localDrop || project?.details) return;
+    localDrop.current = async (kind, file) => {
+      if (importing.current || latestImportBlocked.current) {
+        setNotice(
+          '녹음·채점·파일 처리를 마친 뒤 파일을 놓아주세요. 현재 작업을 유지했습니다.',
+        );
+        return;
+      }
+      await load(kind, async () => file);
+    };
+    return () => {
+      localDrop.current = null;
+    };
+  });
   const fixture = (kind: 'score' | 'audio') =>
     void load(kind, async (signal) => {
       const name = kind === 'score' ? 'standard.musicxml' : 'sine.wav';
@@ -238,20 +235,9 @@ export function ScoreWorkspace({
       </p>
       {project?.native && <ProjectStatus project={project} />}
       {!project?.details && (
-        <section
-          className="panel"
-          aria-label="로컬 파일 끌어놓기"
-          onDrop={dropMedia}
-          onDragOver={(event) => {
-            event.preventDefault();
-            event.dataTransfer.dropEffect =
-              importBlocked || loading || state.status === 'loading'
-                ? 'none'
-                : 'copy';
-          }}
-        >
-          악보 또는 WAV/MP3 파일 한 개를 여기에 놓아 불러오세요. 파일 선택
-          버튼도 사용할 수 있습니다.
+        <section className="panel" aria-label="로컬 파일 끌어놓기">
+          악보 또는 WAV/MP3 파일 한 개를 작업 화면 어디에나 끌어다 놓아
+          불러오세요. 파일 선택 버튼도 사용할 수 있습니다.
         </section>
       )}
       {!project?.details && (

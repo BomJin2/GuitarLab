@@ -16,6 +16,7 @@ export function ProjectFileDrop({
   onFile,
   children,
   contextKey,
+  detail = '악보 또는 WAV/MP3 파일 한 개 · 관리용 복사',
 }: {
   active: boolean;
   disabled: boolean;
@@ -23,6 +24,7 @@ export function ProjectFileDrop({
   onFile: (kind: LocalMediaKind, file: File) => Promise<void>;
   children: ReactNode;
   contextKey: string;
+  detail?: string;
 }) {
   const depth = useRef(0);
   const mounted = useRef(false);
@@ -113,7 +115,7 @@ export function ProjectFileDrop({
                   ? '현재 작업을 마친 뒤 놓아주세요'
                   : '여기에 놓아 파일 적용하기'}
             </strong>
-            <p>악보 또는 WAV/MP3 파일 한 개 · 관리용 복사</p>
+            <p>{detail}</p>
           </div>
         </div>
       )}

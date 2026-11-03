@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isWorkspace, labels, type Route } from './routes';
 import { TransportBar } from '../features/player/TransportBar';
 import { preventDroppedFileNavigation } from '../shared/fileDrop';
@@ -20,6 +20,14 @@ export function AppShell({
   const workspace = isWorkspace(route);
   const [expanded, setExpanded] = useState(false);
   const collapsed = workspace && !expanded;
+  // 화면마다 마지막 스크롤 위치를 기억합니다. 카피·연습·연주는 같은 악보 작업 공간이라 하나로 공유합니다.
+  const main = useRef<HTMLElement>(null);
+  const positions = useRef(new Map<string, number>());
+  const scrollKey = workspace ? 'workspace' : (route ?? 'missing');
+  useLayoutEffect(() => {
+    if (main.current)
+      main.current.scrollTop = positions.current.get(scrollKey) ?? 0;
+  }, [scrollKey]);
   return (
     <div
       className="app-shell"
@@ -132,7 +140,14 @@ export function AppShell({
             </p>
           )}
         </aside>
-        <main id="main" tabIndex={-1}>
+        <main
+          id="main"
+          tabIndex={-1}
+          ref={main}
+          onScroll={(event) =>
+            positions.current.set(scrollKey, event.currentTarget.scrollTop)
+          }
+        >
           {children}
         </main>
       </div>

@@ -2,6 +2,8 @@
 
 ## 의존성 변경 감지 — 2026-10-24
 
+2026-11-03: 모델 다운로드 TLS를 Windows 시스템 검증(`pip._vendor.truststore`, 기존 런타임 pip 포함 모듈)으로 바꾸면서 worker 파일 3개(`tls.py` 추가, `model_cache.py`·`runtime_packages.py` 변경)만 달라졌습니다. 런타임 lock은 3394개가 됐고 `runtimeBundleManifestSha256`을 `604cb46b…`로 갱신했습니다. 이어서 같은 날 배포 모델 환경 경로를 짧게 바꾸면서(`install_managed.py`, `docs/12` 참고) lock을 다시 만들었고 SHA는 `6249870c…`입니다. 이후 깨끗한 Windows에 없는 Visual C++ 런타임 DLL 10개(14.51.36247, 빌드 PC의 VS Build Tools 공식 Redist에서 지문 확인 후 복사)를 `runtime/python`에 추가했습니다. Python 동봉 `vcruntime140`/`_1`(14.44)도 14.51로 바꿨습니다. lock은 3402개 파일, SHA `f32fd12e…`입니다. 이 Microsoft 재배포 파일의 법무 검토는 끝나지 않았습니다(`docs/10`). Python·pip·의존성·고지 원문은 바뀌지 않았고 `legalReviewCompleted:false`를 유지합니다.
+
 현재 npm6개/Rust273개·자산/런타임3개,총282항목을 새 로컬 그래프와 대조했고 정확한 버전/선언 조건·기존 원문/자산과 소스archive5개는 동일했습니다. Python3.12.15 고지14개도 현 runtime lock과 일치합니다. 오래된 runtimeBundleManifestSha256만 현재191c1e80…으로 갱신했으며 원문/실행 런타임·legalReviewCompleted:false는 유지합니다.
 
 새 수집 결과는 package.json·pnpm-lock.yaml·src-tauri/Cargo.toml·src-tauri/Cargo.lock의 UTF-8/CRLF→LF 지문을 보존합니다. ZIP·내부NSIS/CI 준비는 이 지문과 실제 runtime lock이 현재와 같아야 새 산출물을 만듭니다. 고지 누락/예전 지문이면 현재 그래프를 새로 export한 뒤 원문/버전을 대조해 다시 수집하세요. 기존 ZIP/설치기를 소급 수정하지 않습니다. 이 자동 일치 검사는 최종 배포 허가/전체 하위 저작물의 법률 검토를 대신하지 않습니다.

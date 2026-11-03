@@ -67,9 +67,7 @@ pub fn environment_for_profile(
     {
         return Err(error("AI_MODEL_INTEGRITY"));
     }
-    let relative = Path::new("ai/environments")
-        .join(plan.folder)
-        .join(value.environment_id);
+    let relative = Path::new("ai").join(plan.folder).join(value.environment_id);
     let executable = relative.join("Scripts/python.exe");
     if !root.join(&executable).is_file() {
         return Err(error("AI_MODEL_MISSING"));
@@ -141,7 +139,7 @@ mod tests {
             for portable in [false, true] {
                 let plan = model.setup_for(portable);
                 let id = uuid::Uuid::new_v4().to_string();
-                let relative = Path::new("ai/environments").join(plan.folder).join(&id);
+                let relative = Path::new("ai").join(plan.folder).join(&id);
                 let file = checked_file(root, &relative.join("Scripts/python.exe"))
                     .expect("실행하지 않는 DEMO 환경");
                 fs::write(file, b"DEMO").expect("DEMO 파일");
@@ -179,7 +177,7 @@ mod tests {
         let id = uuid::Uuid::new_v4().to_string();
         let executable = checked_file(
             root,
-            &Path::new("ai/environments")
+            &Path::new("ai")
                 .join(model.folder)
                 .join(&id)
                 .join("Scripts/python.exe"),

@@ -9,6 +9,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { listen } from '@tauri-apps/api/event';
 import { ModelSetupPanel } from './ModelSetupPanel';
 import { modelSetupApi, type ModelSetupResult } from './modelSetup';
+import { resetModelSetupForTests } from './useModelSetup';
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(vi.fn()),
 }));
@@ -18,6 +19,7 @@ vi.mock('./modelSetup', async (original) => ({
 }));
 afterEach(() => {
   cleanup();
+  resetModelSetupForTests();
   vi.clearAllMocks();
 });
 const info: ModelSetupResult = {
@@ -101,7 +103,7 @@ it('명시적 버튼 전 설치하지 않으며 성공과 기존 환경 재검�
     expect.any(Function),
   );
 });
-it('진행·중복 클릭·취소·늦은 성공·실패·화면 이탈을 처리한다', async () => {
+it('진행·중복 클릭·취소·늦은 성공·실패를 처리한다', async () => {
   let finish: (error: Error) => void = () => undefined;
   let signal: AbortSignal | undefined;
   vi.mocked(modelSetupApi.install).mockImplementation((current, progress) => {
@@ -130,7 +132,49 @@ it('진행·중복 클릭·취소·늦은 성공·실패·화면 이탈을 처�
   start();
   await screen.findByRole('alert');
   expect(screen.getByText(/새 환경을 활성화하지 않았습니다/)).toBeTruthy();
-  start();
   view.unmount();
-  expect(signal?.aborted).toBe(true);
+});
+it('화면을 떠나도 Demucs 선택과 진행 중인 설치를 유지하고 돌아오면 결과를 보여 준다', async () => {
+  let finish: (value: ModelSetupResult) => void = () => undefined;
+  let signal: AbortSignal | undefined;
+  vi.mocked(modelSetupApi.install).mockImplementation((current, progress) => {
+    signal = current;
+    progress('오프라인 패키지 설치');
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  const first = render(<ModelSetupPanel />);
+  fireEvent.change(screen.getByLabelText(/설치할 AI 모델/), {
+    target: { value: 'htdemucs_6s' },
+  });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Demucs 전체 기타 설치 / 재검증' }),
+  );
+  first.unmount();
+  expect(signal?.aborted).toBe(false);
+  render(<ModelSetupPanel />);
+  expect(screen.getByLabelText(/설치할 AI 모델/)).toHaveProperty(
+    'value',
+    'htdemucs_6s',
+  );
+  expect(screen.getByText(/오프라인 패키지 설치/)).toBeTruthy();
+  expect(modelSetupApi.install).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(modelSetupApi.install).mock.calls[0]?.[2]).toBe(
+    'htdemucs_6s',
+  );
+  cleanup();
+  await act(async () =>
+    finish({
+      ...info,
+      modelId: 'htdemucs_6s',
+      modelVersion: '4.1.0',
+      selfTest: 'OWNED_STEM_SPLIT_PASSED',
+    }),
+  );
+  render(<ModelSetupPanel />);
+  expect(screen.getByText(/자체 4초 기타·반주 분리 통과/)).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Demucs 전체 기타 설치 / 재검증' }),
+  ).toHaveProperty('disabled', false);
 });

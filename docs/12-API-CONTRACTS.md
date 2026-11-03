@@ -1,5 +1,59 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 프로젝트 없는 작업 공간의 화면 전체 드롭 — 2026-11-04
+
+깨끗한 Windows VM에서 프로젝트 없이 카피 화면의 전용 상자에 파일을 놓으면 반응이 없었습니다(사용자 확인). 반면 프로젝트가 있을 때의 화면 전체 드롭은 동작했습니다. 사용자 제안에 따라 2026-10-25 "프로젝트 없는 작업 공간의 로컬 파일 끌어놓기" 계약의 **받는 영역**을 다음처럼 바꿉니다.
+
+- 프로젝트가 없으면 카피·연습·연주에서 2026-10-28 화면 전체 드롭(`ProjectFileDrop`, 상위 capture·한 번만 처리·파일 드래그 안내·해제 조건)을 켭니다. 받은 파일은 기존 로컬 경로 `importLocalMedia`(작업 공간 `load`)로 넘깁니다.
+- 안내 아래 문구는 "프로젝트 없이 불러오기 · 저장 안 됨"으로 구분합니다.
+- 전용 상자는 안내 문구만 남기고 자체 drop 처리를 지웁니다.
+- 라이브러리 화면은 프로젝트가 없으면 드롭을 받지 않습니다. 이전과 같습니다.
+- 한도·형식·미저장 교체 확인·녹음/채점/보정/파일 작업 중 거부·네트워크 미전송 정책은 그대로입니다. 녹음·채점·보정·프로젝트 작업 중 거부 안내는 화면 전체 드롭의 공통 문구("녹음·채점·보정·파일 작업을 마친 뒤 파일을 놓아주세요")를 씁니다. 로컬 파일을 이미 불러오는 중에 다시 놓은 파일은 작업 공간이 "녹음·채점·파일 처리를 마친 뒤 파일을 놓아주세요. 현재 작업을 유지했습니다." 안내와 함께 거부하고, 첫 작업은 그대로 둡니다. 새 IPC는 없습니다.
+- 원인은 아직 확인되지 않았습니다. 가설은 상자가 `dragenter`를 취소하지 않았다는 것입니다. 화면 전체 드롭은 `dragenter`를 취소하므로 같은 문제를 피합니다. VM 실제 드롭으로 확인하기 전에는 완료로 표시하지 않습니다.
+
+## 모델 설치의 화면 이동 유지 — 2026-11-03
+
+사용자 요청(VM 검증 중)에 따라 「설치 / 재검증」만 2026-10-27 "모델 관리 명령의 동의·화면 수명" 계약을 다음처럼 바꿉니다. 그전에는 설정 화면을 떠나면 진행 중인 설치가 실제로 취소되고, 모델 선택은 Basic Pitch로 초기화됐습니다.
+
+- 선택한 모델·진행 단계·결과·오류·안내 문구는 앱 실행 중에는 화면 밖(모듈 저장소)에 유지합니다. 다른 화면에 다녀와도 같은 상태를 보여 줍니다. 앱을 다시 시작하면 초기화되며, 디스크에 저장하지 않습니다.
+- 화면을 떠나도 설치를 취소하지 않습니다. 취소는 「설치 취소」 버튼으로만 합니다. 설치 중 창 닫기를 막는 기존 native 정책과 안내 문구도 그대로입니다. 다만 안내 문구는 설정 화면으로 돌아와야 보입니다.
+- 화면을 떠난 뒤 이전 화면의 함수로 **새** 설치를 시작하지 않는 규칙과, 모델 선택이 바뀐 뒤 이전 문맥 함수를 거부하는 규칙은 유지합니다. 단일 작업 잠금도 유지합니다.
+- 다운로드·설치 확인·캐시 정리는 기존 계약(화면 이탈 시 취소)을 유지합니다. IPC·DTO 변경은 없습니다.
+
+## 배포 런타임의 Visual C++ 런타임 동봉 — 2026-11-03
+
+경로 단축 뒤 깨끗한 Windows 11 VM에서 모델 설치가 `AI_WORKER_FAILED`로 실패했습니다. 그 VM의 `C:\Windows\System32`에는 `msvcp140.dll`·`msvcp140_1.dll`·`vcomp140.dll`·`concrt140.dll`이 모두 없었습니다(사용자 확인). 반면 설치되는 `onnxruntime`·numba·soxr·torch는 `msvcp140.dll`을 시스템에서 찾습니다. 함께 넣은 Python에는 `vcruntime140.dll`·`vcruntime140_1.dll`(14.44)만 들어 있었습니다.
+
+- `runtime_bundle --prepare`는 Python 원본 트리 검증(`verify_runtime_tree`)이 끝난 뒤, Visual Studio Build Tools의 공식 재배포 폴더에서 아래 10개 파일을 `runtime/python/`(`python.exe` 옆)에 복사합니다.
+  - 원본 폴더: `VC\Redist\MSVC\<버전>\x64\Microsoft.VC145.CRT`와 `Microsoft.VC145.OpenMP`
+  - 파일: `msvcp140`, `msvcp140_1`, `msvcp140_2`, `msvcp140_atomic_wait`, `msvcp140_codecvt_ids`, `concrt140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads`, `vcomp140`(모두 `.dll`)
+- 버전은 14.51.36247로 고정합니다. 파일별 크기와 SHA-256은 `runtime_bundle.VC_RUNTIME`에 고정하고, 결과는 runtime lock에 들어갑니다.
+- 새 `msvcp140`은 같은 버전 이상의 `vcruntime140`이 필요합니다. 그래서 Python에 들어 있던 `vcruntime140`/`_1`(14.44)도 14.51로 바꿉니다. 이 런타임은 하위 호환됩니다.
+- 지문이 맞는 원본이 빌드 PC에 없으면 묶음 생성이 `VC_RUNTIME_SOURCE_MISSING`으로 멈춥니다. 다른 버전으로 대체하지 않습니다. 저장소에는 Microsoft 바이너리를 넣지 않습니다.
+- CI `installer-smoke.yml` 러너에 같은 14.51이 없으면 그 검사도 같은 오류로 실패합니다. 이것은 알려진 제한으로 기록합니다.
+- 앱 데이터의 런타임 복사본 폴더는 고정 이름 `ai/runtimes/cpython-3.12.15-20261013-r1` 대신 `ai/runtimes/cpython-3.12.15-<지문 12자>`를 씁니다. 지문은 lock의 `runtime/`·`notices/` 항목에서 계산하므로, 런타임 내용이 바뀌면 새 폴더에 복사됩니다. 그전에는 이전 시도에서 만든 r1 복사본이 새 lock과 맞지 않아 `AI_RUNTIME_INTEGRITY`로 막혔습니다. worker 파일만 바뀌면 폴더 이름은 그대로입니다. 이전 폴더는 자동 삭제하지 않으며 약 64MB가 남습니다. 기존 모델 환경의 `pyvenv.cfg`는 이전 폴더를 가리키므로, 런타임이 바뀐 뒤에는 모델을 다시 설치해야 합니다.
+- 작업 프로세스(`python.exe`) 폴더는 Windows DLL 검색의 1순위입니다. 시스템 레지스트리 설정이나 관리자 설치는 요구하지 않습니다.
+- 새 IPC·필드는 없습니다. Microsoft 재배포 조건은 `docs/10`에 기록하고 법무 검토 대상(`legalReviewCompleted:false`)으로 둡니다. VM 실제 설치로 확인하기 전에는 완료로 표시하지 않습니다.
+
+## 배포 모델 환경 경로 단축 — 2026-11-03
+
+깨끗한 Windows 11 VM에서 모델 설치가 `AI_SETUP_PROCESS_FAILED`로 실패했습니다. 확인한 조건은 `LongPathsEnabled=0`(새 Windows 기본값)과 사용자 이름 8자입니다. 이때 기존 경로 `ai/environments/basic-pitch-0.4.0-onnx1-cp312/UUID`의 전체 길이는 134자이고, 설치되는 가장 긴 파일의 상대 경로는 132자(setuptools 테스트 데이터)입니다. 합계가 260자 제한을 넘습니다. Demucs는 torch 헤더가 138자입니다.
+
+- 배포(cp312) 환경 경로를 다음으로 바꿉니다. marker 이름·plan 해시·UUID 규칙·설치 순서는 그대로입니다.
+  - Basic Pitch: `ai/env/bp312/UUID`
+  - Demucs: `ai/env/dm312/UUID`
+- 길이 계산은 `C:\Users\<이름>\AppData\Roaming\com.guitarlab.app\` 기준입니다. 이 기준에서 사용자 이름이 Basic Pitch는 34자, Demucs는 28자까지 260자 안에 들어갑니다. Windows 로컬 계정 이름은 최대 20자입니다.
+- 개발용 cp310 경로 `ai/environments/<폴더>/UUID`는 바꾸지 않습니다.
+- 계획의 `folder` 값은 이제 `ai/` 아래 상대 경로입니다.
+  - 개발용 cp310: `environments/basic-pitch-0.4.0-cp310`, `environments/demucs-4.1.0-cp310`
+  - 배포용 cp312: `env/bp312`, `env/dm312`
+- 기존 cp312 경로에 이미 설치된 환경은 출시 전 개발 PC에만 있습니다. 이 경우 marker가 가리키는 새 경로의 폴더가 없으므로 실행은 `AI_MODEL_MISSING`, 재설치는 `AI_SETUP_MARKER_INVALID`가 됩니다. 자동 이동이나 삭제는 하지 않습니다. 개발 PC에서는 앱을 종료한 뒤 `ai/*-cp312-active.json`과 옛 폴더를 직접 정리하고 다시 설치합니다.
+- 새 IPC·필드·의존성은 없습니다. 레지스트리 긴 경로 설정은 요구하지 않습니다. VM 실제 설치로 확인하기 전에는 완료로 표시하지 않습니다.
+
+## 모델 다운로드의 HTTPS 인증서 검증 — 2026-11-03
+
+선택 모델 다운로드(`model_cache._open`, `runtime_packages._open`)는 Windows 시스템 인증서 검증으로 HTTPS를 확인합니다. 배포 런타임 pip에 함께 들어 있는 `pip._vendor.truststore`(MIT)의 `SSLContext`를 사용합니다. 깨끗한 Windows 11 VM에서 Python 기본 SSL 설정이 `CERTIFICATE_VERIFY_FAILED`로 실패한 것을 확인했습니다. Python 기본 설정은 저장소에 이미 있는 루트만 읽고, Windows가 필요할 때 받아 오는 루트 인증서를 쓰지 않기 때문입니다. 인증서 검증·호스트 이름 확인은 계속 필수입니다. 허용 주소·리다이렉트 제한·지문 확인·프록시 무시(`ProxyHandler({})`)는 바꾸지 않습니다. `truststore`가 없는 개발 환경(구형 pip)에서는 Python 기본 SSL 설정을 사용하며, 배포 런타임 잠금 파일에 `truststore`가 들어 있는지는 테스트로 고정합니다. 새 IPC·필드·의존성 추가는 없습니다. VM 실제 다운로드로 확인하기 전에는 완료로 표시하지 않습니다.
+
 ## MusicXML X 음표 머리의 미지원 경계 — 2026-11-03
 
 alphaTab1.6.1은 MusicXML `<notehead>x</notehead>`와 `circle-x`를 화면 모양(`Note.style.noteHead`)으로만 읽고 `Note.isDead`로 기록하지 않습니다. 기타 악보에서 X 머리는 데드·뮤트 음을 뜻하는데, 확인 결과 이 음표가 음정 있는 일반 피킹으로 채점되고 기본 편집에서 X 표기가 지워질 수 있었습니다. X 계열 머리(일반·원형, 모든 음가)를 기존 `judgementSupport:UNSUPPORTED`, 감점 제외, 편집 소실 거부, 구형 원본 metadata 복원에 연결합니다. `cross`(+)와 `diamond` 등 다른 머리 모양은 바꾸지 않습니다. 새 IPC/DB/필드/기록 버전·실제 뮤트 검출·과거 점수 재계산은 없으며, 실제 파서 회귀가 통과하기 전 완료로 표시하지 않습니다.

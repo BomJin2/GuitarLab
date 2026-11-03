@@ -216,7 +216,7 @@ pub fn install_with_resources(
             python_at(environment, "AI_MODEL_MISSING")
         }
     };
-    let candidate = root.join("ai/environments").join(plan.folder).join(job);
+    let candidate = root.join("ai").join(plan.folder).join(job);
     if fs::symlink_metadata(&candidate).is_ok() {
         return Err(error("AI_SETUP_PATH"));
     }
@@ -258,7 +258,7 @@ pub fn install_with_resources(
         }
         let executable = crate::storage::database::checked_file(
             root,
-            &Path::new("ai/environments")
+            &Path::new("ai")
                 .join(plan.folder)
                 .join(job)
                 .join("Scripts/python.exe"),
@@ -656,7 +656,7 @@ mod tests {
         assert!(!canceled
             .store
             .root
-            .join("ai/environments")
+            .join("ai")
             .join(ModelId::BasicPitch.setup_for(true).folder)
             .join(id)
             .exists());
@@ -666,11 +666,12 @@ mod tests {
             .join("ai")
             .join(ModelId::BasicPitch.setup_for(true).marker)
             .exists());
-        assert!(canceled
-            .store
-            .root
-            .join("ai/runtimes/cpython-3.12.15-20261013-r1/python/python.exe")
-            .is_file());
+        assert!(
+            super::super::bundled::stable_runtime_dir(&canceled.store.root)
+                .expect("런타임 폴더")
+                .join("python/python.exe")
+                .is_file()
+        );
     }
     #[test]
     #[ignore = "승인된 41개 캐시와 개발 Python을 사용해 격리 환경을 오프라인 설치·재사용·취소합니다"]
@@ -775,7 +776,7 @@ mod tests {
         assert_eq!(result.expect_err("취소").code, "CANCELED");
         assert!(!root.join("ai").join(plan.marker).exists());
         assert!(!root
-            .join("ai/environments")
+            .join("ai")
             .join(plan.folder)
             .join(&canceled_id)
             .exists());

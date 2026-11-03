@@ -9,12 +9,13 @@ import shutil
 import signal
 from threading import Event
 from urllib.parse import urlsplit
-from urllib.request import build_opener,HTTPRedirectHandler,ProxyHandler
+from urllib.request import build_opener,HTTPRedirectHandler,HTTPSHandler,ProxyHandler
 from uuid import uuid4
 
 from .install_managed import AI_ROOT,_cancel,_directory
 from .model_cache import _verify_cached,_publish
 from .model_integrity import ModelError
+from .tls import https_context
 from .runtime import Canceled
 
 PLANS={
@@ -56,7 +57,7 @@ class _Redirect(HTTPRedirectHandler):
 
 
 def _open(url):
-    return build_opener(ProxyHandler({}),_Redirect()).open(url,timeout=10)
+    return build_opener(ProxyHandler({}),HTTPSHandler(context=https_context()),_Redirect()).open(url,timeout=10)
 
 
 def stage_artifacts(artifacts,cache: Path,sources,cancel: Event,progress,work_dir: Path | None = None):

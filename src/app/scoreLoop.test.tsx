@@ -50,9 +50,15 @@ it('녹음 잠금 중 프로그램식 drop도 읽지 않고 잠금을 풀면 같
     });
   drop();
   expect(read).not.toHaveBeenCalled();
-  expect(screen.getByText(/녹음·채점·파일 처리를 마친 뒤/)).toBeTruthy();
+  expect(screen.getByText(/녹음·채점·보정·파일 작업을 마친 뒤/)).toBeTruthy();
   flags.recordingLocked = false;
   rendered.rerender(view());
+  // 실제 WebView는 dragenter를 취소한 요소만 drop 대상으로 삼습니다(jsdom은 이 단계를 생략).
+  expect(
+    fireEvent.dragEnter(screen.getByLabelText('로컬 파일 끌어놓기'), {
+      dataTransfer: { files: [], items: [], types: ['Files'] },
+    }),
+  ).toBe(false);
   drop();
   await screen.findByLabelText('악보 트랙');
   expect(read).toHaveBeenCalledOnce();
@@ -182,5 +188,58 @@ it('실제 App의 녹음 잠금이 마디 반복 fieldset과 명령까지 전달
   expect(control.closest('fieldset')?.disabled).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: '선택 마디 반복' }));
   expect(engine.getSnapshot().loop).toEqual({ startMs: 0, endMs: 2000 });
+  engine.dispose();
+});
+
+it('프로젝트 없이도 작업 화면 어디에 놓아도 악보를 로컬로 불러온다', async () => {
+  window.location.hash = '#/practice';
+  const engine = new PlayerEngine();
+  render(
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>,
+  );
+  const target = screen.getByRole('heading', { name: '연습 작업 공간' });
+  const dataTransfer = {
+    files: [new File([xml], '자체.musicxml')],
+    items: [],
+    types: ['Files'],
+  };
+  expect(fireEvent.dragEnter(target, { dataTransfer })).toBe(false);
+  expect(
+    await screen.findByText(/프로젝트 없이 불러오기 · 저장 안 됨/),
+  ).toBeTruthy();
+  fireEvent.drop(target, { dataTransfer });
+  await screen.findByLabelText('악보 트랙');
+  engine.dispose();
+});
+
+it('프로젝트 없이 불러오는 중 두 번째 드롭은 안내와 함께 거부하고 첫 작업을 유지한다', async () => {
+  window.location.hash = '#/copy';
+  const engine = new PlayerEngine();
+  render(
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>,
+  );
+  const read = vi
+    .spyOn(FileReader.prototype, 'readAsArrayBuffer')
+    .mockImplementationOnce(() => undefined);
+  const target = screen.getByRole('heading', { name: '카피 작업 공간' });
+  const drop = () =>
+    fireEvent.drop(target, {
+      dataTransfer: {
+        files: [new File([xml], '자체.musicxml')],
+        items: [],
+        types: ['Files'],
+      },
+    });
+  drop();
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+  drop();
+  expect(
+    await screen.findByText(/파일 처리를 마친 뒤 파일을 놓아주세요/),
+  ).toBeTruthy();
+  expect(read).toHaveBeenCalledOnce();
   engine.dispose();
 });

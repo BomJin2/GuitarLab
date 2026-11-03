@@ -26,7 +26,7 @@ def test_cp312_prepare_and_marker_never_reuse_or_replace_legacy_environment(tmp_
     environment_id=str(uuid4())
     report=setup.prepare(tmp_path,Event(),lambda _:None,environment_id)
     assert report['state']=='PREPARED'
-    environment=tmp_path/'ai/environments'/model['folder']/environment_id
+    environment=tmp_path/'ai'/model['folder']/environment_id
     assert 'DEMO==1 --hash=sha256:' in (environment/'requirements.lock').read_text(encoding='utf-8')
     assert not list((environment/'setup-bootstrap').iterdir())
     assert setup.activate(tmp_path,environment_id,Event())['state']=='INSTALLED'

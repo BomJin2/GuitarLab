@@ -20,6 +20,20 @@ FULL_ARCHIVE = {
     'bytes': 43731659,
     'sha256': '7780bf6a29f93e6d0e3b5bdbe8cf799b3e2a0638bdec921be5b0c3ca81e67313',
 }
+# 깨끗한 Windows에는 VC++ 재배포 패키지가 없어 onnxruntime·numba·torch가 msvcp140.dll을 찾지 못합니다.
+# 새 msvcp140은 같은 버전 이상의 vcruntime140이 필요하므로 Python 동봉 14.44 vcruntime도 함께 바꿉니다.
+VC_RUNTIME = {
+    'concrt140.dll': (374200, '54716f0738af891f283d213b5c8d11b25896bb8ee3097d301eae718560cf974e'),
+    'msvcp140.dll': (643512, '7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca'),
+    'msvcp140_1.dll': (35768, '206c931bf90fdad8816de3b5e2ef80b2bcaa9406c89ecc05fe6fddffe251e982'),
+    'msvcp140_2.dll': (274872, 'd50d7883f20d1dc6191768d3746f52dd9cac89c346ffaed5be1f110c2f34a838'),
+    'msvcp140_atomic_wait.dll': (57792, '3d0cbfaa1bf3eecf5a3f4491d2960ee803cb994f30292c6adc4a07c498f60e2b'),
+    'msvcp140_codecvt_ids.dll': (31160, '8a65c7596ef2e6938731f5a1058e7e40145b6d97967cc649231a076b9a608d78'),
+    'vcruntime140.dll': (178616, 'd1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7'),
+    'vcruntime140_1.dll': (50112, 'a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e'),
+    'vcruntime140_threads.dll': (38840, '40f39e8cee5f5a531b4010e18b807e8fe265b908dc58f959ecb7ebc6ea6cb11a'),
+    'vcomp140.dll': (212920, '95d4ce4a6802d1e18b5e0e1722cc30ea72ca7e033f83828f05c0b7b993fe7cbf'),
+}
 LICENSES = ('cpython', 'bzip2', 'libffi', 'liblzma', 'libuuid', 'openssl-3', 'sqlite', 'tcl', 'tix', 'expat', 'mpdecimal', 'zlib')
 LAUNCHER = '''from pathlib import Path
 import os, runpy, sys
@@ -55,6 +69,24 @@ def inventory(root: Path, cancel: Event):
     if len(files) > 5000 or sum(item['bytes'] for item in files) > 128 * 1024 * 1024:
         raise ModelError('AI_CACHE_INTEGRITY')
     return {'schemaVersion': 1, 'state': 'RUNTIME_RESOURCE_CANDIDATE', 'pythonVersion': '3.12.15', 'files': files}
+
+
+def vc_runtime_sources(cancel: Event, roots=None):
+    """빌드 PC의 VS 공식 Redist 폴더에서 지문이 고정된 VC++ 런타임 파일을 찾습니다."""
+    if roots is None:
+        roots = [Path(os.environ[key]) / 'Microsoft Visual Studio' for key in ('ProgramFiles(x86)', 'ProgramFiles') if key in os.environ]
+    found = {}
+    for name, (size, sha256) in VC_RUNTIME.items():
+        for path in sorted(p for root in roots for p in root.glob(f'*/*/VC/Redist/MSVC/*/x64/Microsoft.VC145.*/{name}')):
+            try:
+                _verify_cached(path, {'bytes': size, 'sha256': sha256}, cancel)
+            except ModelError:
+                continue
+            found[name] = path
+            break
+        else:
+            raise ModelError('VC_RUNTIME_SOURCE_MISSING')
+    return found
 
 
 def prepare(cancel: Event, progress, refresh_lock=False):
@@ -109,13 +141,20 @@ def prepare(cancel: Event, progress, refresh_lock=False):
 
 CPython3.12.15/Astral20261013의 원문 고지를 보존합니다. 기본 Python LICENSE, pip와 vendored 패키지 고지는 runtime/python 내부에 함께 있습니다. 추가 라이브러리 고지는 동일 공식 full archive에서 수집했으며 모델 가중치는 포함하지 않습니다.
 
-이 후보는 로컬 검증용입니다. Microsoft VC runtime 재배포 조건, 모델 패키지 전체 고지와 최종 설치/새 PC 검증은 별도 릴리스 점검 대상입니다. Python 코드·모델 환경을 설치했다고 표시하지 않습니다.
+runtime/python의 Microsoft Visual C++ 런타임 DLL 10개(14.51.36247)는 Visual Studio Build Tools의 공식 재배포 폴더(Microsoft.VC145.CRT·OpenMP)에서 지문을 확인해 복사했습니다. 재배포 조건은 Visual Studio 라이선스의 배포 가능 코드 조항을 따릅니다.
+
+이 후보는 로컬 검증용입니다. Microsoft VC runtime 재배포 조건의 법무 검토, 모델 패키지 전체 고지와 최종 설치/새 PC 검증은 별도 릴리스 점검 대상입니다. Python 코드·모델 환경을 설치했다고 표시하지 않습니다.
 
 출처: https://docs.astral.sh/python-build-standalone/distributions/
 공식 빌드: https://github.com/astral-sh/python-build-standalone/releases/tag/20261013
 VC runtime: https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution
 ''', encoding='utf-8')
         verify_runtime_tree(archive, unpacked, plan, cancel)
+        progress('VC++ 런타임 복사')
+        for name, source in vc_runtime_sources(cancel).items():
+            target = unpacked / 'python' / name
+            shutil.copyfile(source, target)
+            _verify_cached(target, dict(zip(('bytes', 'sha256'), VC_RUNTIME[name])), cancel)
         report = inventory(candidate, cancel)
         lock = AI_ROOT / 'models/runtime-bundle-lock.json'
         if refresh_lock:

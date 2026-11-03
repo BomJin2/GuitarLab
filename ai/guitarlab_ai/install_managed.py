@@ -21,7 +21,7 @@ from .model_integrity import ModelError, verify_model_file
 from .runtime import Canceled
 
 AI_ROOT = Path(__file__).resolve().parents[1]
-ENV_FOLDER = "basic-pitch-0.4.0-cp310"
+ENV_FOLDER = "environments/basic-pitch-0.4.0-cp310"
 SELF_TEST = "OWNED_8_NOTES_PASSED"
 BOOTSTRAP = {"name": "setuptools", "version": "63.2.0", "filename": "setuptools-63.2.0-py3-none-any.whl",
              "bytes": 1228000, "sha256": "0d33c374d41c7863419fc8f6c10bfe25b7b498aa34164d135c622e52580c6b16"}
@@ -30,12 +30,12 @@ BOOTSTRAP = {"name": "setuptools", "version": "63.2.0", "filename": "setuptools-
 def model_settings(model_id='basic-pitch'):
     if sys.version_info[:3] == (3, 12, 15):
         if model_id == 'basic-pitch':
-            return {'id':model_id,'version':'0.4.0','folder':'basic-pitch-0.4.0-onnx1-cp312',
+            return {'id':model_id,'version':'0.4.0','folder':'env/bp312',
                     'planId':'basic-pitch-0.4.0-onnx1-windows-cp312',
                     'planHash':'e4d75fa2a10e92de7dbb1c828d2102bc0bd76092f766892e41ddb7cde44989f1',
                     'marker':'basic-pitch-cp312-active.json','selfTest':SELF_TEST}
         if model_id == 'htdemucs_6s':
-            return {'id':model_id,'version':'4.1.0','folder':'demucs-4.1.0-cp312',
+            return {'id':model_id,'version':'4.1.0','folder':'env/dm312',
                     'planId':'demucs-4.1.0-htdemucs-6s-windows-cp312',
                     'planHash':'2d7760f72cc5cc07aa25cf120b7d478b720941c2513109393d78b3014c70a5e7',
                     'marker':'demucs-cp312-active.json','selfTest':'OWNED_STEM_SPLIT_PASSED'}
@@ -43,7 +43,7 @@ def model_settings(model_id='basic-pitch'):
         return {'id':model_id, 'version':'0.4.0', 'folder':ENV_FOLDER, 'planId':PLAN_ID,
                 'planHash':PLAN_HASH, 'marker':'basic-pitch-active.json', 'selfTest':SELF_TEST}
     if model_id == 'htdemucs_6s':
-        return {'id':model_id, 'version':'4.1.0', 'folder':'demucs-4.1.0-cp310',
+        return {'id':model_id, 'version':'4.1.0', 'folder':'environments/demucs-4.1.0-cp310',
                 'planId':'demucs-4.1.0-htdemucs-6s-windows-cp310',
                 'planHash':'0b4407faad80689e6b0a0c51816a1077eb7650cb20ec094ee1dc6132adc5e33d',
                 'marker':'demucs-active.json', 'selfTest':'OWNED_STEM_SPLIT_PASSED'}
@@ -189,14 +189,14 @@ def prepare(root: Path, cancel: Event, progress, environment_id=None, model_id='
         from .cache_demucs import load_plan
         plan = load_plan()
     directory = _directory(root, "ai")
-    parent = _directory(root, "ai", "environments", model['folder'])
+    parent = _directory(root, "ai", *model['folder'].split("/"))
     active = directory / model['marker']
     if active.exists() or active.is_symlink():
         value = _read_active(active, model_id)
         environment = parent / value["environmentId"]
         if not environment.is_dir():
             raise ModelError("AI_SETUP_MARKER_INVALID")
-        environment = _directory(root, "ai", "environments", model['folder'], value["environmentId"])
+        environment = _directory(root, "ai", *model['folder'].split("/"), value["environmentId"])
         return {"schemaVersion": 1, "modelId": model_id, "modelVersion": model['version'], "state": "ALREADY_ACTIVE", "environmentId": value["environmentId"]}
     cache = _directory(root, "ai", "downloads", model['planId'])
     progress("캐시 검증")
@@ -255,7 +255,7 @@ def _paths(root, environment_id, model_id='basic-pitch'):
     if str(UUID(environment_id)) != environment_id:
         raise ModelError("AI_SETUP_PATH")
     directory = _directory(root, "ai")
-    parent = _directory(root, "ai", "environments", model_settings(model_id)['folder'])
+    parent = _directory(root, "ai", *model_settings(model_id)['folder'].split("/"))
     return directory, parent, parent / environment_id
 
 
@@ -271,7 +271,7 @@ def activate(root, environment_id, cancel, model_id='basic-pitch'):
     directory, _, environment = _paths(root, environment_id, model_id)
     if not environment.is_dir():
         raise ModelError("AI_SETUP_PATH")
-    _directory(root, "ai", "environments", model['folder'], environment_id)
+    _directory(root, "ai", *model['folder'].split("/"), environment_id)
     active = directory / model['marker']
     if active.exists() or active.is_symlink():
         if _read_active(active, model_id)["environmentId"] == environment_id:

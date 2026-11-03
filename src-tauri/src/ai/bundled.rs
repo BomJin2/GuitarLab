@@ -245,6 +245,22 @@ fn tool_command(root: &Path, cancel: &AtomicBool, source: &str) -> Result<Comman
     Ok(command)
 }
 
+/// 앱 데이터의 런타임 폴더 이름. 내용 지문에서 만들므로 런타임이 바뀌면 이전 복사본과 섞이지 않습니다.
+fn stable_runtime_name(bundle: &Bundle) -> String {
+    let mut digest = Sha256::new();
+    for item in persistent_files(bundle) {
+        digest.update(format!("{}\t{}\t{}\n", item.path, item.bytes, item.sha256));
+    }
+    let hex: String = digest.finalize()[..6]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    format!("cpython-3.12.15-{hex}")
+}
+#[cfg(test)]
+pub(super) fn stable_runtime_dir(root: &Path) -> Result<PathBuf, AppError> {
+    Ok(root.join("ai/runtimes").join(stable_runtime_name(&plan()?)))
+}
 fn persistent_files(bundle: &Bundle) -> Vec<BundleFile> {
     bundle
         .files
@@ -271,7 +287,7 @@ pub(super) fn persistent_command(
 ) -> Result<Command, AppError> {
     let bundle = plan()?;
     verify(resources, &bundle.files, cancel)?;
-    let stable = root.join("ai/runtimes/cpython-3.12.15-20261013-r1");
+    let stable = root.join("ai/runtimes").join(stable_runtime_name(&bundle));
     verify(&stable, &persistent_files(&bundle), cancel)?;
     let python = environment.map_or_else(
         || stable.join("python/python.exe"),
@@ -305,7 +321,7 @@ pub(super) fn ensure_persistent(
     verify(resources, &bundle.files, cancel)?;
     let entries = persistent_files(&bundle);
     let parent = checked_directory(root, Path::new("ai/runtimes"))?;
-    let target = parent.join("cpython-3.12.15-20261013-r1");
+    let target = parent.join(stable_runtime_name(&bundle));
     let total = entries.iter().map(|item| item.bytes).sum();
     match fs::symlink_metadata(&target) {
         Ok(_) => {
@@ -402,6 +418,31 @@ pub(super) fn ensure_persistent(
 pub(super) mod tests {
     use super::*;
     use crate::storage::projects::hash;
+    #[test]
+    fn stable_runtime_name_follows_runtime_contents_only() {
+        let file = |path: &str, sha: char| BundleFile {
+            path: path.into(),
+            bytes: 1,
+            sha256: sha.to_string().repeat(64),
+        };
+        let bundle = |runtime: char, worker: char| Bundle {
+            schema_version: 1,
+            state: "RUNTIME_RESOURCE_CANDIDATE".into(),
+            python_version: "3.12.15".into(),
+            files: vec![
+                file("runtime/python/msvcp140.dll", runtime),
+                file("worker/guitarlab_ai/worker.py", worker),
+            ],
+        };
+        let name = stable_runtime_name(&bundle('a', 'a'));
+        assert!(name.starts_with("cpython-3.12.15-") && name.len() == 28);
+        assert_eq!(name, stable_runtime_name(&bundle('a', 'b')));
+        assert_ne!(name, stable_runtime_name(&bundle('b', 'a')));
+        assert_ne!(
+            stable_runtime_name(&plan().expect("lock")),
+            "cpython-3.12.15-20261013-r1"
+        );
+    }
     #[test]
     fn resources_require_exact_files_hashes_and_containment() {
         let fixture = crate::storage::projects_tests::Fixture::new();

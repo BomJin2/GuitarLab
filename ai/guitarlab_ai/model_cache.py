@@ -11,9 +11,10 @@ import sys
 from threading import Event
 from urllib.error import URLError
 from urllib.parse import urlsplit
-from urllib.request import build_opener, HTTPRedirectHandler, ProxyHandler
+from urllib.request import build_opener, HTTPRedirectHandler, HTTPSHandler, ProxyHandler
 
 from .model_integrity import ModelError, PLAN_PATH
+from .tls import https_context
 from .runtime import Canceled
 
 PLAN_ID = "basic-pitch-0.4.0-windows-cp310"
@@ -36,7 +37,7 @@ class _Redirects(HTTPRedirectHandler):
 
 
 def _open(url):
-    return build_opener(ProxyHandler({}), _Redirects()).open(url, timeout=5)
+    return build_opener(ProxyHandler({}), HTTPSHandler(context=https_context()), _Redirects()).open(url, timeout=5)
 
 
 def _plan():

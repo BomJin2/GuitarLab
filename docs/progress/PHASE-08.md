@@ -1,5 +1,107 @@
 # Phase8 — 품질·릴리스
 
+## 진행 중 — 깨끗한 Windows 가상머신 검증 (2026-11-03)
+
+### 1. 작업 개요
+
+작업일 2026-11-03. 개발 도구가 없는 Windows에서 독립 패키지를 확인하는 남은 조건을 위해, 사용자가 VirtualBox에 Windows 11을 새로 설치했습니다. 가상머신의 `winver` 표시는 **버전 26H2(OS 빌드 26300.9457), 한국어**입니다(사용자 확인). 개발 PC도 같은 26300 계열이므로, 이번 검증은 OS 버전 차이가 아니라 개발 도구 유무의 차이를 봅니다. Windows 10과 이전 Windows 11 버전은 별도 미실행 항목으로 남습니다.
+
+### 2. 구현 및 변경 사항
+
+제품 코드는 바꾸지 않았습니다. 커밋 `3341a6fda9d532b6fdf2fc45dcbe22d81adbab61`의 깨끗한 작업 트리로 패키지를 만들었습니다.
+- `pnpm build` → `cargo build --locked --features custom-protocol --bin guitarlab --example manage_ai_model`(debug) → `bundle_tests` **4개 성공**.
+- 새 실행 폴더 `portable/vm-clean-5036504c-a650-43fc-96b9-42e5705c094e`: EXE 42,554,880바이트, SHA `9ef3416879e98003ce0a6e9680ad7897a37b31736099f893297688b94fdea03d`. 고정 AI 런타임 3393개 파일/64,095,466바이트는 이전 실행 폴더에서 복사했고, 패키지 스크립트가 잠금 파일 지문과 하나씩 대조합니다.
+- 후보 `vm-clean-candidate-5036504c-a650-43fc-96b9-42e5705c094e.json` → `scripts/package_validation.py`로 ZIP을 만들었습니다: `validation-packages/f38d7a23-aecc-48be-a9ae-1ce7bf676dd2/GuitarLab-validation.zip`, **3613파일/40,580,971바이트, SHA `af00bab72ded16a62d3c186f99a6ba2a17bc94d5fccc7fbf260e170e43d38c5d`**.
+- 가상머신 전달용 폴더 `src-tauri/target/runtime-validation/vm-share/`에 위 ZIP과 테스트 악보 `standard.gp`(SHA `6d8bb5a919c96e39f71738a159029c1e875cc1ed297a3e892dd52d61955353c9`)를 복사했습니다.
+
+### 3. 테스트 결과
+
+- 개발 PC에서 새 폴더(`vm-clean-roundtrip-f5ea5821-cf0e-4941-90c6-0dd6f8e1e17e`)에 풀고 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File Test-ValidationPackage.ps1` 실행: **exit 0**. 전체 지문과 독립 Python 3.12.15 점검을 통과했습니다.
+- 가상머신 안 확인 — 모두 사용자가 직접 진행하고 결과를 답변으로 받았습니다(에이전트의 VM 조작 없음).
+  - ZIP 지문: 공유 폴더로 바탕화면에 복사한 뒤 `Get-FileHash`를 실행했고, 결과 `AF00BAB72DED16A…`가 기록과 **일치**했습니다.
+  - 네트워크 케이블을 해제한 상태에서 '모두 압축 풀기' 후 `powershell -NoProfile -ExecutionPolicy Bypass -File …\Test-ValidationPackage.ps1`을 실행했고 **"점검 통과"** 문구를 받았습니다. 개발 도구가 없는 Windows에서 함께 들어 있는 Python 3.12.15가 혼자 실행되는 것을 확인한 결과입니다.
+  - 오프라인에서 `GuitarLab.exe`를 더블클릭하자 **창이 뜨고 라이브러리 화면이 보였습니다**. 개발 도구 없이 Windows 기본 WebView2만으로 앱 창이 동작한 결과입니다. SmartScreen("Windows의 PC 보호") 경고는 **나오지 않았습니다**. 다만 파일을 인터넷이 아니라 VirtualBox 공유 폴더로 옮겨서 다운로드 표시(Mark of the Web)가 없었던 것이 원인일 수 있습니다. 따라서 실제로 내려받은 서명 없는 파일에 대한 SmartScreen 동작은 **미검증**입니다.
+  - 오프라인 상태에서 프로젝트 없이 카피 탭의 「악보 선택」으로 `standard.gp`를 불러오자 **악보가 정상으로 불러와졌습니다**(사용자 확인).
+  - **발견 — 프로젝트 없는 드롭 상자 무반응**: 같은 상태에서 "악보 또는 WAV/MP3 파일 한 개를 여기에 놓아 불러오세요" 상자 **안에** 탐색기의 `standard.gp`를 놓았지만 아무 반응이 없었습니다(문구·오류 모두 없음). 프로젝트를 만든 뒤에는 작업 공간 전체 드롭이 동작했습니다. 기록을 다시 보니, 이 상자의 실제 Explorer 드롭은 jsdom 테스트(`scoreLoop.test.tsx`의 `fireEvent.drop`)로만 확인돼 있었고 실제 앱에서 수용된 적은 없습니다. 코드에서 이벤트를 가로채는 곳은 찾지 못했습니다. 가설은 상자가 `dragenter`를 취소하지 않는다는 것이지만 **미확인**입니다. 사용자 결정으로 원인 조사는 VM 검증 뒤로 미뤘습니다.
+  - 같은 화면에서 「안내 확인 · 편집 시작」을 누르자 **편집이 시작됐습니다**(사용자 확인).
+  - 네트워크를 다시 연결한 뒤 환경 설정의 「AI 모델 선택 다운로드」에 "다운로드 약 138~140MiB · 설치 여유 공간 1GiB"와 라이선스 검토 안내가 표시됐습니다(사용자가 붙여 넣은 화면 문구).
+  - **발견(출시 차단) — 깨끗한 Windows에서 모델 다운로드 실패**: Basic Pitch 다운로드 결과가 `AI_DOWNLOAD_FAILED`("모델 파일을 받지 못했습니다. 네트워크를 확인하세요")였습니다. 같은 VM의 Edge로 네이버 접속은 됐습니다. 사용자가 VM에서 함께 들어 있는 Python으로 `urlopen('https://files.pythonhosted.org/')`를 실행하자 `ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate`가 났습니다. 원인은 이렇습니다. 함께 들어 있는 Python의 기본 SSL 설정은 **Windows 인증서 저장소에 이미 들어 있는 루트 인증서만** 읽습니다. 그런데 깨끗한 Windows는 루트 인증서를 처음 쓰일 때 받아 옵니다(Windows 자동 루트 업데이트). 개발 PC에는 인증서가 이미 쌓여 있어 재현되지 않았습니다. 다운로드 코드는 `ai/guitarlab_ai/model_cache.py`의 `_open`(urllib 기본 SSL 설정)입니다.
+  - 모델 설치: 위 문제로 **미실행**.
+- **수정(커밋하지 않음, 사용자 선택: Windows 인증서 검증)**: `ai/guitarlab_ai/tls.py`를 새로 만들어 `pip._vendor.truststore.SSLContext`를 쓰도록 했고, `model_cache._open`과 `runtime_packages._open`이 이를 사용하게 했습니다. 테스트 `ai/tests/test_tls.py`도 추가했습니다. `runtime_bundle --prepare --refresh-lock`으로 런타임 lock을 다시 만들었고 3394개 파일 중 `tls.py` 추가와 2개 변경 외에는 같습니다. lock SHA는 `604cb46b…`이며 `dependency-inventory.json`과 `docs/release/README.md`를 갱신했습니다. 계약은 `docs/12`, `docs/10`에 먼저 기록했습니다.
+  - 검사: AI pytest 117개 성공·1개 건너뜀(개발 venv pip 22.2.2에 truststore 없음), 개발 도구 unittest 193개 성공·1개 건너뜀, `pnpm verify:app` 전체 성공(프론트 765개, Rust 285개), `bundle_tests` 4개 성공. 새 런타임 Python에서 `https_context()`가 `truststore.SSLContext`(CERT_REQUIRED, 호스트 확인)이고 PyPI와 TLS 연결(HTTP 404 응답 수신)이 되는 것을 확인했습니다.
+  - 실패와 해결: 위 확인을 `-B` 없이 실행해 런타임 폴더 `.pyc` 115개가 바뀌었고, 첫 패키지 생성이 "검증 파일 크기 오류"로 **거부**됐습니다. lock은 그보다 먼저 만들어져 영향이 없었습니다. 런타임을 `--prepare`(lock 일치 검사)로 새로 만들어(`a1879fed-…`) 교체했습니다.
+  - 새 시험 패키지(커밋하지 않은 수정 포함, 후보 `sourceWorkingTree:true`): `validation-packages/ef2008ba-5a90-492b-8c2d-1d79a9f2ccb4/GuitarLab-validation.zip`, 3614파일/40,582,209바이트, SHA `e5e6633ce96ff3a40d3430be796c637cc0bb4a28389076e81375238c3e0d691d`. EXE SHA는 `be9a9af8…`입니다. 개발 PC에서 새 폴더에 풀어 실행한 자체 검사는 **exit 0**이었습니다. `vm-share/GuitarLab-validation-tls.zip`으로 VM에 전달합니다. VM 다운로드 재검증은 **사용자 수동 진행 대기**입니다.
+  - **VM 재시험 — 다운로드 성공**: 사용자가 새 ZIP으로 VM에서 다시 시도한 Basic Pitch 다운로드 결과가 "다운로드 파일 확인됨 42개 재사용 0개 설치 상태는 별도로 확인합니다"였습니다(사용자 전달 문구). 깨끗한 Windows에서 42개 파일을 받아 지문 검증까지 통과한 결과입니다. 이번 ZIP의 `Get-FileHash` 값은 답변으로 받지 않았습니다. 모델 설치(「설치 / 재검증」)는 **사용자 수동 진행 대기**입니다.
+  - **발견(출시 차단 후보) — VM 모델 설치 실패**: 「설치 / 재검증」 결과가 `AI_SETUP_PROCESS_FAILED`("오프라인 패키지 설치 또는 의존성 검사가 실패했습니다")였습니다(사용자 전달 문구). `setup.rs`의 `run_fixed`가 pip의 stdout/stderr를 버리므로 앱에는 원인이 남지 않습니다. 가설은 **긴 경로 제한**이고 **미확인**입니다. 근거는 다음과 같습니다.
+    - 개발 PC는 `LongPathsEnabled=1`이고, 깨끗한 Windows의 기본값은 0입니다.
+    - 개발 PC에 설치된 `basic-pitch-0.4.0-onnx1-cp312` 환경 폴더의 경로는 132자(`C:\Users\<6자>\AppData\Roaming\com.guitarlab.app\ai\environments\…\<UUID>`)입니다. 그 안에서 가장 긴 상대 경로는 132자(setuptools `pkg_resources\tests\data\…\EGG-INFO\dependency_links.txt`)입니다. 사용자 이름이 2자 이상이면 260자 제한을 넘습니다.
+    - 확인 방법은 VM에서 `LongPathsEnabled` 값과 사용자 이름 길이를 조회하는 것입니다.
+    - VM 조회 결과(사용자 전달): `LongPathsEnabled`는 **0**, 사용자 이름은 **8자**였습니다. 환경 폴더 134자와 상대 경로 132자를 더하면 266자로, 제한을 넘습니다. pip 오류 원문은 보지 못했으므로 가설은 "근거 있는 추정"으로 남기고, VM 재설치 성공으로 확정합니다.
+- **수정 2(커밋하지 않음, 사용자 선택: 설치 경로 단축)**: 배포 환경 경로를 바꿨습니다(`docs/12` 계약 선기록).
+  - Basic Pitch: `ai/env/bp312/UUID`
+  - Demucs: `ai/env/dm312/UUID`
+  - 계획의 `folder`는 이제 `ai/` 아래 상대 경로입니다. Rust `installation.rs`·`managed.rs`·`setup.rs`와 Python `install_managed.py`(`_directory(root,"ai",*folder.split("/"))`), 관련 테스트를 함께 고쳤습니다. 개발용 cp310 경로는 그대로입니다.
+  - 20자 사용자 이름 기준 길이 예산을 고정하는 Rust 테스트 `portable_environment_paths_fit_max_path_without_long_path_setting`을 추가했습니다(Basic Pitch 245자, Demucs 251자 ≤ 259).
+  - worker 변경으로 런타임 lock을 다시 만들었습니다(리소스 `fb6ef5d1-…`, 3394파일, lock SHA `6249870c…`). `dependency-inventory.json`(CRLF 유지)과 `docs/release/README.md`도 갱신했습니다. 이전 TLS 수정 때 인벤토리 파일 줄바꿈이 LF로 바뀌어 있던 것도 이번에 원래 CRLF로 되돌렸습니다.
+  - 검사: Rust `ai::` 34개 성공, AI pytest 117개 성공·1개 건너뜀, `cargo fmt --check` 성공. 실제 캐시로 새 경로 설치·자체 분석을 하는 통합 테스트는 아래에 기록합니다.
+  - 개발 PC의 기존 cp312 설치는 옛 경로에 있으므로 다시 설치해야 합니다(marker 수동 정리 필요, 자동 삭제 없음).
+  - 실제 통합 테스트 `actual_portable_models_install_reuse_transcribe_separate_and_cancel_without_legacy_changes`(release, 새 런타임 `fb6ef5d1`): **1개 성공, 235.98초**. 두 모델을 새 경로에 오프라인 설치하고 pip check, 자체 분석, 재사용, 취소 정리까지 확인했습니다. 다만 개발 PC는 `LongPathsEnabled=1`이라 260자 제한 자체는 재현되지 않습니다. 이 확인은 VM 재설치로 해야 합니다. 로그는 `runtime-validation/portable-install-shortpath-20261103.log`입니다.
+  - 전체 검사 `pnpm verify:app`: 성공(프론트 765개, Rust 286개, 조건부 32개 제외). `bundle_tests` 4개 성공. 개발 도구 unittest 193개 성공·1개 건너뜀입니다. 같은 검사의 첫 실행에서는 오류 1건이 났는데, 통합 테스트 빌드와 동시에 돌던 때라 원문을 확보하지 못했고 재실행에서는 통과했습니다.
+  - 새 시험 패키지(커밋하지 않은 수정 포함): `validation-packages/4ca02424-c26f-418d-81f9-af253d5dda59/GuitarLab-validation.zip`, 3614파일/40,582,364바이트, SHA `7783e745b363fccebaa9b0e9971c2a2c025c060ea6712f85f0890b86d88f8ee6`. EXE SHA는 `39599fba…`입니다. 새 폴더에 풀어 실행한 자체 검사는 **exit 0**이었습니다. `vm-share/GuitarLab-validation-shortpath.zip`으로 전달했으며, VM 재설치는 **사용자 수동 진행 대기**입니다.
+  - **VM 재시험 — 다음 단계에서 실패**: 경로 단축 패키지로 다시 설치하자 결과가 `AI_WORKER_FAILED`("AI 작업 프로세스가 실패했습니다")로 바뀌었습니다(사용자 전달 문구). pip 설치 단계는 통과하고 작업 프로세스 단계에서 실패한 것으로, 경로 수정은 효과가 있었던 것으로 봅니다(오류 원문 없음). 작업 프로세스의 stderr와 실패 메시지도 앱이 버리므로 원문은 확보하지 못했습니다.
+  - **원인(근거 있는 추정)**: VM 조회 결과 `C:\Windows\System32`에 `msvcp140.dll`·`msvcp140_1.dll`·`vcomp140.dll`·`concrt140.dll`이 모두 **없었습니다**(사용자 확인). 설치된 패키지의 바이너리를 문자열로 검사하면 `onnxruntime.dll`·numba·soxr·torch가 `msvcp140.dll`을 요구합니다. 함께 넣은 Python에는 `vcruntime140`/`_1`(14.44)만 있습니다.
+- **수정 3(커밋하지 않음, 사용자 선택: DLL 함께 배포 + 빌드 PC 원본)**: `runtime_bundle.py`가 Python 트리 검증 뒤 VS Build Tools 공식 Redist(`Microsoft.VC145.CRT`·`OpenMP`, 14.51.36247, Microsoft 서명 유효)에서 지문이 고정된 DLL 10개를 `runtime/python`에 복사합니다. `vcruntime140`/`_1`도 14.51로 바꿨습니다. 지문이 맞는 원본이 없으면 `VC_RUNTIME_SOURCE_MISSING`으로 멈춥니다. 계약은 `docs/12`, 라이선스는 `docs/10`에 먼저 기록했습니다.
+  - lock은 3402파일·65,822,697바이트, SHA `f32fd12e…`, 리소스는 `cf0528d8-…`입니다.
+  - 테스트 2개를 추가했습니다. 하나는 원본 탐색이 고정 지문 파일만 고르는지 확인하고, 다른 하나는 lock에 고정 DLL이 들어 있는지 확인합니다. lock 테스트는 갱신 전에 **실패**를 확인했습니다. AI pytest는 119개 성공·1개 건너뜀입니다.
+  - 실제 확인: 새 런타임 `python.exe -I -B`로 설치된 Basic Pitch 패키지(`onnxruntime`·numba·soxr)를 불러온 뒤 프로세스 모듈 목록을 봤습니다. `MSVCP140.dll`·`MSVCP140_1.dll`·`VCRUNTIME140(_1).dll`이 **모두 런타임 폴더에서** 로드됐고, System32에서 온 것은 없었습니다. 개발 PC에는 시스템 DLL이 있으므로, DLL이 없는 환경 자체는 VM에서 확인해야 합니다.
+  - 알려진 제한: CI `installer-smoke.yml` 러너에 같은 14.51이 없으면 그 검사는 `VC_RUNTIME_SOURCE_MISSING`으로 실패합니다(미확인).
+  - 실제 통합 테스트(새 런타임): **1개 성공, 233.27초**. `pnpm verify:app` 성공(프론트 765개, Rust 286개), `bundle_tests` 4개 성공.
+  - 새 시험 패키지(커밋하지 않은 수정 포함): `validation-packages/de0f56e2-99f0-4314-b801-c36eda5f5025/GuitarLab-validation.zip`, 3622파일/41,280,896바이트, SHA `f023d840fc47a620c50919ff024dc8f75a3817f6690cebcadccfcfa1ddad4495`. EXE SHA는 `2c8e4a0c…`입니다. 새 폴더 자체 검사는 **exit 0**이었습니다. `vm-share/GuitarLab-validation-vcrt.zip`으로 만들었지만 **VM에 안내하기 전에 대체**했습니다(아래).
+- **수정 4(커밋하지 않음) — 런타임 복사본 폴더 이름**: 패키지를 넘기기 전에 문제를 하나 더 찾았습니다. 앱 데이터 런타임 폴더 이름이 `cpython-3.12.15-20261013-r1`로 고정돼 있었습니다. 그래서 VM에 이전 시도의 복사본(DLL 없는 내용)이 남아 있으면, 새 lock과 대조할 때 `AI_RUNTIME_INTEGRITY`로 막히는 구조였습니다(코드 근거: `bundled.rs`의 `ensure_persistent`가 폴더가 있으면 검증만 합니다). 이 실패는 VM에서 재현한 것이 아니라 코드를 읽고 판단한 것입니다.
+  - 해결: 폴더 이름을 lock의 runtime·notices 지문 12자로 만듭니다(`stable_runtime_name`). 이전 폴더는 자동 삭제하지 않습니다.
+  - 테스트 `stable_runtime_name_follows_runtime_contents_only`를 추가했습니다. worker만 바뀌면 이름이 같고, runtime이 바뀌면 이름이 달라지며, 현재 lock의 이름은 r1이 아닌지 확인합니다. 통합 테스트의 r1 고정 경로도 함께 고쳤습니다.
+  - 검사: Rust `ai::` 35개 성공, clippy(`--all-targets -D warnings`) 성공. 실제 통합 테스트 **1개 성공, 228.08초**. `pnpm verify:app` 성공(프론트 765개, Rust 287개), `bundle_tests` 4개 성공.
+  - 새 시험 패키지(커밋하지 않은 수정 1~4 포함): `validation-packages/ce485e47-8a34-49e6-a2cb-c512e1010eec/GuitarLab-validation.zip`, 3622파일/41,280,970바이트, SHA `b07f925d8f14e390640607dbc4fe5f128d8f24b669008cd277d879805a43067b`. EXE SHA는 `38d41826…`입니다. 새 폴더 자체 검사는 **exit 0**이었습니다. 공유 폴더에서는 이전 vcrt ZIP을 지우고 `vm-share/GuitarLab-validation-vcrt2.zip`으로 전달했습니다.
+- **VM 재시험 — Basic Pitch 설치 성공**: 새 패키지로 「설치 / 재검증」을 실행한 결과가 "설치·활성화 완료 · 자체 8음 분석 통과 · Basic Pitch 0.4.0"이었습니다(사용자 전달 문구). 깨끗한 Windows 11(26H2, `LongPathsEnabled=0`, VC++ 재배포 패키지 없음)에서 다운로드 → 오프라인 설치 → pip check → 실제 ONNX 추론 자체 검사 → 활성화까지 통과했습니다. 따라서 수정 1~4가 VM에서 함께 확인됐습니다. 각 수정이 따로 필요했는지는 개별로 확인하지 않았습니다(이전 실패 문구가 단계별로 바뀐 것이 간접 근거입니다).
+  - **VM — Demucs 설치 성공**: 같은 `vcrt2` 패키지에서 결과가 "설치·활성화 완료 · 자체 4초 기타·반주 분리 통과 · Demucs 전체 기타 4.1.0"이었습니다(사용자 전달 문구). torch를 포함한 환경이 260자 제한, VC++ 런타임이 없는 VM에서 설치되고 실제 분리 자체 검사까지 통과했습니다. 다운로드 단계 문구는 받지 않았습니다.
+  - **VM — 실제 분리 동작**: 테스트 프로젝트에서 「프로젝트 WAV에서 전체 기타 분리」를 실행하자 **음원 2개(전체 기타, 잔여 반주)로 분리됐습니다**(사용자 확인). 정확한 문구와 소요 시간은 받지 않았습니다. 입력은 `sine.wav`(사인파)라서 분리 품질은 평가 대상이 아닙니다. 
+  - **VM — 실제 AI 카피 동작**: 악보 `standard.gp`와 음원 `sine.wav`로 AI 카피를 실행하자 "AI 초안 · 8음 · Basic Pitch 0.4.0 · 로컬 초안 보존됨 / 입력: 프로젝트 원본 WAV"가 표시됐습니다(사용자 전달 문구). 개발 PC 기대값과 음 개수(8음)가 같습니다. 이어서 사용자가 분석 음표 표를 붙여 넣었습니다. MIDI 순서는 **64·67·69·71·64·67·69·71**로 개발 PC 기대값과 **일치**합니다. 시작 시각은 11.6/487.6/998.5/1497.7/1998.2/2485.8/2996.7/3507.5ms로 약 500ms 간격(120BPM 4분음표)입니다. 활성도는 0.612~0.660이고, 검토 사유는 "낮은 모델 활성도·여러 운지 후보·박자 정리 오차"였습니다. E4의 권장 운지는 악보의 1번 줄 개방현이 아니라 2번 줄 5프렛으로 나왔는데, 같은 음의 다른 후보입니다.
+  - 정리: 깨끗한 Windows 11 VM에서 두 모델의 다운로드 → 설치 → 자체 검사 → 실제 프로젝트 카피·분리까지 통과했습니다(수정 1~4 포함한 커밋 전 패키지 `b07f925d…`). 남은 VM 항목은 화면 이동 유지 수정(새 패키지), SmartScreen(MOTW), Windows 10입니다. 시험 음원으로 공유 폴더에 저장소 fixture `sine.wav`를 넣었고, 악보는 같은 8음인 `standard.gp`를 쓰도록 안내했습니다.
+- **수정 5(커밋하지 않음, 사용자 요청) — 설치 화면 이동 유지**: VM에서 Demucs를 설치하는 도중 다른 화면에 다녀오자 선택이 Basic Pitch로 돌아가고 진행 표시가 사라졌다는 보고가 있었습니다. 코드를 확인해 보니 화면만 초기화된 것이 아니었습니다. 언마운트 정리 함수가 `LatestTask.cancel()`로 **실제 설치까지 취소**하고 있었습니다(2026-10-27 계약대로의 동작).
+  - 수정: `useModelSetup`의 상태(선택 모델, 단계, 결과, 오류, 안내)를 모듈 저장소로 옮기고 `useSyncExternalStore`로 읽습니다. 화면을 떠나도 취소하지 않으며, 취소는 버튼으로만 합니다. 이전 함수 무효화는 선택 세대 번호로 유지했습니다.
+  - 계약은 `docs/12` "모델 설치의 화면 이동 유지"에 먼저 기록했습니다. 다운로드·설치 확인·캐시 정리는 기존 동작을 유지합니다.
+  - 테스트: "화면 이탈 시 취소"를 기대하던 기존 단언을 지우고, Demucs 선택·진행·완료 결과가 다시 마운트해도 유지되는지 보는 테스트를 추가했습니다. 처음에는 문맥을 모델 이름으로 비교했다가 "같은 모델로 돌아와도 이전 명령 거부" 테스트가 **실패**했고, 세대 번호로 고쳐 통과했습니다. `pnpm verify:app` 성공(프론트 766개, Rust 287개)입니다. 새 테스트가 이전 코드에서 실패하는지는 따로 실행하지 않았습니다(초기화 함수가 없어 같은 조건으로 실행할 수 없음).
+  - VM 확인용 패키지: `validation-packages/9ca699e2-c7cb-4d3c-86d2-f492358dfb33/GuitarLab-validation.zip`, 3622파일/41,281,294바이트, SHA `bad0be2c04bd4797f5450bf2b15b537d6a529698769fb2c502a7ebf6720e0de6`. 런타임은 `cf0528d8`로 이전과 같습니다. 새 폴더 자체 검사는 **exit 0**이었습니다. `vm-share/GuitarLab-validation-persist.zip`으로 전달했습니다.
+  - VM 확인(사용자 전달): ZIP 지문 `BAD0BE2C…` **일치**. 「설치 / 재검증」 결과 "기존 설치 재검증 완료"가 표시됐습니다. 이어서 사용자가 재검증 진행 중 다른 화면에 다녀왔고, **Demucs 선택과 진행 표시가 유지됐다**고 확인했습니다. 수정 5의 GUI 수용은 완료입니다. 같은 확인에서 새 요청이 나왔습니다. 돌아오면 화면이 맨 위로 가므로, 보던 스크롤 위치를 유지해 달라는 것입니다(아래 수정 6).
+  - 알려진 제한: 설정 화면 밖에서 창 닫기가 막히면 안내 문구는 설정 화면으로 돌아와야 보입니다. 앱을 다시 시작하면 상태가 초기화됩니다.
+  - 미확인(vcrt2 패키지 시점): ZIP `Get-FileHash` 값과 설치 때 네트워크를 끊었는지는 답변으로 받지 않았습니다. Demucs 다운로드 문구, AI 카피의 음 높이 순서도 받지 않았습니다. SmartScreen(MOTW)과 Windows 10은 **미실행**입니다.
+- **수정 6(커밋하지 않음, 사용자 요청) — 화면별 스크롤 위치 기억**: 모든 화면이 `AppShell`의 `<main id="main">` 스크롤 영역 하나를 같이 써서, 다른 화면에 다녀오면 위치가 맨 위나 잘린 값이 됐습니다.
+  - 수정: 스크롤할 때 화면별 위치를 기억하고, 화면이 바뀌면 `useLayoutEffect`로 그 화면의 마지막 위치를 되돌립니다. 처음 여는 화면은 맨 위에서 시작합니다. 카피·연습·연주는 같은 악보 작업 공간이라 위치 하나를 공유합니다(기존처럼 모드를 바꿔도 위치 유지). 앱을 다시 시작하면 초기화됩니다.
+  - 테스트 `src/app/AppShell.test.tsx`를 추가했습니다. 수정 전 코드에서 **실패**(`expected 640 to be +0`)하고 수정 후 통과하는 것을 확인했습니다. 악보 화면 스크롤 테스트(`ScoreViewport.test.tsx`)를 포함한 `src/app` 테스트 54개가 성공했습니다.
+  - `pnpm verify:app` 성공(프론트 767개, Rust 287개). VM 확인용 패키지는 `validation-packages/2bcf84db-cab4-4d0f-b7e1-42612e361f70/GuitarLab-validation.zip`, 3622파일/41,281,419바이트, SHA `ac3f2234fd35986d68608a9903aaf2136460e041b74e965820beb0880042cf76`입니다. 자체 검사 **exit 0**이었고, `vm-share/GuitarLab-validation-scroll.zip`으로 전달했습니다.
+  - VM 확인(사용자 전달): "스크린은 유지 잘 되고" — 화면별 스크롤 위치 유지 **GUI 수용 완료**. 같은 답변에서 프로젝트 없는 드롭 상자 무반응이 이 패키지에서도 **그대로**라고 다시 확인됐습니다. 프로젝트를 만든 뒤에는 동작합니다.
+- **수정 7(커밋하지 않음) — 프로젝트 없는 드롭 상자**: 앞서 미뤄 둔 무반응 문제를 조사했습니다. 프로젝트가 있을 때 쓰는 `ProjectFileDrop`은 `dragenter`를 취소합니다. 반면 프로젝트 없을 때의 상자(`ScoreWorkspace.tsx`, "로컬 파일 끌어놓기")는 `dragover`와 `drop`만 처리했습니다. 비활성 상태의 바깥 래퍼는 이벤트를 가로채지 않으므로, 두 경로의 차이는 이것 하나였습니다. HTML 드래그 앤 드롭 규칙에서는 `dragenter`를 취소하지 않은 요소를 놓을 대상으로 인정하지 않을 수 있습니다. 기존 jsdom 테스트는 `drop`을 상자에 직접 보내서 이 단계를 건너뛰었습니다.
+  - 수정: 상자에 파일 드래그일 때 `dragenter`를 취소하는 처리를 추가했습니다.
+  - 테스트: `scoreLoop.test.tsx`에 "`dragenter`가 취소되는지" 단언을 추가했고, 수정 전 **실패**(`expected true to be false`)와 수정 후 통과를 확인했습니다. `src/app`·`src/features/score` 테스트 193개가 성공했습니다.
+  - `pnpm verify:app` 성공(프론트 767개, Rust 287개). VM 확인용 패키지는 `validation-packages/cd68e513-357f-4d60-b81d-749958c52c5e/GuitarLab-validation.zip`, 41,281,506바이트, SHA `04a373477175e629fc072a7653cd66feb714ff26f1b72eddcb51d77c0ade6411`입니다. 자체 검사 **exit 0**이었고, `vm-share/GuitarLab-validation-drop.zip`으로 전달했습니다.
+  - **방향 변경(사용자 제안, 2026-11-04)**: VM 확인 전에 사용자가 더 나은 방향을 제안했습니다. 작은 상자를 고치는 대신, 프로젝트가 있을 때 쓰는 화면 전체 드롭을 프로젝트 없이도 쓰게 하자는 것입니다. 이 제안대로 바꿨습니다(`docs/12` 계약 선기록).
+    - 프로젝트가 없으면 카피·연습·연주에서 `ProjectFileDrop`을 켭니다. 파일은 `ScoreWorkspace`가 등록한 로컬 `load`로 넘깁니다. 안내 문구는 "프로젝트 없이 불러오기 · 저장 안 됨"입니다.
+    - 상자의 자체 drop 처리(`dropMedia`, 위 dragenter 수정 포함)는 지우고 안내 문구만 남겼습니다. 위 `cd68e513` 패키지는 대체됩니다.
+    - 테스트: 프로젝트 없이 연습 화면 제목 위에 놓아도 악보가 불러와지는지 보는 테스트를 추가했습니다. HEAD 코드에서 **실패**(`expected true to be false`)하고 수정 후 통과하는 것을 확인했습니다. 녹음 잠금 안내는 공통 문구로 바뀌어 기대 문구를 고쳤습니다. `src/app`·`score`·`library` 테스트 324개 성공, 타입 검사 성공.
+    - `pnpm verify:app` 성공(프론트 768개, Rust 287개). VM 확인용 패키지는 `validation-packages/71db65ae-6787-48b5-85dc-fcdfc8f1de23/GuitarLab-validation.zip`, 41,281,490바이트, SHA `ecf6d04ed9b2da0e6fd626147f0d5859c716d4f112575f1778dfafed3ae72f4d`입니다. 자체 검사 **exit 0**이었고, `vm-share/GuitarLab-validation-drop2.zip`으로 전달했습니다. 대체된 `drop.zip`은 공유 폴더에서 지웠습니다.
+    - VM 확인(사용자 전달, 2026-11-04): 프로젝트 없이 화면에 `standard.gp`를 끌어 오자 **안내가 떴고, 놓은 뒤 악보가 불러와졌습니다**. 수정 7의 GUI 수용은 완료입니다. 지문 값은 답변으로 받지 않았습니다.
+    - Codex 리뷰 R1-1(major) 반영: 프로젝트 없이 파일을 불러오는 중 두 번째로 놓은 파일이 안내 없이 무시됐습니다. 지운 `dropMedia`가 하던 거부 안내를 등록 콜백에 다시 넣었습니다. 회귀 테스트는 수정 없이 **실패**하고 수정 후 통과합니다. `pnpm verify:app` 성공(프론트 769개, Rust 287개). 이 보완은 VM에서 다시 확인하지 않았습니다.
+  - 상자 무반응의 원래 원인(`dragenter` 가설)은 그 경로를 지웠으므로 **확인하지 않은 채** 남습니다. jsdom은 실제 WebView2의 드래그 대상 결정을 재현하지 못하므로, 실제 드롭으로 확인해야 확정됩니다.
+  - 알려진 제한(수정 6): 돌아온 화면의 내용이 비동기로 늦게 그려져서 처음 높이가 짧으면, 위치가 그 높이로 잘릴 수 있습니다. 실제 GUI 확인은 **미실행**입니다.
+
+### 4. 미구현 및 알려진 문제
+
+서명이 없어 가상머신에서 SmartScreen 경고가 나올 수 있습니다. Windows 10과 이전 Windows 11 버전, 다른 백신, 설치 프로그램(installer) 수용은 미실행입니다.
+
+### 5. 다음 작업 계획
+
+사용자가 가상머신에서 단계별로 확인한 결과를 이 절에 기록합니다. 재개할 때는 위 ZIP SHA와 `vm-share` 폴더를 기준으로 합니다.
+
 ## 완료 — 실제 복원 예약·앱 시작 연결 (2026-10-30)
 
 ### 1. 작업 개요

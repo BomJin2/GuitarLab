@@ -5,7 +5,7 @@ import { modelSetupApi, type ModelSetupResult } from './modelSetup';
 import { modelInstallationApi } from './modelInstallation';
 import { cacheCleanupApi, type CacheUsage } from './cacheCleanup';
 import { useModelDownload } from './useModelDownload';
-import { useModelSetup } from './useModelSetup';
+import { resetModelSetupForTests, useModelSetup } from './useModelSetup';
 import { useModelInstallation } from './useModelInstallation';
 import { useCacheCleanup } from './useCacheCleanup';
 
@@ -79,7 +79,10 @@ beforeEach(() => {
     installedEnvironmentsChanged: false,
   });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetModelSetupForTests();
+});
 
 function useManagement() {
   const download = useModelDownload();

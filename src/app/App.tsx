@@ -1,9 +1,12 @@
-import { ScoreWorkspace } from '../features/score/ScoreWorkspace';
+import {
+  ScoreWorkspace,
+  type LocalDrop,
+} from '../features/score/ScoreWorkspace';
 import {
   defaultScoreDisplay,
   type ScoreDisplaySettings,
 } from '../features/score/scoreDisplay';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LibraryPage } from '../features/library/LibraryPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import type { ScoreSession } from '../features/score/scoreSession';
@@ -78,6 +81,10 @@ export function App() {
     recording.locked || measurement.active || practice.armed,
   );
   const [help, setHelp] = useState(false);
+  // 프로젝트가 없을 때 화면 전체 드롭을 작업 공간의 로컬 불러오기로 넘깁니다.
+  const localDrop = useRef<LocalDrop | null>(null);
+  const workspace =
+    route === 'copy' || route === 'practice' || route === 'performance';
   useEffect(() => {
     if (route !== 'settings' && measurementActive) void cancelMeasurement();
   }, [route, measurementActive, cancelMeasurement]);
@@ -108,12 +115,9 @@ export function App() {
     <ProjectFileDrop
       contextKey={`${project.details?.project.id ?? 'none'}:${route}`}
       active={
-        project.native &&
-        !!project.details &&
-        (route === 'library' ||
-          route === 'copy' ||
-          route === 'practice' ||
-          route === 'performance')
+        project.details
+          ? project.native && (route === 'library' || workspace)
+          : workspace
       }
       disabled={
         recording.locked ||
@@ -122,14 +126,21 @@ export function App() {
         measurement.active ||
         player.state.status === 'loading'
       }
-      reference={project.importStorage === 'REFERENCE'}
-      onFile={(kind, file) =>
-        project.importAsset(
-          kind === 'score' ? 'SCORE_IMPORT' : 'ORIGINAL',
-          project.importStorage,
-          file,
-        )
+      reference={!!project.details && project.importStorage === 'REFERENCE'}
+      detail={
+        project.details
+          ? undefined
+          : '악보 또는 WAV/MP3 파일 한 개 · 프로젝트 없이 불러오기 · 저장 안 됨'
       }
+      onFile={async (kind, file) => {
+        if (project.details)
+          return project.importAsset(
+            kind === 'score' ? 'SCORE_IMPORT' : 'ORIGINAL',
+            project.importStorage,
+            file,
+          );
+        await localDrop.current?.(kind, file);
+      }}
     >
       <AppShell
         route={route}
@@ -246,6 +257,7 @@ export function App() {
               project={project}
               editor={editor}
               beforeReplace={closeGuard.confirmReplacement}
+              localDrop={localDrop}
             />
           ) : route === 'results' ? (
             <ResultsPage project={project} />

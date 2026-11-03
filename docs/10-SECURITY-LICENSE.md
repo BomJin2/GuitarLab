@@ -2,6 +2,16 @@
 
 2026-10-21 자체 자산 연결 후속: 주 창의 connect-src에 'self'를 추가해 내장 악보·합성 음원 fetch를 허용합니다. 기존 IPC 주소 외의 외부 HTTP/HTTPS origin·wildcard를 허용하지 않습니다. 별도 YouTube wrapper의 connect-src 'none'·원격 IPC 거부/명시적 영상 연결 정책은 유지합니다. 이는 개인 파일 네트워크 전송이나 시스템/YouTube 캡처 허가가 아닙니다. 실제 첫 악보 읽기 실패와 수정 전후 회귀·사용자 수용은 PHASE-08 최신 기록을 따릅니다.
 
+## Visual C++ 런타임 동봉 — 2026-11-03
+
+배포 런타임에 Microsoft Visual C++ 런타임 DLL 10개(14.51.36247)를 함께 넣습니다. Microsoft 서명이 유효한 공식 재배포 폴더 `Microsoft.VC145.CRT`·`Microsoft.VC145.OpenMP`에서 가져오고, 파일별 지문을 고정합니다. 이 폴더는 Microsoft가 앱과 함께 배포(app-local)하라고 제공하는 것입니다. 재배포 조건은 Visual Studio 라이선스의 "배포 가능 코드" 조항을 따르며, 공식 안내는 https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files 입니다.
+
+다만 Build Tools 라이선스로 받은 파일을 이 프로젝트가 배포해도 되는지는 **법무 검토가 끝나지 않았습니다**(`legalReviewCompleted:false` 유지). 공개 저장소에는 이 바이너리를 넣지 않고, 빌드 PC에서만 복사합니다. 앱 폴더의 DLL은 시스템 DLL보다 먼저 쓰이므로, Microsoft 보안 업데이트를 받으려면 GuitarLab을 다시 배포해야 합니다.
+
+## 모델 다운로드 TLS 신뢰 저장소 — 2026-11-03
+
+모델 다운로드는 인증서 검증을 끄거나 우회하지 않습니다. 검증 방식만 Python 내장 목록에서 Windows 시스템 검증(`pip._vendor.truststore`)으로 바꿨습니다. 그래서 Windows가 신뢰하는 루트와 사용자·기업이 설치한 루트를 그대로 따릅니다. `truststore`는 이미 배포 런타임에 포함된 pip의 하위 모듈이라 새 패키지나 고지 대상은 늘지 않지만, pip를 업그레이드할 때는 이 모듈이 계속 있는지 다시 확인해야 합니다.
+
 ## 배포 런타임의 지원 종료 확인 — 2026-10-18
 
 공식 PEP619/릴리스 안내에서 Python3.10의2026-10-01 지원 종료를 확인했습니다. 기존 로컬 개발 검증과 별개로 현재3.10 환경을 독립 배포용으로 그대로 번들하지 않습니다. Basic Pitch의 Python3.11 이상 의존성 조건도 달라 기존 cp310 lock/실행 파일만 단순 교체하지 않습니다. 기존 프로젝트·환경은 보존하고 지원 중인 Python의 별도 AI 런타임 검증 방향을 확인합니다. 근거·권고·새 다운로드/ABI 계획과 Sidecar 미실행 범위는 [docs/18](18-AI-RUNTIME-MIGRATION.md)에 기록했습니다.

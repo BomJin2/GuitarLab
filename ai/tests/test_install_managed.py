@@ -53,7 +53,7 @@ def test_demo_bootstrap_is_still_hash_checked_before_environment_creation(setup_
     with pytest.raises(ModelError, match="AI_MODEL_INTEGRITY"):
         setup.prepare(root, Event(), lambda _: None)
     assert not calls
-    assert not list((root / "ai/environments" / setup.ENV_FOLDER).iterdir())
+    assert not list((root / "ai" / setup.ENV_FOLDER).iterdir())
     assert (root / "ai/downloads" / setup.PLAN_ID / "demo.whl").read_bytes() == b"DEMO"
 
 
@@ -68,7 +68,7 @@ def test_install_uses_hash_locked_offline_args_then_reuses_active_environment(se
     marker = root / "ai/basic-pitch-active.json"
     original = marker.read_bytes()
     assert json.loads(original)["selfTest"] == setup.SELF_TEST
-    environment = root / "ai/environments" / setup.ENV_FOLDER / result["environmentId"]
+    environment = root / "ai" / setup.ENV_FOLDER / result["environmentId"]
     assert (environment / "installation.json").read_bytes() == original
     assert "--hash=sha256:" in (environment / "requirements.lock").read_text()
     calls.clear()
@@ -91,7 +91,7 @@ def test_failed_or_canceled_setup_keeps_cache_and_removes_only_new_environment(s
     with pytest.raises(Canceled if cancel else ModelError):
         setup.install(root, event, lambda _: None)
     assert not (root / "ai/basic-pitch-active.json").exists()
-    assert not list((root / "ai/environments" / setup.ENV_FOLDER).iterdir())
+    assert not list((root / "ai" / setup.ENV_FOLDER).iterdir())
     assert (root / "ai/downloads" / setup.PLAN_ID / "demo.whl").read_bytes() == b"DEMO"
     assert sentinel.read_bytes() == b"preserve"
 
@@ -114,7 +114,7 @@ def test_prepare_has_no_children_and_discard_preserves_activated_environment(set
     result = setup.prepare(root, Event(), lambda _: None, environment_id)
     assert result['state'] == 'PREPARED' and result['environmentId'] == environment_id
     assert not calls and not (root / 'ai/basic-pitch-active.json').exists()
-    environment = root / 'ai/environments' / setup.ENV_FOLDER / environment_id
+    environment = root / 'ai' / setup.ENV_FOLDER / environment_id
     assert (environment / 'setup-bootstrap' / setup.BOOTSTRAP['filename']).stat().st_size == setup.BOOTSTRAP['bytes']
     assert setup.discard(root, environment_id)['state'] == 'DISCARDED'
     assert not environment.exists()
@@ -136,7 +136,7 @@ def test_cancel_during_prepare_removes_only_candidate(setup_environment):
             event.set()
     with pytest.raises(Canceled):
         setup.prepare(root, event, progress, environment_id)
-    assert not (root / 'ai/environments' / setup.ENV_FOLDER / environment_id).exists()
+    assert not (root / 'ai' / setup.ENV_FOLDER / environment_id).exists()
     assert (root / 'ai/downloads' / setup.PLAN_ID / 'demo.whl').read_bytes() == b'DEMO'
 
 
