@@ -1,5 +1,38 @@
 # Phase7 — 코드·고급 주법 판정
 
+## 후속 — 슬러 양끝 표기 보호 (2026-11-03)
+
+### 1. 작업 개요
+
+작업일 2026-11-03. 렛링·스타카토 GUI 수용 뒤, 설치된 alphaTab 1.6.1의 Note/Beat 필드를 기존 미지원 판별(`hasUnsupportedTechnique`)과 대조했습니다. 그 결과 MusicXML `<slur>`와 AlphaTex `slur`로 들어온 슬러 양끝 음표가 일반 피킹으로 채점되고, 기본 편집에서 표기가 지워질 수 있음을 실제 파서로 재현했습니다. 이번 작업은 슬러 양끝의 안전 처리만 보완했으며, 실제 레가토 판정과 전체 Phase 7은 미완료입니다.
+
+### 2. 구현 및 변경 사항
+
+- `docs/12-API-CONTRACTS.md`, `docs/05-REALTIME-JUDGEMENT.md`: 슬러 양끝을 기존 UNSUPPORTED 계약에 연결하는 범위와 한계를 먼저 기록했습니다. 한계는 두 가지입니다. 긴 슬러의 중간 음표는 일반 음표로 남고, 단순 프레이징 슬러도 보수적으로 제외됩니다. 새 IPC·DB·필드·기록 버전은 없습니다.
+- `src/features/score/alphaTabAdapter.ts`: `note.isSlurOrigin || note.isSlurDestination` 두 조건을 기존 공유 판별에 추가했습니다. 감점 제외, 편집 소실 거부, 구형 원본 metadata 복원은 기존 경로를 재사용합니다.
+- `src/features/score/alphaTabAdapter.test.ts`: 테스트 2개를 추가했습니다. 실제 앱 경로인 `importScore`로 읽는 MusicXML 슬러와 AlphaTex 슬러에서 다음을 확인합니다.
+  - 양끝만 UNSUPPORTED가 되고 인접 음표는 그대로 유지됩니다.
+  - 연습 대상에서 감점이 제외되고 편집은 거부됩니다.
+  - 구형 복원에서도 같은 결과가 나오며 ID와 원본은 보존됩니다.
+- 함께 점검했지만 수정하지 않은 항목: `Beat.brushType`(브러시·아르페지오)은 alphaTab MIDI 생성기에서 단음의 시작 오프셋이 0이고, 화음은 이미 제외되므로 단음 판정에 영향이 없습니다. MusicXML `<hammer-on>/<pull-off>`는 이미 `isHammerPullOrigin`으로 읽혀 보호되고 있습니다.
+
+### 3. 테스트 결과
+
+- 수정 전 임시 탐침(삭제함): MusicXML과 AlphaTex 슬러 모두 `judgementSupport`가 전부 undefined였고, `validateEditable`이 편집을 허용했습니다. 결함을 재현한 것입니다.
+- 수정 전 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts -t "슬러"`: **신규 2개 실패**. 기대값 UNSUPPORTED에 대해 undefined가 나왔습니다.
+- 수정 후 `pnpm exec vitest run src/features/score/alphaTabAdapter.test.ts src/features/score/scoreEditing.test.ts src/features/practice/practice.test.ts`: **45개 성공**.
+- `pnpm verify:app`: typecheck, lint, 테스트 **757개/134파일 성공**, Vite 빌드 1분 22초 성공. 이어진 `format:check`가 새 테스트 파일의 Prettier 형식 때문에 **실패**했습니다. Prettier로 고친 뒤 `pnpm format:check`, `pnpm lint`, 대상 34개 테스트를 다시 실행해 성공했습니다. 로그는 `src-tauri/target/runtime-validation/slur-verify-20261103.log`입니다.
+- Rust(`cargo fmt --check`, `clippy -D warnings`, `cargo test --locked`): fmt와 clippy는 성공했습니다. 테스트는 **281개 성공, 4개 실패, 32개 기본 제외**입니다. 실패한 4개는 모두 junction 테스트이며, 테스트가 호출하는 PowerShell 7(`pwsh`)이 현재 PC에 없어 `program not found`로 실패했습니다. PowerShell에서 다시 실행해도 같았습니다. Rust 코드는 바꾸지 않았으므로 이번 변경과는 무관한 환경 문제로 보며, 이 4개는 이 PC에서 **미검증**입니다. `pwsh`가 있는 원격 Windows 검사로 확인합니다. 로그는 `slur-verify-rust-20261103.log`입니다.
+- Windows 제품 빌드, 독립 패키지, 새 GUI 후보: **미실행**. 변경은 프론트 판별 조건 두 줄이며 원격 검사로 확인합니다.
+
+### 4. 미구현 및 알려진 문제
+
+실제 레가토 검출과 고급 채점은 하지 않습니다. 긴 프레이징 슬러의 중간 음표는 alphaTab이 값을 두지 않아 일반 음표로 남습니다. 단순 프레이징 슬러가 있는 정상 악보도 양끝 감점 제외와 편집 차단 대상이 됩니다(보수적 선택). GP 형식의 슬러 왕복은 확인하지 않았습니다. 과거 점수는 재계산하지 않습니다. 이 PC에는 `pwsh`가 없어 junction 테스트 4개를 로컬에서 검증할 수 없습니다.
+
+### 5. 다음 작업 계획
+
+원격 검사 결과를 기록합니다. 슬러 MusicXML의 GUI 확인은 필요하면 사용자 요청으로 진행합니다. 로컬 junction 테스트를 다시 돌리려면 PowerShell 7을 설치해야 하는데, 설치는 사용자 결정이 필요합니다.
+
 ## 후속 — 렛링·스타카토 표기 보호 (2026-10-31)
 
 ### 1. 작업 개요
@@ -23,11 +56,11 @@
 - `cargo test --locked --manifest-path src-tauri/Cargo.toml unsupported`: **6개 성공**. 기존 미지원 감점 제외/저장 계약을 확인했으며 실제 렛링/스타카토 오디오 검출 결과는 아닙니다.
 - 독립 패키지: **성공**. 소스 `214aba307e36ab5ba0f1d205fd8e45ac44e1b258`의 제품 EXE42,554,880바이트/SHA`e43beb6b6190edc1e73cbc118b575008a9a052559f11e5978b46251a0a74fbbd`, ZIP3,613파일/40,580,904바이트/SHA`81f3bf25525e02570be0ef0604a7bb6bd99503c28c1e88d691ec5c55a9ded8ec`입니다. 전체 목록/내용 지문·실제 PowerShell5.1 검사와 최소PATH 번들 Python3.12.15 두 번 연결을 확인했습니다. 모델 가중치·개인 프로젝트/녹음·개발 가상환경을 포함하지 않았습니다. `sustain-marks-package-verified-20261031.json`에 기록했고 새 Defender/installer·별도 OS는 **미실행**입니다.
 - 원격: [Windows41096041014](https://github.com/BomJin2/GuitarLab/actions/runs/41096041014)/job124201938236 **전체 success**(2026-10-30T17:07~17:16Z). 앱 기본 회귀·확장 Rust 정적 검사/테스트·공개 자료 도구·AI 설치 도구·모델 없는 Python 계약/백업·Rust 최소 버전 컴파일 단계가 모두 성공입니다. 2026-11-03에 공개 GitHub API의 job 단계 결론으로 확인했으며, 단계별 테스트 개수는 로그 접근 권한이 없어 이번에 다시 집계하지 않았습니다. 새 AI/MSRV 전체를 로컬에서 따로 돌리지는 않았습니다.
-- 새 GUI: 빌드15.11초/3393리소스·위 독립 런타임 확인 뒤, 사용자 ‘저장하고 닫음 — 새 검증 앱 실행해주세요’ 요청에 따라 **렛링·스타카토 보호23308ccd/PID34020·실행 세션39984**를 열었습니다. EXE42,555,392바이트/SHA`7560bda23f15420edf1ce5e93fd53af81c9582b9865f7dfd5e6605e9e1016521`입니다. 기존 자체 복원 프로필/A를 유지하며 개인600초 녹음 프로필은 사용하지 않습니다. 최초 실행 당시(10월31일)에는 자체 `sustain-marks-fixtures-v07Ls8/let-ring.gp`의 편집 차단 사용자 답변 대기였고 실제 조작 수용은 미실행이었습니다. 2026-11-03 재개 시 PID34020은 종료되어 있었고 종료 시각은 기록되지 않았습니다(실행 세션이 함께 끝난 것으로 추정). 후보 EXE SHA와 자체 GP 두 개의 SHA는 기록과 같음을 확인했습니다. 사용자 요청으로 같은 후보를 다시 실행했습니다(PID1984). **사용자 GUI 수용:** 카피 탭에서 `let-ring.gp`를 불러온 뒤 「안내 확인 · 편집 시작」을 누르자 버튼이 그대로 남고 "현재 편집은 PPQ960·6줄 … 미지원 주법…" 오류 문구가 표시됐습니다(2026-11-03 사용자 답변). 이것으로 편집이 막히는 것을 확인했습니다. 같은 방법으로 `staccato.gp`도 같은 문구가 나오고 편집이 막히는 것을 사용자가 확인했습니다. 기존 일반 악보 A의 편집 시작 GUI 회귀 확인은 사용자가 이후 작업을 먼저 계속하도록 요청해 **미실행**입니다. 일반 피킹·인접 정상 음표의 편집 보존은 위 자동 테스트(대상43개·전체755개)로만 확인했습니다. 앱(PID1984)은 사용자가 직접 닫도록 그대로 두었습니다. 별도 `staccato.gp`도 같은 자체 폴더에 준비했습니다. 에이전트 마우스/키보드 조작은 없습니다.
+- 새 GUI: 빌드15.11초/3393리소스·위 독립 런타임 확인 뒤, 사용자 ‘저장하고 닫음 — 새 검증 앱 실행해주세요’ 요청에 따라 **렛링·스타카토 보호23308ccd/PID34020·실행 세션39984**를 열었습니다. EXE42,555,392바이트/SHA`7560bda23f15420edf1ce5e93fd53af81c9582b9865f7dfd5e6605e9e1016521`입니다. 기존 자체 복원 프로필/A를 유지하며 개인600초 녹음 프로필은 사용하지 않습니다. 최초 실행 당시(10월31일)에는 자체 `sustain-marks-fixtures-v07Ls8/let-ring.gp`의 편집 차단 사용자 답변 대기였고 실제 조작 수용은 미실행이었습니다. 2026-11-03 재개 시 PID34020은 종료되어 있었고 종료 시각은 기록되지 않았습니다(실행 세션이 함께 끝난 것으로 추정). 후보 EXE SHA와 자체 GP 두 개의 SHA는 기록과 같음을 확인했습니다. 사용자 요청으로 같은 후보를 다시 실행했습니다(PID1984). **사용자 GUI 수용:** 카피 탭에서 `let-ring.gp`를 불러온 뒤 「안내 확인 · 편집 시작」을 누르자 버튼이 그대로 남고 "현재 편집은 PPQ960·6줄 … 미지원 주법…" 오류 문구가 표시됐습니다(2026-11-03 사용자 답변). 이것으로 편집이 막히는 것을 확인했습니다. 같은 방법으로 `staccato.gp`도 같은 문구가 나오고 편집이 막히는 것을 사용자가 확인했습니다. 기존 일반 악보 A의 편집 시작 GUI 회귀 확인은 사용자가 이후 작업을 먼저 계속하도록 요청해 **미실행**입니다. 사용자는 목록에 기존 프로젝트가 보이지 않아 새 테스트 프로젝트를 만들었습니다. 확인해 보니 일회용 테스트 프로필(`com.guitarlab.validation.restore8cd45d33…`)이 11월3일 11:54 재실행 때 새로 생성된 상태였고 A는 없었습니다. 이전 프로필이 언제, 무엇 때문에 지워졌는지는 확인하지 못했습니다. 개인 프로필 `com.guitarlab.app`은 10/24 DB·10/28 폴더 이후 변경이 없음을 시각만으로 확인했고 내용은 읽지 않았습니다. 일반 피킹·인접 정상 음표의 편집 보존은 위 자동 테스트(대상43개·전체755개)로만 확인했습니다. 앱(PID1984)은 사용자가 직접 닫도록 그대로 두었습니다. 별도 `staccato.gp`도 같은 자체 폴더에 준비했습니다. 에이전트 마우스/키보드 조작은 없습니다.
 
 ### 4. 미구현 및 알려진 문제
 
-실제 렛링/스타카토 검출·지속시간/끊기 정확도·실제 감점률은 미검증이며 고급 채점은 연결하지 않습니다. 원본 없이 이미 정규화된 과거 편집본의 잃어버린 주법을 복원하지 않고 과거 점수도 재계산하지 않습니다. 이전 고정 앱은 사용자가 저장/종료했고 현재23308ccd/세션39984는 사용자 확인 동안 유지합니다. 재개 포인터는 `sustain-marks-current-proof.json`, `sustain-marks-current-fixtures.json`이며 실행기는 `launch-sustain-marks-at-user-request-20261031.ps1`입니다.
+실제 렛링/스타카토 검출·지속시간/끊기 정확도·실제 감점률은 미검증이며 고급 채점은 연결하지 않습니다. 원본 없이 이미 정규화된 과거 편집본의 잃어버린 주법을 복원하지 않고 과거 점수도 재계산하지 않습니다. 이전 고정 앱은 사용자가 저장/종료했습니다. 최초 실행 세션39984는 이력이며, 11월3일부터는 후보23308ccd/PID1984를 사용자가 닫을 때까지 유지합니다. 재개 포인터는 `sustain-marks-current-proof.json`, `sustain-marks-current-fixtures.json`이며 실행기는 `launch-sustain-marks-at-user-request-20261031.ps1`입니다.
 
 ### 5. 다음 작업 계획
 

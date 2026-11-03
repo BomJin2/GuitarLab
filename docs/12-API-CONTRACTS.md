@@ -1,5 +1,9 @@
 # 12. 인터페이스 계약 — React ⇄ Rust ⇄ Python
 
+## 슬러 양끝의 미지원 경계 — 2026-11-03
+
+alphaTab1.6.1은 MusicXML `<slur>`와 AlphaTex `slur`를 `Note.isSlurOrigin/isSlurDestination`으로 읽습니다. 이 값은 해머링·풀링 표기(`isHammerPullOrigin`, MusicXML `<hammer-on>/<pull-off>`)와 별개이며, 확인 결과 슬러 양끝 음표가 일반 피킹으로 채점되고 기본 편집으로 표기가 지워질 수 있었습니다. 기타 TAB에서 슬러는 레가토 연결을 뜻하는 경우가 많으므로, 박자 레가토와 같이 양끝을 기존 `judgementSupport:UNSUPPORTED`와 감점 제외, 기본 편집 소실 거부, 구형 원본 metadata 복원에 연결합니다. alphaTab이 슬러의 시작·끝 음표에만 값을 두므로 긴 프레이즈 슬러의 중간 음표는 일반 음표로 남습니다. 단순 프레이징 슬러도 보수적으로 제외되며 원본 보기/재생은 유지합니다. 새 IPC/DB/필드/기록 버전·실제 레가토 검출·과거 점수 재계산은 없습니다. 실제 파서 회귀가 통과하기 전 완료로 표시하지 않습니다.
+
 ## 렛링·스타카토의 미지원 경계 — 2026-10-31
 
 alphaTab1.6.1의 `Note.isLetRing/isStaccato` 표기는 현재 기본 단음 판정이 지속/끊기 주법을 검증하지 않으므로 기존 `judgementSupport:UNSUPPORTED`와 감점 제외를 재사용합니다. 기본 편집/정규화 MusicXML 출력에서 표기를 지워 저장하지 않도록 기존 거부에 연결하며 원본 GP 보기/재생은 유지합니다. 일반 피킹·인접 음표와 음정/tick/ID/동기 앵커·원본 바이트는 보존하고 구형 원본 기반 metadata 복원에도 적용합니다. 원본 없는 NORMALIZED 편집본의 잃어버린 주법을 추정하지 않습니다. 새 IPC/DB/필드/기록 버전·실제 주법 검출이나 과거 점수 재계산은 없습니다. 실제 파서·GP 왕복/반복·복원 회귀가 통과하기 전 완료로 표시하지 않습니다.

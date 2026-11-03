@@ -147,6 +147,9 @@ function hasUnsupportedTechnique(note: model.Note): boolean {
     note.slideOrigin !== null ||
     note.isHammerPullOrigin ||
     note.isHammerPullDestination ||
+    // MusicXML/AlphaTex slur is a separate field from hammer-on and usually marks TAB legato.
+    note.isSlurOrigin ||
+    note.isSlurDestination ||
     note.isLeftHandTapped ||
     note.isGhost ||
     note.isPalmMute ||

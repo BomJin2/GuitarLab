@@ -56,6 +56,66 @@ it('박자 레가토의 시작·도착음을 일반 피킹에서 제외하고 GP
   expect(binary).toEqual(original);
 });
 
+const slurTuning = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4']
+  .map(
+    ([step, octave], i) =>
+      `<staff-tuning line="${i + 1}"><tuning-step>${step}</tuning-step><tuning-octave>${octave}</tuning-octave></staff-tuning>`,
+  )
+  .join('');
+const slurNote = (fret: number, step: string, slur = '') =>
+  `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><notations><technical><string>1</string><fret>${fret}</fret></technical>${slur}</notations></note>`;
+const slurMusicXml = `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Gtr</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>TAB</sign><line>5</line></clef><staff-details><staff-lines>6</staff-lines>${slurTuning}</staff-details></attributes>${slurNote(0, 'E', '<slur type="start" number="1"/>')}${slurNote(3, 'G', '<slur type="stop" number="1"/>')}${slurNote(5, 'A')}${slurNote(7, 'B')}</measure></part></score-partwise>`;
+
+it.each([
+  ['MusicXML', () => importScore(new TextEncoder().encode(slurMusicXml))],
+  [
+    'AlphaTex',
+    () =>
+      importer.ScoreLoader.loadAlphaTex(
+        '. 0.1{slur "s1"}.4 3.1{slur "s1"}.4 5.1.4 7.1.4',
+      ),
+  ],
+])(
+  '%s 슬러 양끝을 일반 피킹에서 제외하고 편집 소실을 막으며 구형 복원에도 적용한다',
+  (_source, load) => {
+    const score = load();
+    const notes = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats.map(
+      (b) => b.notes[0]!,
+    );
+    expect(notes.map((n) => [n.isSlurOrigin, n.isSlurDestination])).toEqual([
+      [true, false],
+      [false, true],
+      [false, false],
+      [false, false],
+    ]);
+    expect(notes.some((n) => n.isHammerPullOrigin)).toBe(false);
+    const document = normalizeScore(score);
+    const flags = ['UNSUPPORTED', 'UNSUPPORTED', undefined, undefined];
+    expect(document.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+      flags,
+    );
+    expect(
+      buildPracticeTargets(document, 0, 3000, null).map(
+        (n) => n.unsupported ?? false,
+      ),
+    ).toEqual([true, true, false, false]);
+    expect(() => validateEditable(document)).toThrow('미지원 주법');
+    const legacy = structuredClone(document);
+    for (const track of legacy.tracks)
+      for (const note of track.notes) delete note.judgementSupport;
+    const before = JSON.stringify(legacy);
+    const restored = restoreJudgementSupport(legacy, score);
+    expect(restored.tracks[0]!.notes.map((n) => n.judgementSupport)).toEqual(
+      flags,
+    );
+    expect(restored.tracks[0]!.notes.map((n) => n.id)).toEqual(
+      legacy.tracks[0]!.notes.map((n) => n.id),
+    );
+    expect(restored.syncAnchors).toBe(legacy.syncAnchors);
+    expect(JSON.stringify(legacy)).toBe(before);
+  },
+);
+
 it('반복된 박자 레가토를 구형 악보에서 복원해도 ID·시각·정상 피킹과 원본을 유지한다', () => {
   const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4 5.1.4 7.1.4');
   score.masterBars[0]!.isRepeatStart = true;
