@@ -494,6 +494,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "serde-untagged",
+      "version": "0.1.9",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "serde_core",
       "version": "1.0.229",
       "license": "MIT OR Apache-2.0"
@@ -511,11 +516,6 @@
     {
       "name": "serde_with",
       "version": "3.24.0",
-      "license": "MIT OR Apache-2.0"
-    },
-    {
-      "name": "serde-untagged",
-      "version": "0.1.9",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -719,11 +719,6 @@
       "license": "MIT OR Apache-2.0"
     },
     {
-      "name": "windows_x86_64_msvc",
-      "version": "0.53.1",
-      "license": "MIT OR Apache-2.0"
-    },
-    {
       "name": "windows-collections",
       "version": "0.3.2",
       "license": "MIT OR Apache-2.0"
@@ -781,6 +776,11 @@
     {
       "name": "windows-version",
       "version": "0.1.7",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "windows_x86_64_msvc",
+      "version": "0.53.1",
       "license": "MIT OR Apache-2.0"
     },
     {

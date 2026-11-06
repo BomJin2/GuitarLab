@@ -944,6 +944,8 @@ Git LF checkout과 기존 작업 트리 CRLF의 worker3개(model_cache.py/runtim
 
 설치 검증 스크립트는 CloseMainWindow 요청·5초 내 종료·정수 종료 코드0·APP_EXITED를 모두 확인한 뒤에만 독립 runtime 검사와 제거를 진행합니다. 거절/시간 초과/코드 누락·비정상 코드는 실패이며 강제 종료하지 않습니다. 새 개발 receipt(schemaVersion1)는 applicationExitCode를 추가 기록하고 과거 해당 필드 없는 receipt의 코드를0으로 추정하지 않습니다. 제품 IPC·DB·앱 종료 보호는 변경하지 않습니다.
 
+시작 확인이 30초 안에 끝나지 않으면(`APPLICATION_INITIALIZATION_TIMEOUT`) receipt에 그 순간의 `startupMainWindowTitle`(프로세스 주 창 제목, 없으면 빈 문자열)·`startupResponding`·`startupJournalExists`(앱 데이터 `diagnostics/native-v1.json` 존재)를 추가로 기록합니다. 원격 실행기에서만 나는 시작 실패(오류 대화상자, 응답 없음, 시작 기록 없음)를 구분하기 위한 진단이며, 판정·강제 종료·제거 동작은 바꾸지 않습니다.
+
 ## 빈 악보 생성 v1 — 2026-10-22
 
 - `create_blank_project_score({request:{schemaVersion:1,projectId,expectedRevision}}) -> StorageJob v1`. 로컬 main에서 기존 파일 작업 큐로 실행합니다. UUID·버전·현재 프로젝트 revision/휴지통 상태를 검사하며 파일 경로·XML·음표를 IPC 입력으로 받지 않습니다.

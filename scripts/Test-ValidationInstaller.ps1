@@ -120,6 +120,11 @@ do {
 $receipt.applicationStartupWaitMs = $startupTimer.ElapsedMilliseconds
 if ($null -eq $journal) {
     $receipt.state = 'APPLICATION_INITIALIZATION_TIMEOUT'
+    # 원격 실행기에서만 나는 시작 실패를 구분하는 진단입니다(오류 대화상자 제목, 응답 없음, 시작 기록 없음).
+    $app.Refresh()
+    $receipt.startupMainWindowTitle = [string]$app.MainWindowTitle
+    $receipt.startupResponding = [bool]$app.Responding
+    $receipt.startupJournalExists = Test-Path -LiteralPath $journalPath -PathType Leaf
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
     throw '설치 앱 창/APP_STARTED의 초기화 확인 시간이 초과됐습니다. 기존 상태를 보존합니다.'
 }

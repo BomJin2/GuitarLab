@@ -5441,7 +5441,7 @@
   "runtimeBundleManifestSha256": "f32fd12e444f4d1ddb663992fc65d0ee33720dca6de589098e035e7c460e4674",
   "dependencyInputNormalization": "utf8-crlf-to-lf-v1",
   "dependencyInputs": {
-    "package.json": "a9404d3815026366521dd07e59c2d8c8a1df666b7453a968499cacb674e02a8f",
+    "package.json": "4d2a59feb1b6a24185d8b665e47d00da0a9004316e424d36c102739b0b91a8e7",
     "pnpm-lock.yaml": "5e390ce49983acd7e1bfb4ba0776ee4d3c43bf4ba81972dd7243cc8f5d2c5db2",
     "src-tauri/Cargo.toml": "e064dabab05e2fc6b43549681236a949746e5eb2ff9e79eb225bde9e7706ab23",
     "src-tauri/Cargo.lock": "66b8a321e57f92b0b49583906ad23298580096ff3bc693ed0120ebf901723c1a"

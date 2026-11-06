@@ -14,9 +14,10 @@ const run = (command, args) =>
     // pnpm은 Windows에서 .cmd라 셸을 거쳐야 실행됩니다(인자는 고정 문자열). cargo는 셸 없이 실행합니다.
     shell: command === 'pnpm' && process.platform === 'win32',
   });
+// localeCompare는 Node에 든 ICU 버전에 따라 순서가 달라질 수 있어(로컬 Node 20·CI Node 22) 코드 단위로 비교합니다.
+const compare = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
 const order = (a, b) =>
-  a.name.localeCompare(b.name, 'en') ||
-  a.version.localeCompare(b.version, 'en');
+  compare(a.name, b.name) || compare(a.version, b.version);
 
 const npm = Object.values(
   JSON.parse(run('pnpm', ['licenses', 'list', '--prod', '--json'])),
@@ -76,6 +77,25 @@ if (process.argv.includes('--check')) {
     // 파일이 없으면 아래에서 오래된 목록으로 처리합니다.
   }
   if (saved !== text) {
+    // 다른 환경(CI)에서만 실패할 때 원인을 볼 수 있게 처음 달라진 곳의 앞뒤 줄을 보여 줍니다(순서만 바뀐 경우 포함).
+    const before = saved.split('\n');
+    const after = text.split('\n');
+    let line = 0;
+    while (line < after.length && before[line] === after[line]) line++;
+    const from = Math.max(0, line - 3);
+    console.error(`${line + 1}번째 줄부터 다름`);
+    console.error(
+      before
+        .slice(from, line + 6)
+        .map((l) => `- ${l}`)
+        .join('\n'),
+    );
+    console.error(
+      after
+        .slice(from, line + 6)
+        .map((l) => `+ ${l}`)
+        .join('\n'),
+    );
     console.error(
       '의존성 고지 목록이 오래됨 · node scripts/third_party_notices.mjs 실행',
     );

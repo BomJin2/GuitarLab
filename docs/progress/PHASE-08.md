@@ -641,6 +641,11 @@
   - 3라운드: R1-6·R2-1·R2-2 수정 확인, 새 major 2건으로 `CHANGES_REQUESTED`. 규칙(최대 3라운드)상 커밋하지 않고 사용자 판단을 기다립니다.
   - 예전 저장본 열기(R3-1): 자연 하모닉이면서 브러시 등 다른 미지원 주법이 있는 음은 v2 이전에 소리 음정(83)·미지원으로 저장됐는데, 수정 55 뒤 새 정규화가 71을 만들어 원본 기준 복원이 위치 불일치로 거부했습니다. 결국 미지원이 되는 자연 하모닉은 예전처럼 소리 음정을 유지합니다. 테스트 추가.
   - 지워진 테스트(R3-2): 주법 v1 작업 때 `scoreDisplay.test.ts`의 기존 테스트(128트랙·원본 보존, 쉼표·화음·반복 관계 등)를 새 SVG 검사로 바꿔 지웠습니다. 기존 테스트를 그대로 되살리고 새 검사를 덧붙였습니다(5건 통과).
+- **커밋 `8d7db62`(Codex 7라운드 승인, 수용 18건/거절 0건/보류 0건) push 뒤 원격 실패 조사 — 수정 61(커밋하지 않음)**:
+  - 원격 [Windows 기능 회귀](https://github.com/BomJin2/GuitarLab/actions/runs/42269812353) **failure**: 이번 커밋에서 `verify:app`에 넣은 고지 목록 검사(`third_party_notices.mjs --check`)만 실패했습니다(로컬 Node 20 통과, CI Node 22 실패). 정렬에 쓰던 `localeCompare(…, 'en')`가 `serde-untagged`/`serde_core`처럼 `-`·`_`가 섞인 이름의 순서를 ICU 버전에 따라 다르게 낼 수 있어, 코드 단위 비교로 바꾸고 목록을 다시 만들었습니다(순서 10줄만 바뀜, 항목 동일). 실패하면 처음 달라진 줄의 앞뒤를 출력하게 해 다음 원격 실행에서 원인을 확정할 수 있게 했습니다. **원인은 추정이며 원격 재실행 전 해결로 표시하지 않습니다.**
+  - 배포 고지 목록의 입력 지문: `package.json`(`verify:app` 줄)이 바뀌어 `docs/release/dependency-inventory.json`의 `package.json` 지문이 어긋났고, 로컬 격리 설치 준비가 "현재 의존성과 배포 고지 목록이 다릅니다"로 거부됐습니다. 직전 커밋과 같은 방식으로 이 지문 한 줄만 갱신하고 `docs/release/README.md`에 기록했습니다(의존성·lock·수집 결과 불변). CI 격리 설치 워크플로는 경로 조건 때문에 이번 push에서 돌지 않았지만, 돌았다면 같은 이유로 실패했을 것입니다.
+  - 원격 [Windows 격리 설치 검증](https://github.com/BomJin2/GuitarLab/actions/runs/41670531901)(`4e05ce4`) 실패 로그를 이번에 `gh`로 읽었습니다. `APPLICATION_INITIALIZATION_TIMEOUT`(30.1초)이고, 예전 성공 실행 3건은 시작에 3.1~3.6초였습니다. 같은 검사를 이 PC에서 `8d7db62` + 위 수정으로 재현하니 **통과**했습니다(시작 717ms, 런타임 3402개, 종료 코드 0, 제거·데이터 보존, 관리자 토큰 false). CI는 관리자 토큰 true·Windows Server 2025라 원인은 **미확인**입니다. 시간 초과 때 그 순간의 주 창 제목·응답 여부·시작 기록 존재를 receipt에 남기도록 `Test-ValidationInstaller.ps1`을 보강했습니다(판정·제거 동작 불변, docs/12 갱신).
+  - 로컬 재현 메모: 기존 `portable-candidate.json`이 가리키는 런타임 리소스(3393개)는 현재 lock(3402개)보다 오래돼, lock과 정확히 같은 `ai-runtime-resources/cf0528d8…`을 `prepare(...)`에 직접 넘겼습니다(다운로드 없음).
 - **수정 60(커밋하지 않음) — Codex 리뷰 6라운드 지적 수정(승인 전)**:
   - 사용자 승인으로 6라운드를 돌렸습니다. R4-1·R5-1·R5-2는 수정 확인, 새 major 1건으로 `CHANGES_REQUESTED`라 커밋하지 않았습니다.
   - UTF-16 MusicXML의 주법 누락(R6-1): alphaTab은 BOM으로 UTF-16을 읽는데 주법 보강은 항상 UTF-8로 읽어, UTF-16 파일에서는 해머온·하모닉을 옮기지 못하고 일반 피킹으로 채점했습니다. alphaTab `IOHelper.detectEncoding`과 같은 BOM 규칙으로 루트 XML과 `container.xml`을 읽습니다.
