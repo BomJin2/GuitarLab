@@ -1,10 +1,10 @@
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { isTauri } from '@tauri-apps/api/core';
 import {
   isNumberWithin,
   isRecord,
   isSafeUnsigned,
 } from '../../shared/validation';
-import { isUuid, runStorageJob } from '../library/projects';
+import { isUuid, runStorageByteJob } from '../library/projects';
 
 export type StemRole = 'GUITAR_FULL' | 'ACCOMPANIMENT';
 export const separationCapabilities: Readonly<{
@@ -157,17 +157,19 @@ async function load(
   request: SeparationRequest,
   signal: AbortSignal,
 ): Promise<SeparationPreview | null> {
-  let jobId: string | null = null;
-  let value = await runStorageJob(
+  const read = await runStorageByteJob(
     mode === 'analyze'
       ? 'separate_project_audio'
       : 'restore_project_separation',
     request,
     signal,
-    (job) => {
-      jobId = job.jobId;
-    },
+    () => undefined,
+    {},
+    // 복원할 분리 결과가 없으면(separation: null) 가져갈 바이트도 없습니다.
+    (result) =>
+      !(mode === 'restore' && isRecord(result) && result.separation === null),
   );
+  let value = read.result;
   if (signal.aborted) throw new DOMException('분리 취소', 'AbortError');
   if (mode === 'restore') {
     if (
@@ -180,10 +182,7 @@ async function load(
     if (value === null) return null;
   }
   const info = decodeSeparation(value, request);
-  if (!isUuid(jobId)) return invalid();
-  const data = await invoke<unknown>('take_storage_bytes', {
-    request: { schemaVersion: 1, jobId },
-  });
+  const data = read.bytes;
   if (signal.aborted) throw new DOMException('분리 취소', 'AbortError');
   if (
     !(data instanceof ArrayBuffer) ||

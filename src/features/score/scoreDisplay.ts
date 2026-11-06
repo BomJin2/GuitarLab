@@ -14,8 +14,9 @@ export const defaultScoreDisplay: ScoreDisplaySettings = {
 
 export function alphaTabDisplay(settings: ScoreDisplaySettings) {
   return {
-    staveProfile:
-      settings.notation === 'tab' ? StaveProfile.Tab : StaveProfile.Score,
+    // 보이는 줄(표준 악보·TAB)은 createDisplayScore가 정합니다. Tab·Score 프로필은 주법 표시 층을 빼므로
+    // (alphaTab 1.6.1 createDefaultStaveProfiles) Default를 써서 P.M.·비브라토·태핑 등을 그립니다(docs/12 주법 편집 v1).
+    staveProfile: StaveProfile.Default,
     layoutMode:
       settings.layout === 'page' ? LayoutMode.Page : LayoutMode.Horizontal,
     scale: settings.scale,

@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import type { ProjectMixController } from './useProjectMix';
 import { guitarRoleLabels } from '../../entities/guitarRoles';
+import { mixLayerName } from './mixLabels';
 export function MixPanel({
   controller: c,
   locked,
@@ -19,21 +20,15 @@ export function MixPanel({
   const hasImported = mix.layers.some(
     (layer) => layer.kind === 'IMPORTED_STEM',
   );
-  const stemNames = new Map(
-    c.stems.map((stem) => [
-      stem.id,
-      stem.role === 'GUITAR_FULL'
-        ? '전체 기타 · AI 추정'
-        : '잔여 반주 · AI 추정',
-    ]),
-  );
   return (
     <section className="panel" aria-label="로컬 믹스와 오버더빙">
       <h2>로컬 믹스 · 오버더빙</h2>
       <p>
-        실제 저장된 테이크·분리 음원을 사용합니다. 믹스 준비 후 하단 재생을
-        따르며 REC는 새 입력만 별도 테이크로 저장합니다. 무반주 테이크는0ms부터
-        수동 정렬합니다.
+        실제 저장된 테이크·분리 음원을 사용합니다. 로컬 반주 음량·음소거는 바로
+        적용됩니다. 이 반주에 맞춰 녹음한 새 테이크는 자동으로 믹스에 들어가고,
+        재생이 멈춰 있을 때 믹스 준비도 자동으로 해서 하단 재생에 함께 들립니다.
+        REC는 새 입력만 별도 테이크로 저장합니다. 무반주 테이크는0ms부터 수동
+        정렬합니다.
       </p>
       <fieldset disabled={locked || c.busy}>
         <legend>재생 소스</legend>
@@ -110,6 +105,9 @@ export function MixPanel({
                   {t.name} · {(t.frames / t.sampleRate).toFixed(2)}초 ·{' '}
                   {t.transport?.rate ?? '무반주'}
                   {t.transport ? '×' : ''}
+                  {c.revisionId && t.scoreRevisionId !== c.revisionId
+                    ? ' · 이전 악보 버전'
+                    : ''}
                 </option>
               ))}
           </select>
@@ -117,16 +115,7 @@ export function MixPanel({
       </fieldset>
       {mix.layers.map((layer, index) => (
         <div className="toolbar" key={layer.id}>
-          <span>
-            {layer.kind === 'LOCAL_ASSET'
-              ? '로컬 반주'
-              : layer.kind === 'IMPORTED_STEM'
-                ? `${c.importedStems.find((stem) => stem.id === layer.id)?.name ?? layer.id.slice(0, 8)} · 사용자 제공 음원`
-                : layer.kind === 'STEM'
-                  ? `${stemNames.get(layer.id) ?? '저장 분리 음원'} · ${layer.id.slice(0, 8)}`
-                  : (c.takes.find((t) => t.id === layer.id)?.name ??
-                    '누락된 테이크')}
-          </span>
+          <span>{mixLayerName(layer, c)}</span>
           <label>
             음량
             <input
@@ -174,8 +163,11 @@ export function MixPanel({
               })
             }
           >
-            Solo
+            {layer.solo ? 'Solo 켜짐' : 'Solo'}
           </button>
+          {!layer.solo && mix.layers.some((l) => l.solo) && (
+            <small>Solo 때문에 꺼짐</small>
+          )}
           <label>
             추가 오프셋 ms
             <input
@@ -198,7 +190,7 @@ export function MixPanel({
             />
           </label>
           <button
-            disabled={locked || c.busy}
+            disabled={locked || c.busy || layer.kind === 'LOCAL_ASSET'}
             onClick={() =>
               c.update(
                 { ...mix, layers: mix.layers.filter((_, i) => i !== index) },

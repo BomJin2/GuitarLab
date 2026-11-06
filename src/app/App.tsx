@@ -25,12 +25,15 @@ import { RecordingPanel } from '../features/recordings/RecordingPanel';
 import { RecordingsPage } from '../features/recordings/RecordingsPage';
 import { InputMonitor } from '../features/practice/InputMonitor';
 import { useProjectMix } from '../features/performance/useProjectMix';
+import { useDawTracks } from '../features/daw/useDawTracks';
 import { MixPanel } from '../features/performance/MixPanel';
+import { BottomMixer } from '../features/performance/BottomMixer';
 import { ImportedStemsPanel } from '../features/performance/ImportedStemsPanel';
 import { PreparationCountdown } from '../features/player/PreparationCountdown';
 import { usePlayer } from '../features/player/usePlayer';
 import { useScoreEditing } from '../features/score/useScoreEditing';
 import { useCloseGuard } from './useCloseGuard';
+import { LicenseNotice } from './LicenseNotice';
 import { useScoreAutosave } from '../features/library/useScoreAutosave';
 import { ScoreAutosave } from '../features/library/ScoreAutosave';
 import { isTextEntryTarget } from '../shared/keyboard';
@@ -66,6 +69,7 @@ export function App() {
     project.audioAssetId,
     session?.savedRevision?.revisionId,
     mixEnabled,
+    { take: recording.take, locked: recording.locked || project.busy },
   );
   const practice = usePractice(
     session,
@@ -81,10 +85,18 @@ export function App() {
     recording.locked || measurement.active || practice.armed,
   );
   const [help, setHelp] = useState(false);
+  const [notices, setNotices] = useState(false);
+  const [view, setView] = useState<'score' | 'daw'>('score');
   // 프로젝트가 없을 때 화면 전체 드롭을 작업 공간의 로컬 불러오기로 넘깁니다.
   const localDrop = useRef<LocalDrop | null>(null);
   const workspace =
     route === 'copy' || route === 'practice' || route === 'performance';
+  const dawTracks = useDawTracks(
+    mix,
+    project.native ? project.details?.project.id : undefined,
+    project.audioAssetId,
+    workspace && view === 'daw',
+  );
   useEffect(() => {
     if (route !== 'settings' && measurementActive) void cancelMeasurement();
   }, [route, measurementActive, cancelMeasurement]);
@@ -97,7 +109,10 @@ export function App() {
         isTextEntryTarget(event.target)
       )
         return;
-      if (event.key === 'Escape') setHelp(false);
+      if (event.key === 'Escape') {
+        setHelp(false);
+        setNotices(false);
+      }
       if (event.key === '?') setHelp(true);
       if (event.altKey && ['1', '2', '3'].includes(event.key)) {
         event.preventDefault();
@@ -148,6 +163,28 @@ export function App() {
         projectTitle={project.details?.project.title}
         scoreSaved={project.scoreSaved}
         recordingLocked={recording.locked}
+        onHelp={() => setHelp(true)}
+        onNotices={() => setNotices(true)}
+        view={view}
+        onViewChange={setView}
+        edit={
+          // 편집 패널이 보이는 카피 화면에서, 패널 버튼과 같은 조건일 때만 메뉴로 되돌립니다.
+          route === 'copy' && !recording.locked && !project.busy
+            ? {
+                undo: editor.canUndo ? editor.undo : undefined,
+                redo: editor.canRedo ? editor.redo : undefined,
+              }
+            : undefined
+        }
+        mixer={
+          <BottomMixer
+            controller={mix}
+            enabled={mixEnabled}
+            locked={recording.locked}
+            backing={player.engine.source}
+            playing={player.state.status === 'playing'}
+          />
+        }
       >
         {closeGuard.notice && (
           <section role="alert" className="panel">
@@ -177,6 +214,7 @@ export function App() {
             <button onClick={() => setHelp(false)}>안내 닫기</button>
           </section>
         )}
+        {notices && <LicenseNotice onClose={() => setNotices(false)} />}
         {(route === 'performance' ||
           route === 'practice' ||
           recording.locked ||
@@ -258,6 +296,8 @@ export function App() {
               editor={editor}
               beforeReplace={closeGuard.confirmReplacement}
               localDrop={localDrop}
+              view={view}
+              dawTracks={dawTracks}
             />
           ) : route === 'results' ? (
             <ResultsPage project={project} />

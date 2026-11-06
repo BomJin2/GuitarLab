@@ -37,6 +37,33 @@ function interpolate(
 export function scoreTickToAudioTime(anchors: SyncAnchor[], tick: number) {
   return interpolate(anchors, tick, false);
 }
+/** 여러 tick을 앵커 한 번 검사 + 이진 탐색으로 바꿉니다. 결과는 scoreTickToAudioTime과 같습니다(docs/12). */
+export function scoreTicksToAudioTimes(
+  anchors: SyncAnchor[],
+  ticks: number[],
+): number[] {
+  validateAnchors(anchors);
+  return ticks.map((tick) => {
+    if (!Number.isFinite(tick)) throw new Error('유효한 시간을 입력하세요.');
+    // 처음으로 tick보다 큰 앵커(없으면 길이)를 찾고, 그 앞 구간을 씁니다.
+    let low = 0;
+    let high = anchors.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (anchors[middle]!.scoreTick > tick) high = middle;
+      else low = middle + 1;
+    }
+    const index =
+      low === anchors.length ? anchors.length - 2 : Math.max(0, low - 1);
+    const left = anchors[index]!;
+    const right = anchors[index + 1]!;
+    return (
+      left.audioTimeMs +
+      ((tick - left.scoreTick) * (right.audioTimeMs - left.audioTimeMs)) /
+        (right.scoreTick - left.scoreTick)
+    );
+  });
+}
 export function audioTimeToScoreTick(anchors: SyncAnchor[], audioMs: number) {
   return interpolate(anchors, audioMs, true);
 }

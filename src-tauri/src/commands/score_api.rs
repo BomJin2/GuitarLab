@@ -20,12 +20,15 @@ pub enum ExportFormat {
     Json,
     #[serde(rename = "MUSICXML")]
     MusicXml,
+    #[serde(rename = "GP7")]
+    Gp7,
 }
 impl ExportFormat {
     fn extension(self) -> &'static str {
         match self {
             Self::Json => "json",
             Self::MusicXml => "musicxml",
+            Self::Gp7 => "gp",
         }
     }
 }
@@ -36,6 +39,7 @@ pub struct ExportScoreRequest {
     format: ExportFormat,
     document: ScoreDocument,
     music_xml: Option<String>,
+    gp7: Option<Vec<u8>>,
 }
 impl ExportScoreRequest {
     fn encode(&self) -> Result<Vec<u8>, AppError> {
@@ -55,15 +59,30 @@ impl ExportScoreRequest {
         }
         match self.format {
             ExportFormat::Json => {
-                if self.music_xml.is_some() {
+                if self.music_xml.is_some() || self.gp7.is_some() {
                     return Err(AppError::invalid());
                 }
                 Ok(document)
             }
             ExportFormat::MusicXml => {
+                if self.gp7.is_some() {
+                    return Err(AppError::invalid());
+                }
                 let xml = self.music_xml.as_ref().ok_or_else(AppError::invalid)?;
                 if xml.len() > MAX_SCORE_BYTES || !xml.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?><score-partwise version=\"4.0\">") || !xml.ends_with("</score-partwise>") || xml.contains("<!DOCTYPE") || xml.contains("<!ENTITY") { return Err(AppError::invalid()); }
                 Ok(xml.as_bytes().to_vec())
+            }
+            // GP7은 ZIP 묶음입니다. 내용 왕복 확인은 화면이 하고, 여기서는 크기·머리만 확인합니다.
+            ExportFormat::Gp7 => {
+                let gp7 = self.gp7.as_ref().ok_or_else(AppError::invalid)?;
+                if self.music_xml.is_some()
+                    || gp7.is_empty()
+                    || gp7.len() > MAX_SCORE_BYTES
+                    || !gp7.starts_with(b"PK\x03\x04")
+                {
+                    return Err(AppError::invalid());
+                }
+                Ok(gp7.clone())
             }
         }
     }
@@ -137,7 +156,32 @@ mod tests {
             format,
             document,
             music_xml,
+            gp7: None,
         }
+    }
+    #[test]
+    fn gp7_export_requires_zip_header_size_and_no_other_payload() {
+        let gp7 = |bytes: Vec<u8>, xml: Option<String>| ExportScoreRequest {
+            gp7: Some(bytes),
+            ..request(ExportFormat::Gp7, xml)
+        };
+        let zip = b"PK\x03\x04rest".to_vec();
+        assert_eq!(gp7(zip.clone(), None).encode().expect("GP7 머리"), zip);
+        assert!(request(ExportFormat::Gp7, None).encode().is_err());
+        for bad in [
+            vec![],
+            b"<?xml".to_vec(),
+            [b"PK\x03\x04".as_slice(), &vec![0; MAX_SCORE_BYTES]].concat(),
+        ] {
+            assert!(gp7(bad, None).encode().is_err());
+        }
+        assert!(gp7(zip.clone(), Some("<?xml".into())).encode().is_err());
+        for other in [ExportFormat::Json, ExportFormat::MusicXml] {
+            let mut mixed = gp7(zip.clone(), None);
+            mixed.format = other;
+            assert!(mixed.encode().is_err());
+        }
+        assert_eq!(ExportFormat::Gp7.extension(), "gp");
     }
     #[test]
     fn export_contract_validates_document_format_xml_and_rejects_path_injection() {

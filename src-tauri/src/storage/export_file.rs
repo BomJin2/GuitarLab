@@ -30,7 +30,7 @@ pub(crate) fn save_new_file_with_progress(
     progress: impl Fn(u64, u64) -> Result<(), AppError>,
 ) -> Result<(), AppError> {
     canceled(cancel)?;
-    if !["wav", "json", "musicxml"].contains(&extension)
+    if !["wav", "json", "musicxml", "gp"].contains(&extension)
         || !path.is_absolute()
         || !path
             .extension()

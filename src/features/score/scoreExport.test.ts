@@ -1,10 +1,15 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
-import { scoreExportApi, scoreExportError } from './scoreExport';
+import {
+  exportLossWarnings,
+  scoreExportApi,
+  scoreExportError,
+} from './scoreExport';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
 import { scoreCapacityFixture } from '../../test/scoreCapacityFixture';
 import { decodeScoreDocument } from '../../entities/scoreValidation';
 import { importScore, normalizeScore } from './alphaTabAdapter';
+import { importer } from '@coderline/alphatab';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -125,4 +130,64 @@ it('취소된 요청과 다른 출력 포맷/크기를 정상 출력으로 취�
       vi.fn(),
     ),
   ).rejects.toThrow('SCORE_EXPORT_CONTRACT_INVALID');
+});
+it('GP7은 ZIP 바이트로 보내고 다시 읽으면 v2 주법과 데드 음 운지를 유지한다', async () => {
+  const document = normalizeScore(
+    importer.ScoreLoader.loadAlphaTex(
+      '. 0.1{h}.4 2.1.4 3.2{sl}.4 5.2.4 | 7.3{x}.4 2.3{ss}.4 4.3.4 12.4{nh lr}.4',
+    ),
+  );
+  // AlphaTex x는 프렛을 0으로 읽으므로 데드 음 운지(7프렛)를 직접 넣습니다.
+  const dead = document.tracks[0]!.notes[4]!;
+  document.tracks[0]!.notes[4] = { ...dead, fret: 7, pitchMidi: 62 };
+  vi.mocked(invoke).mockResolvedValueOnce(complete('GP7'));
+  await scoreExportApi.export(
+    document,
+    'GP7',
+    new AbortController().signal,
+    vi.fn(),
+  );
+  const call = vi.mocked(invoke).mock.calls[0]?.[1] as {
+    request: { format: string; gp7: number[]; musicXml?: string };
+  };
+  expect(call.request.format).toBe('GP7');
+  expect(call.request.musicXml).toBeUndefined();
+  expect(call.request.gp7.slice(0, 4)).toEqual([0x50, 0x4b, 3, 4]);
+  const back = normalizeScore(importScore(Uint8Array.from(call.request.gp7)));
+  const shape = (d: typeof document) =>
+    d.tracks[0]!.notes.map((n) => [n.fret, n.techniques ?? null]);
+  expect(shape(back)).toEqual(shape(document));
+  expect(shape(back)[4]).toEqual([7, ['DEAD']]);
+});
+it('계산 전 양보 사이에 취소하면 악보를 그리지 않고 저장 요청 없이 취소한다', async () => {
+  const controller = new AbortController();
+  // 그리면 실패하는 문서라, 양보 뒤 취소 확인이 없으면 다른 오류가 납니다.
+  const broken = { ...scoreEditingFixture().document, tracks: [] };
+  const pending = scoreExportApi.export(
+    broken,
+    'GP7',
+    controller.signal,
+    vi.fn(),
+  );
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  expect(invoke).not.toHaveBeenCalled();
+});
+it('스윙 소리 시각이 있는 악보는 GP7로 내보내지 않고 이유를 알리며, 손실 안내를 보여 준다', async () => {
+  const document = structuredClone(scoreEditingFixture().document);
+  const note = document.tracks[0]!.notes[1]!;
+  note.playbackTick = note.startTick + Math.floor(note.durationTicks / 3);
+  await expect(
+    scoreExportApi.export(
+      document,
+      'GP7',
+      new AbortController().signal,
+      vi.fn(),
+    ),
+  ).rejects.toThrow('SCORE_GP7_SWING');
+  expect(invoke).not.toHaveBeenCalled();
+  expect(scoreExportError(new Error('SCORE_GP7_SWING'))).toContain('JSON');
+  expect(exportLossWarnings(document)).toEqual([
+    expect.stringContaining('스윙 소리 시각'),
+  ]);
 });

@@ -1165,7 +1165,7 @@ it('누락 음원 때문에 저장된 파일 연결·재생 설정을 지우지 
   engine.dispose();
 });
 
-it('이전 원본 악보를 열면 미지원 주법만 복원하고 저장 revision은 보존·재저장을 안내한다', async () => {
+it('이전 원본 악보를 열면 원본의 주법만 복원하고 저장 revision은 보존·재저장을 안내한다', async () => {
   const original = scoreEditingFixture().originalBytes;
   const xml = new TextDecoder()
     .decode(original)
@@ -1179,8 +1179,12 @@ it('이전 원본 악보를 열면 미지원 주법만 복원하고 저장 revis
   const legacy = normalizeScore(score, lookup);
   const first = legacy.tracks[0]?.notes[0];
   if (!first) throw new Error('자체 벤딩 음표 필요');
-  expect(first.judgementSupport).toBe('UNSUPPORTED');
-  delete first.judgementSupport;
+  // 주법 편집 v1: 단순 온음 벤딩은 편집 가능한 BEND입니다. 저장본에는 없는 것으로 둡니다.
+  expect(first.techniques).toEqual(['BEND']);
+  expect(first.bendSemitones).toBe(2);
+  expect(first.judgementSupport).toBeUndefined();
+  delete first.techniques;
+  delete first.bendSemitones;
   const before = JSON.stringify(legacy);
   const details = projectFixture();
   if (!details.revision) throw new Error('저장 fixture 필요');
@@ -1195,7 +1199,8 @@ it('이전 원본 악보를 열면 미지원 주법만 복원하고 저장 revis
   expect(result.current.project.error).toBeNull();
   expect(result.current.session?.document.tracks[0]?.notes[0]).toEqual({
     ...first,
-    judgementSupport: 'UNSUPPORTED',
+    techniques: ['BEND'],
+    bendSemitones: 2,
   });
   expect(result.current.session?.savedRevision?.document).toBe(legacy);
   expect(JSON.stringify(legacy)).toBe(before);

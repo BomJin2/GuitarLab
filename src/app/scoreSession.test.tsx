@@ -66,7 +66,7 @@ function navigate(route: string) {
 }
 
 function dropFile(file: File) {
-  fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+  fireEvent.drop(screen.getByRole('heading', { name: /작업 공간/ }), {
     dataTransfer: { files: [file], items: [], types: ['Files'] },
   });
 }
@@ -116,7 +116,7 @@ it('여러 파일·폴더·URL·빈/초과/다른 형식 drop은 읽기·교체 
   const file = new File([xml], '자체.musicxml');
   const large = new File([xml], '초과.musicxml');
   Object.defineProperty(large, 'size', { value: 8 * 1024 * 1024 + 1 });
-  const zone = screen.getByLabelText('로컬 파일 끌어놓기');
+  const zone = screen.getByRole('heading', { name: /작업 공간/ });
   for (const transfer of [
     { files: [file, file], items: [] },
     {

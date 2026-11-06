@@ -1,4 +1,5 @@
 import type { ScoreSession } from '../score/scoreSession';
+import { ModelStatusNotice } from './ModelStatusNotice';
 import type { ProjectController } from '../library/useProjects';
 import { ScoreViewport } from '../score/ScoreViewport';
 import { reviewLabels } from './transcription';
@@ -37,6 +38,7 @@ export function AiDraftPanel({
   return (
     <section className="panel" aria-label="AI 카피 초안">
       <h2>로컬 WAV AI 카피 · 초안 미리보기</h2>
+      <ModelStatusNotice modelId="basic-pitch" />
       <p>
         별도 승인 설치한 Basic Pitch 개발 모델로 선택한 입력을 분석합니다.
         원본의 혼합 악기나 분리 음원에 남은 다른 악기의 음도 포함될 수 있습니다.

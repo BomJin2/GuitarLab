@@ -16,7 +16,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify:app": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --locked --manifest-path src-tauri/Cargo.toml -- -D warnings && cargo test --locked --manifest-path src-tauri/Cargo.toml",
+    "verify:app": "node scripts/third_party_notices.mjs --check && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --locked --manifest-path src-tauri/Cargo.toml -- -D warnings && cargo test --locked --manifest-path src-tauri/Cargo.toml",
     "test": "vitest run",
     "tauri": "tauri"
   },

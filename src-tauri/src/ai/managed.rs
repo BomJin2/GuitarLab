@@ -34,6 +34,21 @@ pub fn environment_for_profile(
     model: ModelId,
     portable: bool,
 ) -> Result<Option<PathBuf>, AppError> {
+    let Some(id) = active_id(root, model, portable)? else {
+        return Ok(None);
+    };
+    let relative = Path::new("ai")
+        .join(model.setup_for(portable).folder)
+        .join(id);
+    let executable = relative.join("Scripts/python.exe");
+    if !root.join(&executable).is_file() {
+        return Err(error("AI_MODEL_MISSING"));
+    }
+    checked_file(root, &executable).map_err(|_| error("AI_MODEL_INTEGRITY"))?;
+    Ok(Some(root.join(relative)))
+}
+/// 표식을 고정 계획으로 검증하고 환경 UUID만 돌려줍니다.
+fn active_id(root: &Path, model: ModelId, portable: bool) -> Result<Option<String>, AppError> {
     let plan = model.setup_for(portable);
     let relative = Path::new("ai").join(plan.marker);
     match fs::symlink_metadata(root.join(&relative)) {
@@ -67,13 +82,78 @@ pub fn environment_for_profile(
     {
         return Err(error("AI_MODEL_INTEGRITY"));
     }
-    let relative = Path::new("ai").join(plan.folder).join(value.environment_id);
-    let executable = relative.join("Scripts/python.exe");
-    if !root.join(&executable).is_file() {
-        return Err(error("AI_MODEL_MISSING"));
+    Ok(Some(value.environment_id))
+}
+/// docs/12 "이전 cp312 설치 옮기기": `4e05ce4` 이전 폴더의 배포 환경을 짧은 경로로 옮깁니다.
+/// 조건이 하나라도 맞지 않으면 아무것도 바꾸지 않습니다. `runtime`은 준비된 고정 런타임 폴더입니다.
+pub fn migrate_legacy_portable(
+    root: &Path,
+    model: ModelId,
+    runtime: &Path,
+) -> Result<(), AppError> {
+    match environment_for_profile(root, model, true) {
+        Err(e) if e.code == "AI_MODEL_MISSING" => {}
+        _ => return Ok(()),
     }
-    checked_file(root, &executable).map_err(|_| error("AI_MODEL_INTEGRITY"))?;
-    Ok(Some(root.join(relative)))
+    let Some(id) = active_id(root, model, true)? else {
+        return Ok(());
+    };
+    let legacy = Path::new("ai")
+        .join(match model {
+            ModelId::BasicPitch => "environments/basic-pitch-0.4.0-onnx1-cp312",
+            ModelId::Demucs => "environments/demucs-4.1.0-cp312",
+        })
+        .join(&id);
+    let folder = Path::new("ai").join(model.setup_for(true).folder);
+    let is_dir = |p: &Path| fs::symlink_metadata(p).is_ok_and(|m| m.is_dir());
+    if !is_dir(&root.join(&legacy))
+        || fs::symlink_metadata(root.join(&folder).join(&id)).is_ok()
+        || !root.join(&legacy).join("Scripts/python.exe").is_file()
+        || !root.join(&legacy).join("pyvenv.cfg").is_file()
+    {
+        return Ok(());
+    }
+    fn path<E>(_: E) -> AppError {
+        error("AI_SETUP_PATH")
+    }
+    // 링크·정션이나 앱 데이터 밖으로 이어지는 폴더는 옮기지 않습니다.
+    let old = crate::storage::database::checked_directory(root, &legacy).map_err(path)?;
+    checked_file(root, &legacy.join("Scripts/python.exe")).map_err(path)?;
+    let cfg = checked_file(root, &legacy.join("pyvenv.cfg")).map_err(path)?;
+    let python = runtime.join("python").canonicalize().map_err(path)?;
+    let text = fs::read_to_string(&cfg).map_err(path)?;
+    let lines: Vec<String> = text
+        .lines()
+        .map(|line| match line.split_once('=').map(|(k, _)| k.trim()) {
+            Some("home") => format!("home = {}", python.display()),
+            Some("executable") => format!("executable = {}", python.join("python.exe").display()),
+            _ => line.to_owned(),
+        })
+        .collect();
+    fs::write(&cfg, lines.join("\n") + "\n").map_err(path)?;
+    let parent = crate::storage::database::checked_directory(root, &folder).map_err(path)?;
+    fs::rename(old, parent.join(&id)).map_err(path)
+}
+/// docs/12 "AI 모델 설치 상태 조회 v1": 표식과 환경 폴더만 확인하고 실행하지 않습니다.
+#[derive(serde::Serialize, Debug, PartialEq)]
+pub struct ModelStatus {
+    pub id: ModelId,
+    pub state: &'static str,
+}
+pub fn model_status(root: &Path) -> Vec<ModelStatus> {
+    [ModelId::BasicPitch, ModelId::Demucs]
+        .into_iter()
+        .map(|id| ModelStatus {
+            id,
+            state: match environment_for(root, id) {
+                Ok(Some(_)) => "INSTALLED",
+                Ok(None) => "MISSING",
+                // 표식은 있지만 기대한 위치에 실행 환경이 없으면(예: 폴더 배치 변경) 다시 설치해야 합니다.
+                Err(e) if e.code == "AI_MODEL_MISSING" => "MISSING",
+                Err(_) => "DAMAGED",
+            },
+        })
+        .collect()
 }
 pub fn basic_command(root: &Path) -> Result<Command, AppError> {
     model_command(root, ModelId::BasicPitch)
@@ -200,6 +280,114 @@ mod tests {
                 .code,
             "AI_MODEL_INTEGRITY"
         );
+    }
+    #[test]
+    fn model_status_reports_missing_damaged_and_installed_without_paths() {
+        let fixture = crate::storage::projects_tests::Fixture::new();
+        let root = &fixture.store.root;
+        let states = |r: &Path| -> Vec<&str> { model_status(r).iter().map(|m| m.state).collect() };
+        assert_eq!(states(root), ["MISSING", "MISSING"]);
+        let marker =
+            checked_file(root, Path::new("ai/basic-pitch-active.json")).expect("앱 데이터");
+        fs::write(&marker, b"{broken").expect("손상 표식");
+        assert_eq!(states(root), ["DAMAGED", "MISSING"]);
+        let id = uuid::Uuid::new_v4().to_string();
+        let value = json!({"schemaVersion":1,"modelId":"basic-pitch","modelVersion":"0.4.0","environmentId":id,"planSha256":PLAN_HASH,"bootstrapSha256":BOOTSTRAP_HASH,"selfTest":"OWNED_8_NOTES_PASSED"});
+        fs::write(&marker, value.to_string()).expect("표식");
+        // 표식은 있어도 실행 파일이 없으면 다시 설치할 대상입니다.
+        assert_eq!(states(root), ["MISSING", "MISSING"]);
+        let exe = checked_file(
+            root,
+            &Path::new("ai/environments/basic-pitch-0.4.0-cp310")
+                .join(&id)
+                .join("Scripts/python.exe"),
+        )
+        .expect("DEMO 환경");
+        fs::write(exe, b"DEMO").expect("실행하지 않는 DEMO 파일");
+        assert_eq!(states(root), ["INSTALLED", "MISSING"]);
+        let text = serde_json::to_string(&model_status(root)).expect("직렬화");
+        assert_eq!(
+            text,
+            r#"[{"id":"basic-pitch","state":"INSTALLED"},{"id":"htdemucs_6s","state":"MISSING"}]"#
+        );
+    }
+    #[test]
+    fn legacy_portable_environment_moves_once_and_points_at_stable_runtime() {
+        let fixture = crate::storage::projects_tests::Fixture::new();
+        let root = &fixture.store.root;
+        let runtime = checked_directory_for_test(root, "ai/runtimes/cpython-3.12.15-test/python")
+            .parent()
+            .expect("런타임")
+            .to_path_buf();
+        let model = ModelId::BasicPitch;
+        let plan = model.setup_for(true);
+        let id = uuid::Uuid::new_v4().to_string();
+        let legacy = Path::new("ai/environments/basic-pitch-0.4.0-onnx1-cp312").join(&id);
+        // 표식이 없으면 이전 폴더가 있어도 옮기지 않습니다.
+        let exe = checked_file(root, &legacy.join("Scripts/python.exe")).expect("DEMO");
+        fs::write(exe, b"DEMO").expect("실행하지 않는 DEMO 파일");
+        let cfg = checked_file(root, &legacy.join("pyvenv.cfg")).expect("cfg");
+        fs::write(&cfg, "home = C:\\old\\python\nversion = 3.12.15\nexecutable = C:\\old\\python\\python.exe\ncommand = keep\n").expect("cfg");
+        migrate_legacy_portable(root, model, &runtime).expect("표식 없음");
+        assert!(root.join(&legacy).is_dir());
+        let marker = checked_file(root, &Path::new("ai").join(plan.marker)).expect("marker");
+        fs::write(&marker, json!({"schemaVersion":1,"modelId":plan.id,"modelVersion":plan.version,"environmentId":id,"planSha256":plan.plan_hash,"bootstrapSha256":"7a2aef48e5ee569e310b29b32681debbc5d888e92790d85331a47736c6b06aad","selfTest":plan.self_test}).to_string()).expect("검증 marker 모사");
+        assert_eq!(states(root), ["MISSING", "MISSING"]);
+        migrate_legacy_portable(root, model, &runtime).expect("옮기기");
+        let moved = root.join("ai").join(plan.folder).join(&id);
+        assert!(!root.join(&legacy).exists());
+        assert_eq!(
+            environment_for(root, model).expect("새 경로"),
+            Some(moved.clone())
+        );
+        assert_eq!(states(root), ["INSTALLED", "MISSING"]);
+        let python = runtime.join("python").canonicalize().expect("런타임 경로");
+        assert_eq!(
+            fs::read_to_string(moved.join("pyvenv.cfg")).expect("cfg"),
+            format!(
+                "home = {}\nversion = 3.12.15\nexecutable = {}\ncommand = keep\n",
+                python.display(),
+                python.join("python.exe").display()
+            )
+        );
+        // 이미 옮긴 뒤나 다른 모델은 바꾸지 않습니다.
+        migrate_legacy_portable(root, model, &runtime).expect("다시 실행");
+        migrate_legacy_portable(root, ModelId::Demucs, &runtime).expect("다른 모델");
+        assert!(moved.join("Scripts/python.exe").is_file());
+    }
+    #[test]
+    fn legacy_portable_environment_never_overwrites_existing_target() {
+        let fixture = crate::storage::projects_tests::Fixture::new();
+        let root = &fixture.store.root;
+        let runtime = checked_directory_for_test(root, "ai/runtimes/rt/python")
+            .parent()
+            .expect("런타임")
+            .to_path_buf();
+        let plan = ModelId::Demucs.setup_for(true);
+        let id = uuid::Uuid::new_v4().to_string();
+        let legacy = Path::new("ai/environments/demucs-4.1.0-cp312").join(&id);
+        for name in ["Scripts/python.exe", "pyvenv.cfg"] {
+            fs::write(
+                checked_file(root, &legacy.join(name)).expect("DEMO"),
+                b"DEMO",
+            )
+            .expect("DEMO");
+        }
+        let target = checked_directory_for_test(root, &format!("ai/{}/{id}", plan.folder));
+        let marker = checked_file(root, &Path::new("ai").join(plan.marker)).expect("marker");
+        fs::write(&marker, json!({"schemaVersion":1,"modelId":plan.id,"modelVersion":plan.version,"environmentId":id,"planSha256":plan.plan_hash,"bootstrapSha256":"7a2aef48e5ee569e310b29b32681debbc5d888e92790d85331a47736c6b06aad","selfTest":plan.self_test}).to_string()).expect("marker");
+        migrate_legacy_portable(root, ModelId::Demucs, &runtime).expect("건너뜀");
+        assert_eq!(
+            fs::read(root.join(&legacy).join("pyvenv.cfg")).expect("보존"),
+            b"DEMO"
+        );
+        assert!(target.read_dir().expect("대상").next().is_none());
+    }
+    fn states(root: &Path) -> Vec<&'static str> {
+        model_status(root).iter().map(|m| m.state).collect()
+    }
+    fn checked_directory_for_test(root: &Path, relative: &str) -> PathBuf {
+        crate::storage::database::checked_directory(root, Path::new(relative)).expect("폴더")
     }
     #[test]
     fn marker_requires_verified_fixed_model_and_never_uses_an_arbitrary_path() {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { RevisionDocument } from './projects';
 import { useScoreHistory } from './useScoreHistory';
 import { useScoreExport } from '../score/useScoreExport';
+import { exportLossWarnings } from '../score/scoreExport';
 import { useRevisionScorePreview } from './useRevisionScorePreview';
 import { ScoreViewport } from '../score/ScoreViewport';
 
@@ -233,7 +234,19 @@ export function ScoreHistoryPanel({
               >
                 조회 버전을 새 MusicXML로 내보내기
               </button>
+              <button
+                disabled={exportLocked}
+                onClick={() => {
+                  if (history.preview?.score.renderSource === 'NORMALIZED')
+                    void exporting.export(history.preview.score, 'GP7');
+                }}
+              >
+                조회 버전을 새 GP7로 내보내기
+              </button>
             </div>
+            {exportLossWarnings(history.preview.score).map((text) => (
+              <p key={text}>{text}</p>
+            ))}
             {history.preview.score.renderSource !== 'NORMALIZED' && (
               <p>
                 이 버전은 원본 파일 기반이어서 저장 편집본 출력 대상이 아닙니다.

@@ -1,4 +1,5 @@
 import type { AudioInputController } from './useAudioInput';
+import { MoreMenu } from '../../components/ui/MoreMenu';
 import { useInputMonitor } from './useInputMonitor';
 import { monitorError } from './monitoring';
 
@@ -28,29 +29,6 @@ export function InputMonitor({
       <div className="toolbar">
         <strong>🎧 내 기타 듣기</strong>
         <button
-          disabled={monitor.busy || running}
-          onClick={() => void monitor.refresh()}
-        >
-          모니터 출력 새로고침
-        </button>
-        <label>
-          모니터 출력
-          <select
-            aria-label="모니터 출력"
-            value={running ? (monitor.state.outputDeviceId ?? output) : output}
-            disabled={monitor.busy || running}
-            onChange={(event) => monitor.selectOutput(event.target.value)}
-          >
-            <option value="">출력 장치를 선택하세요</option>
-            {monitor.outputs.map((device) => (
-              <option key={device.id} value={device.id}>
-                {device.name}
-                {device.isDefault ? ' · PC 기본 출력' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
           aria-pressed={enabled}
           disabled={monitor.busy || (startBlocked && !enabled)}
           onClick={() => void (enabled ? monitor.stop() : monitor.enable())}
@@ -72,6 +50,33 @@ export function InputMonitor({
           />
         </label>
         <span>{Math.round(monitor.volume * 100)}%</span>
+        <MoreMenu>
+          <button
+            disabled={monitor.busy || running}
+            onClick={() => void monitor.refresh()}
+          >
+            모니터 출력 새로고침
+          </button>
+          <label>
+            모니터 출력
+            <select
+              aria-label="모니터 출력"
+              value={
+                running ? (monitor.state.outputDeviceId ?? output) : output
+              }
+              disabled={monitor.busy || running}
+              onChange={(event) => monitor.selectOutput(event.target.value)}
+            >
+              <option value="">출력 장치를 선택하세요</option>
+              {monitor.outputs.map((device) => (
+                <option key={device.id} value={device.id}>
+                  {device.name}
+                  {device.isDefault ? ' · PC 기본 출력' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        </MoreMenu>
         {monitor.state.state === 'ERROR' && (
           <button disabled={monitor.busy} onClick={() => void monitor.stop()}>
             모니터 오류 해제

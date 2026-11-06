@@ -291,6 +291,21 @@ pub async fn verify_ai_model(
     Ok(initial)
 }
 
+/// docs/12 "AI 모델 설치 상태 조회 v1": 즉시 응답하는 읽기 전용 조회입니다.
+#[tauri::command]
+pub fn get_ai_model_status(
+    request: InspectRequest,
+    store: tauri::State<'_, Arc<ProjectStore>>,
+) -> Result<serde_json::Value, AppError> {
+    if request.schema_version != 1 {
+        return Err(AppError::invalid());
+    }
+    Ok(serde_json::json!({
+        "schemaVersion": 1,
+        "models": ai::managed::model_status(&store.root),
+    }))
+}
+
 #[tauri::command]
 pub async fn inspect_ai_runtime(
     app: tauri::AppHandle,

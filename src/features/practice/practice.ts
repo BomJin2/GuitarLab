@@ -1,7 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ScoreDocument } from '../../entities/score';
+import {
+  compareIds,
+  excludedFromScoring,
+  unpickedDestinations,
+  type ScoreDocument,
+} from '../../entities/score';
 import type { PlaybackLoop } from '../player/PlayerEngine';
-import { scoreTickToAudioTime } from '../player/sync';
+import { scoreTicksToAudioTimes } from '../player/sync';
 import {
   decodeProfiles,
   type DeviceProfile,
@@ -285,13 +290,21 @@ export function buildPracticeTargets(
   const track = document.tracks[trackIndex];
   if (!track || !isNumberWithin(durationMs, 0, 86400000))
     throw new Error('INVALID_TARGETS');
-  const targets = track.notes
-    .filter((note) => note.attack !== false)
-    .map((note) => ({
+  const attacks = track.notes.filter((note) => note.attack !== false);
+  const unpicked = unpickedDestinations(track.notes);
+  // 스윙 뒤 음은 악보 위치가 아니라 실제 소리 시각으로 채점합니다(docs/12 playbackTick v1).
+  const times = scoreTicksToAudioTimes(
+    document.syncAnchors,
+    attacks.map((note) => note.playbackTick ?? note.startTick),
+  );
+  const targets = attacks
+    .map((note, index) => ({
       id: note.id,
       pitchMidi: note.pitchMidi,
-      ...(note.judgementSupport === 'UNSUPPORTED' ? { unsupported: true } : {}),
-      songTimeMs: scoreTickToAudioTime(document.syncAnchors, note.startTick),
+      ...(excludedFromScoring(note, unpicked.has(note.id))
+        ? { unsupported: true }
+        : {}),
+      songTimeMs: times[index]!,
     }))
     .filter(
       (target) =>
@@ -300,7 +313,7 @@ export function buildPracticeTargets(
     )
     .sort(
       (left, right) =>
-        left.songTimeMs - right.songTimeMs || left.id.localeCompare(right.id),
+        left.songTimeMs - right.songTimeMs || compareIds(left.id, right.id),
     );
   if (
     targets.length > 100000 ||

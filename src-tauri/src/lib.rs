@@ -5,6 +5,7 @@ pub mod backing;
 mod close_guard;
 mod commands;
 mod diagnostics;
+mod event_target;
 pub mod instance;
 pub mod ipc;
 pub mod judgement;

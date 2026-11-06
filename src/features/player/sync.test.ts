@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import type { SyncAnchor } from '../../entities/score';
 import {
   audioTimeToScoreTick,
   scoreTickToAudioTime,
+  scoreTicksToAudioTimes,
   validateAnchors,
   validateLoop,
 } from './sync';
@@ -45,4 +47,35 @@ describe('싱크와 반복 계약', () => {
     expect(() => validateLoop(0, 2000, 1000)).toThrow();
     expect(() => validateLoop(0, 500, 1000)).not.toThrow();
   });
+});
+
+it('여러 tick 변환은 한 번씩 변환한 값과 같다(앵커 경계·범위 밖 포함)', () => {
+  let seed = 7;
+  const random = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  for (let round = 0; round < 50; round++) {
+    const anchors: SyncAnchor[] = [];
+    let tick = Math.floor(random() * 500);
+    let time = random() * 1000;
+    for (let i = 0; i < 2 + Math.floor(random() * 30); i++) {
+      anchors.push({ scoreTick: tick, audioTimeMs: time });
+      tick += 1 + Math.floor(random() * 2000);
+      time += 1 + random() * 3000;
+    }
+    const ticks = [
+      ...anchors.map((a) => a.scoreTick),
+      ...Array.from({ length: 40 }, () => Math.floor(random() * (tick + 4000))),
+    ];
+    expect(scoreTicksToAudioTimes(anchors, ticks)).toEqual(
+      ticks.map((t) => scoreTickToAudioTime(anchors, t)),
+    );
+  }
+  expect(() =>
+    scoreTicksToAudioTimes(
+      [
+        { scoreTick: 0, audioTimeMs: 0 },
+        { scoreTick: 0, audioTimeMs: 1 },
+      ],
+      [0],
+    ),
+  ).toThrow();
 });

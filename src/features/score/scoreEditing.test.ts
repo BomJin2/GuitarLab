@@ -234,3 +234,40 @@ it('미지원 주법은 계약으로 보존하고 기본 편집·MusicXML 출력
     );
   }
 });
+it('주법 편집 v2: 해머온은 같은 줄 다음 음이 있어야 하고, 이음은 한 음에 하나만 고른다', () => {
+  const document = normalizeScore(
+    importer.ScoreLoader.loadAlphaTex('. 0.1.4 2.1.4 3.2.4 5.2.4'),
+  );
+  const track = document.tracks[0]!;
+  const [first, second] = track.notes;
+  const update = (techniques: ('HAMMER' | 'SLIDE_SHIFT')[]) =>
+    editNote(document, {
+      kind: 'UPDATE',
+      trackId: track.id,
+      noteId: first!.id,
+      value: {
+        startTick: 0,
+        durationTicks: 960,
+        stringIndex: 1,
+        fret: 0,
+        techniques,
+      },
+    });
+  const hammered = update(['HAMMER']);
+  expect(hammered.tracks[0]!.notes[0]!.techniques).toEqual(['HAMMER']);
+  expect(() => renderNormalized(hammered)).not.toThrow();
+  // 해머온 도착 음(2번째)은 피킹이 없어 채점에서 뺍니다.
+  expect(
+    buildPracticeTargets(hammered, 0, 3000, null).map(
+      (n) => n.unsupported ?? false,
+    ),
+  ).toEqual([false, true, false, false]);
+  expect(() => update(['HAMMER', 'SLIDE_SHIFT'])).toThrow('하나만');
+  expect(() =>
+    editNote(hammered, {
+      kind: 'DELETE',
+      trackId: track.id,
+      noteId: second!.id,
+    }),
+  ).toThrow('같은 줄의 다음 음');
+});

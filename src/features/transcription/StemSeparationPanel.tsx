@@ -1,4 +1,5 @@
 import type { ProjectController } from '../library/useProjects';
+import { ModelStatusNotice } from './ModelStatusNotice';
 import { useSeparation } from './useSeparation';
 import { separationCapabilities } from './separation';
 
@@ -12,6 +13,7 @@ export function StemSeparationPanel({
   return (
     <section className="panel" aria-label="전체 기타 음원 분리">
       <h2>전체 기타 분리 · Demucs 개발 미리보기</h2>
+      <ModelStatusNotice modelId="htdemucs_6s" />
       <p>
         연구용 가중치를 사용하는 로컬 AI 추정입니다. 전체 기타와 잔여 반주를
         만들며 리드/리듬 분리는 지원하지 않습니다. 원본·악보·녹음은 유지합니다.

@@ -235,7 +235,18 @@ export function editStructure(
         throw new Error(
           '줄어든 마디에 음표가 넘칩니다. 음표 길이나 위치를 먼저 조절하세요.',
         );
-      return [{ ...note, startTick, measureIndex }];
+      const shift = startTick - note.startTick;
+      return [
+        {
+          ...note,
+          startTick,
+          measureIndex,
+          // 소리 시각(스윙)도 음표와 같은 만큼 옮깁니다(docs/12 playbackTick v1).
+          ...(note.playbackTick === undefined
+            ? {}
+            : { playbackTick: note.playbackTick + shift }),
+        },
+      ];
     }),
   }));
   const tempoMap = positions

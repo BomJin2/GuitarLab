@@ -4,7 +4,10 @@ import { modelCacheApi, type ModelCacheInfo } from './modelCache';
 import { modelSetupApi, type ModelSetupResult } from './modelSetup';
 import { modelInstallationApi } from './modelInstallation';
 import { cacheCleanupApi, type CacheUsage } from './cacheCleanup';
-import { useModelDownload } from './useModelDownload';
+import {
+  resetModelDownloadForTests,
+  useModelDownload,
+} from './useModelDownload';
 import { resetModelSetupForTests, useModelSetup } from './useModelSetup';
 import { useModelInstallation } from './useModelInstallation';
 import { useCacheCleanup } from './useCacheCleanup';
@@ -82,6 +85,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetModelSetupForTests();
+  resetModelDownloadForTests();
 });
 
 function useManagement() {

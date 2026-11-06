@@ -1,12 +1,31 @@
 import { useLayoutEffect, useReducer, useRef, type FormEvent } from 'react';
 import type { ScoreSession } from './scoreSession';
 import type { ScoreEditingController } from './useScoreEditing';
+import type { NoteDraft } from './scoreEditing';
 import { getActiveTrackIndex } from './trackSelection';
 import { noteDurations } from './normalizedNotation';
 import { ScoreStructureEditor } from './ScoreStructureEditor';
 import { OriginalScoreComparison } from './OriginalScoreComparison';
 import { useScoreExport } from './useScoreExport';
+import { exportLossWarnings } from './scoreExport';
 import { isTextEntryTarget } from '../../shared/keyboard';
+import { techniqueOrder, type Technique } from '../../entities/score';
+
+// docs/12 "주법 편집 v1"
+const techniqueLabels: Record<Technique, string> = {
+  PALM_MUTE: '팜뮤트',
+  DEAD: '데드 노트(X)',
+  GHOST: '고스트 노트',
+  STACCATO: '스타카토',
+  VIBRATO: '비브라토',
+  BEND: '벤딩',
+  TAP: '태핑',
+  HAMMER: '해머온·풀오프(다음 같은 줄 음으로)',
+  SLIDE_LEGATO: '슬라이드 이어 치기(다음 같은 줄 음으로)',
+  SLIDE_SHIFT: '슬라이드 연결(다음 같은 줄 음으로)',
+  HARMONIC_NATURAL: '자연 하모닉',
+  LET_RING: '렛링',
+};
 
 export function ScoreEditor({
   session,
@@ -59,11 +78,18 @@ export function ScoreEditor({
       const value = form.get(name);
       return typeof value === 'string' && value.trim() ? Number(value) : NaN;
     };
-    const value = {
+    const techniques = techniqueOrder.filter((t) =>
+      form.getAll('technique').includes(t),
+    );
+    const value: NoteDraft = {
       startTick: number('startTick'),
       durationTicks: number('durationTicks'),
       stringIndex: number('stringIndex'),
       fret: number('fret'),
+      techniques,
+      ...(techniques.includes('BEND')
+        ? { bendSemitones: number('bendSemitones') === 2 ? 2 : 1 }
+        : {}),
     };
     editor.edit(
       selected && !duplicate
@@ -114,7 +140,7 @@ export function ScoreEditor({
       <p>
         원본은 보존하고 편집본을 만듭니다. 반복은 펼친 시간으로 편집하며
         주법·원본 표기는 간소화됩니다. 현재6줄 단성만 지원합니다. 마디/템포
-        변경은 반주 싱크 재확인이 필요합니다. 파일 출력은 새 JSON/MusicXML만
+        변경은 반주 싱크 재확인이 필요합니다. 파일 출력은 새 JSON/MusicXML/GP7만
         생성합니다. 편집 패널에서 Ctrl+Z로 되돌리고 Ctrl+Y 또는 Ctrl+Shift+Z로
         다시 실행합니다.
       </p>
@@ -159,6 +185,9 @@ export function ScoreEditor({
                   <option key={n.id} value={n.id}>
                     {i + 1}번 · tick {n.startTick} · {n.stringIndex}번 줄{' '}
                     {n.fret}프렛
+                    {n.techniques
+                      ? ` · ${n.techniques.map((t) => techniqueLabels[t]).join('·')}`
+                      : ''}
                   </option>
                 ))}
                 <option value="new">새 음표 추가</option>
@@ -249,6 +278,36 @@ export function ScoreEditor({
                   defaultValue={selected?.fret ?? 0}
                 />
               </label>
+              <fieldset className="technique-fields">
+                <legend>주법</legend>
+                {techniqueOrder.map((t) => (
+                  <label key={t}>
+                    <input
+                      type="checkbox"
+                      name="technique"
+                      value={t}
+                      defaultChecked={selected?.techniques?.includes(t)}
+                    />
+                    {techniqueLabels[t]}
+                  </label>
+                ))}
+                <label>
+                  벤딩 양
+                  <select
+                    aria-label="벤딩 양"
+                    name="bendSemitones"
+                    defaultValue={selected?.bendSemitones ?? 1}
+                  >
+                    <option value={1}>반음</option>
+                    <option value={2}>온음</option>
+                  </select>
+                </label>
+                <small>
+                  팜뮤트·스타카토·렛링과 해머온·슬라이드의 시작 음은 음정으로
+                  채점합니다. 해머온·이어 치기 슬라이드의 도착 음과 그 밖의 주법
+                  음은 채점에서 뺍니다.
+                </small>
+              </fieldset>
               <button type="submit">
                 {selected ? '음표 수정 적용' : '새 음표 적용'}
               </button>
@@ -314,7 +373,20 @@ export function ScoreEditor({
             >
               새 MusicXML로 내보내기
             </button>
+            <button
+              disabled={controlsLocked || !exporting.native || !editor.document}
+              onClick={() => {
+                if (editor.document)
+                  void exporting.export(editor.document, 'GP7');
+              }}
+            >
+              새 GP7로 내보내기
+            </button>
           </div>
+          {editor.document &&
+            exportLossWarnings(editor.document).map((text) => (
+              <p key={text}>{text}</p>
+            ))}
           {!exporting.native && (
             <p>새 파일 저장 창은 Windows 앱에서 사용할 수 있습니다.</p>
           )}

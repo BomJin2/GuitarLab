@@ -1,10 +1,19 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { usePlayerEngine } from '../player/usePlayer';
 import { PlayerEngine } from '../player/PlayerEngine';
 import { recordingApi, type RecordedTake } from '../recordings/recordings';
 import type { JobSnapshot } from '../library/projects';
 import { LatestTask } from '../../shared/latestTask';
 import { TakeMixPlayer, type MixPlaybackEntry } from './TakeMixPlayer';
+import { wavPeak } from './mixLabels';
 import { importedStemsApi, type ImportedGuitarStem } from './importedStems';
 import {
   separationApi,
@@ -19,17 +28,65 @@ import {
   type MixStats,
 } from './mixing';
 
+// docs/12 "새 테이크 자동 믹스·자동 준비": 현재 리비전·반주에 맞춰 녹음한 READY 테이크만 자동 대상입니다.
+function autoEligible(
+  take: RecordedTake,
+  projectId: string | undefined,
+  revisionId: string | undefined,
+  backingId: string | null,
+) {
+  return (
+    !!backingId &&
+    take.projectId === projectId &&
+    take.state === 'READY' &&
+    take.scoreRevisionId === revisionId &&
+    take.transport?.backingAssetId === backingId
+  );
+}
+const takeLayer = (id: string) => ({
+  kind: 'TAKE' as const,
+  id,
+  gain: 0.7,
+  mute: false,
+  solo: false,
+  offsetMs: 0,
+});
+// docs/12 "로컬 반주 줄 항상 표시": 현재 반주 레이어를 맨 앞에 하나 둡니다.
+// 없던 반주는 음소거로 넣어 이전 믹스의 들리는 결과를 유지합니다.
+function withBacking(mix: MixDocument, backingId: string | null): MixDocument {
+  if (!backingId) return mix;
+  const found = mix.layers.find((l) => l.kind === 'LOCAL_ASSET');
+  const rest = mix.layers.filter((l) => l.kind !== 'LOCAL_ASSET');
+  if (!found && mix.layers.length >= 8) return mix;
+  const backing = found
+    ? { ...found, id: backingId, offsetMs: 0 }
+    : {
+        kind: 'LOCAL_ASSET' as const,
+        id: backingId,
+        gain: 0.5,
+        mute: true,
+        solo: false,
+        offsetMs: 0,
+      };
+  return { ...mix, layers: [backing, ...rest] };
+}
+export type MixAuto = { take: RecordedTake | null; locked: boolean };
+
 export function useProjectMix(
   projectId: string | undefined,
   backingId: string | null,
   revisionId: string | undefined,
   enabled: boolean,
+  auto: MixAuto | null = null,
 ) {
+  const autoOn = auto !== null;
   const main = usePlayerEngine();
   const [mix, setMix] = useState<MixDocument | null>(null);
   const [takes, setTakes] = useState<RecordedTake[]>([]);
   const [stems, setStems] = useState<SeparationInfo['stems']>([]);
   const [importedStems, setImportedStems] = useState<ImportedGuitarStem[]>([]);
+  // docs/12 "하단 믹서 최대 레벨 추정": 믹스 준비 때 이미 읽은 분리 음원 바이트의 최대값입니다.
+  const [stemPeaks, setStemPeaks] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +101,15 @@ export function useProjectMix(
         setError(message);
       }),
   );
+  // docs/12 "실시간 레벨 미터": 재생 요소 목록(안정된 함수라 미터가 다시 시작되지 않음)
+  const levelSources = useCallback(() => player.mediaElements(), [player]);
   const task = useRef(new LatestTask());
   const operation = useRef(false);
   const epoch = useRef(0);
   const mounted = useRef(false);
+  // 자동으로 넣은(또는 넣으려 본) 테이크와 마지막 자동 준비 레이어 구성입니다.
+  const autoSeen = useRef(new Set<string>());
+  const autoTried = useRef<string | null>(null);
   const context = useMemo(
     () => ({ projectId, backingId, revisionId }),
     [projectId, backingId, revisionId],
@@ -61,6 +123,25 @@ export function useProjectMix(
   useLayoutEffect(() => {
     currentEnabled.current = enabled;
   }, [enabled]);
+  // docs/12 "준비 전 반주 음량": 믹스 준비 전에도 로컬 반주의 음량·음소거·Solo를
+  // 메인 재생에 바로 반영합니다. 준비·작업 중이거나 화면을 떠나면 원래 음량으로 되돌립니다.
+  const backingLayer = visibleMix?.layers.find((l) => l.kind === 'LOCAL_ASSET');
+  const backingVolume =
+    enabled && visibleMix && backingLayer && !visiblePrepared && !busy
+      ? layerVolume(visibleMix, backingLayer)
+      : null;
+  const savedVolume = useRef<number | null>(null);
+  const releaseBacking = useCallback(() => {
+    if (savedVolume.current === null) return;
+    main.setVolume(savedVolume.current);
+    savedVolume.current = null;
+  }, [main]);
+  useLayoutEffect(() => {
+    if (backingVolume === null) return releaseBacking();
+    savedVolume.current ??= main.getSnapshot().volume;
+    main.setVolume(backingVolume);
+  }, [backingVolume, main, releaseBacking]);
+  useLayoutEffect(() => releaseBacking, [releaseBacking]);
   function setJob(value: JobSnapshot | null) {
     if (ownsContext()) setJobState(value);
   }
@@ -74,6 +155,7 @@ export function useProjectMix(
     clear();
     setStems([]);
     setImportedStems([]);
+    setStemPeaks({});
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -93,8 +175,15 @@ export function useProjectMix(
         list.some((take) => take.projectId !== projectId)
       )
         throw new Error('MIX_SOURCE_UNAVAILABLE');
+      autoTried.current = null;
+      const autoTakes = autoOn
+        ? list
+            .filter((t) => autoEligible(t, projectId, revisionId, backingId))
+            .slice(0, 7)
+        : [];
+      for (const t of autoTakes) autoSeen.current.add(t.id);
       setMix(
-        saved ?? {
+        (saved && withBacking(saved, backingId)) ?? {
           schemaVersion: 1,
           projectId,
           masterGain: 0.7,
@@ -108,6 +197,7 @@ export function useProjectMix(
                   solo: false,
                   offsetMs: 0,
                 },
+                ...autoTakes.map((t) => takeLayer(t.id)),
               ]
             : [],
         },
@@ -128,7 +218,7 @@ export function useProjectMix(
       )
         setBusy(false);
     }
-  }, [projectId, backingId, clear, context]);
+  }, [projectId, backingId, revisionId, autoOn, clear, context]);
   useLayoutEffect(() => {
     owner.current = context;
     mounted.current = true;
@@ -138,6 +228,7 @@ export function useProjectMix(
     setTakes([]);
     setStems([]);
     setImportedStems([]);
+    setStemPeaks({});
     setBusy(false);
     setStats(null);
     setJobState(null);
@@ -159,6 +250,8 @@ export function useProjectMix(
       task.current.cancel();
       clear();
       preview.clear();
+      // 이탈로 준비가 풀렸으니 돌아오면 같은 구성도 다시 자동 준비합니다.
+      autoTried.current = null;
     }
   }, [enabled, clear, preview]);
   function update(next: MixDocument, structural = false) {
@@ -208,11 +301,14 @@ export function useProjectMix(
       clear();
       main.pause();
       preview.clear();
+      // TakeMixPlayer가 사용자의 원래 음량을 기억하도록 준비 전 덮어쓰기를 먼저 풉니다.
+      releaseBacking();
       const backing = mix.layers.find((l) => l.kind === 'LOCAL_ASSET');
       if (backing && (backing.id !== backingId || backing.offsetMs !== 0))
         throw new Error('MIX_SOURCE_UNAVAILABLE');
       let budget = 64 * 1024 * 1024;
       const entries: MixPlaybackEntry[] = [];
+      const peaks: Record<string, number> = {};
       for (const layer of mix.layers.filter((l) => l.kind !== 'LOCAL_ASSET')) {
         if (layer.kind === 'STEM' || layer.kind === 'IMPORTED_STEM') {
           const bytes =
@@ -235,6 +331,8 @@ export function useProjectMix(
           if (signal.aborted) return;
           budget -= bytes.byteLength;
           if (budget < 0) throw new Error('MIX_LIMIT_EXCEEDED');
+          const peak = wavPeak(bytes);
+          if (peak !== null) peaks[layer.id] = peak;
           entries.push({
             kind: layer.kind,
             stemId: layer.id,
@@ -247,7 +345,7 @@ export function useProjectMix(
         if (
           !take ||
           take.state !== 'READY' ||
-          take.scoreRevisionId !== revisionId ||
+          // 재생 위치는 반주 시간 기준이라 이전 악보 버전 테이크도 듣기는 허용합니다.
           (take.transport && take.transport.backingAssetId !== backingId)
         )
           throw new Error('RECORDING_REFERENCE_INVALID');
@@ -266,6 +364,7 @@ export function useProjectMix(
       }
       await player.prepare(mix, entries, signal);
       if (signal.aborted) return;
+      setStemPeaks(peaks);
       setPrepared(true);
       setNotice(
         '믹스 준비 완료 · 정지 상태에서 REC를 누르면3초 준비 후 반주와 새 입력 녹음을 시작합니다.',
@@ -320,18 +419,26 @@ export function useProjectMix(
         result.info.assetId !== backingId
       )
         throw new Error('AI_OUTPUT_INVALID');
+      const backing = mix.layers.find((l) => l.kind === 'LOCAL_ASSET');
       update(
-        {
-          ...mix,
-          layers: result.info.stems.map((stem) => ({
-            kind: 'STEM',
-            id: stem.id,
-            gain: 0.5,
-            mute: false,
-            solo: false,
-            offsetMs: 0,
-          })),
-        },
+        withBacking(
+          {
+            ...mix,
+            layers: [
+              // 분리 음원만 들리도록 반주 줄은 지우지 않고 음소거합니다.
+              ...(backing ? [{ ...backing, mute: true, solo: false }] : []),
+              ...result.info.stems.map((stem) => ({
+                kind: 'STEM' as const,
+                id: stem.id,
+                gain: 0.5,
+                mute: false,
+                solo: false,
+                offsetMs: 0,
+              })),
+            ],
+          },
+          backingId,
+        ),
         true,
       );
       setStems(result.info.stems);
@@ -375,11 +482,96 @@ export function useProjectMix(
       true,
     );
   }
+  const needsPreparation =
+    !!visibleMix?.layers.some(
+      (l) =>
+        l.kind === 'STEM' ||
+        l.kind === 'IMPORTED_STEM' ||
+        (l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0),
+    ) && !visiblePrepared;
+  const commands = useRef({ update, prepare });
+  useLayoutEffect(() => {
+    commands.current = { update, prepare };
+  });
+  const newTake = auto?.take ?? null;
+  useEffect(() => {
+    if (
+      !autoOn ||
+      !newTake ||
+      !visibleMix ||
+      !enabled ||
+      busy ||
+      autoSeen.current.has(newTake.id) ||
+      !autoEligible(newTake, projectId, revisionId, backingId)
+    )
+      return;
+    autoSeen.current.add(newTake.id);
+    const layers = visibleMix.layers;
+    if (
+      layers.some((l) => l.id === newTake.id) ||
+      layers.length >= 8 ||
+      layers.filter((l) => l.kind === 'TAKE').length >= 7
+    )
+      return;
+    setTakes((list) =>
+      list.some((t) => t.id === newTake.id) ? list : [...list, newTake],
+    );
+    commands.current.update(
+      { ...visibleMix, layers: [...layers, takeLayer(newTake.id)] },
+      true,
+    );
+  }, [
+    autoOn,
+    newTake,
+    visibleMix,
+    enabled,
+    busy,
+    projectId,
+    revisionId,
+    backingId,
+  ]);
+  const mainStatus = useSyncExternalStore(
+    main.subscribe,
+    () => main.getSnapshot().status,
+  );
+  const structure =
+    visibleMix?.layers.map((l) => `${l.kind}:${l.id}`).join() ?? '';
+  const autoLocked = auto?.locked ?? true;
+  useEffect(() => {
+    if (
+      !autoOn ||
+      autoLocked ||
+      !needsPreparation ||
+      busy ||
+      !enabled ||
+      !backingId ||
+      !revisionId ||
+      mainStatus === 'playing' ||
+      mainStatus === 'countIn' ||
+      autoTried.current === structure
+    )
+      return;
+    // 같은 구성은 한 번만 시도해 실패·연결 해제 뒤 반복 준비하지 않습니다.
+    autoTried.current = structure;
+    void commands.current.prepare();
+  }, [
+    autoOn,
+    autoLocked,
+    needsPreparation,
+    busy,
+    enabled,
+    backingId,
+    revisionId,
+    mainStatus,
+    structure,
+  ]);
   return {
     mix: visibleMix,
     takes: visible ? takes : [],
     stems: visible ? stems : [],
     importedStems: visible ? importedStems : [],
+    stemPeaks: visible ? stemPeaks : {},
+    levelSources,
     refreshImported,
     addImported,
     configureStems,
@@ -408,16 +600,18 @@ export function useProjectMix(
     referenceTakeIds:
       visiblePrepared && visibleMix
         ? visibleMix.layers
-            .filter((l) => l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0)
+            .filter(
+              (l) =>
+                l.kind === 'TAKE' &&
+                layerVolume(visibleMix, l) > 0 &&
+                // 백엔드는 같은 리비전 테이크만 REC 참조로 받습니다.
+                takes.find((t) => t.id === l.id)?.scoreRevisionId ===
+                  revisionId,
+            )
             .map((l) => l.id)
         : [],
-    needsPreparation:
-      !!visibleMix?.layers.some(
-        (l) =>
-          l.kind === 'STEM' ||
-          l.kind === 'IMPORTED_STEM' ||
-          (l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0),
-      ) && !visiblePrepared,
+    needsPreparation,
+    revisionId,
   };
 }
 export type ProjectMixController = ReturnType<typeof useProjectMix>;

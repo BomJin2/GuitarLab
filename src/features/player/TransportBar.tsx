@@ -107,7 +107,11 @@ export function TransportBar({
   return (
     <footer className="transport" aria-label="재생 컨트롤">
       <fieldset disabled={locked} className="transport-fields">
-        <button disabled={!ready} onClick={togglePlayback}>
+        <button
+          className="transport-play"
+          disabled={!ready}
+          onClick={togglePlayback}
+        >
           {locked
             ? '녹음 중 · 재생 잠김'
             : !ready
@@ -138,7 +142,7 @@ export function TransportBar({
             onChange={(event) => engine.seek(Number(event.target.value))}
           />
         </label>
-        <span>
+        <span className="transport-time">
           {formatTime(state.audioTimeMs)} / {formatTime(state.durationMs)}
         </span>
         {workspace && (

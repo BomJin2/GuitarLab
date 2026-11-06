@@ -1,6 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
-import { runStorageJob } from '../library/projects';
+import { runStorageByteJob, runStorageJob } from '../library/projects';
 import {
   decodeImportedStem,
   importedStemsApi,
@@ -13,6 +12,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('../library/projects', async (original) => ({
   ...(await original<typeof import('../library/projects')>()),
   runStorageJob: vi.fn(),
+  runStorageByteJob: vi.fn(),
 }));
 const projectId = '00000000-0000-4000-8000-000000000001';
 const id = '00000000-0000-4000-8000-000000000002';
@@ -84,26 +84,25 @@ it('선택·조회·단발 binary의 문맥과 크기를 검증하고 취소 결
   await expect(
     importedStemsApi.list(projectId, controller.signal, progress),
   ).rejects.toThrow();
-  vi.mocked(runStorageJob).mockImplementation(
-    async (_command, _request, _signal, onProgress) => {
-      onProgress({
-        schemaVersion: 1,
-        jobId: id,
-        state: 'COMPLETED',
-        completedBytes: 52,
-        totalBytes: 52,
-        result: { schemaVersion: 1, stem },
-        errorCode: null,
-      });
-      return { schemaVersion: 1, stem };
-    },
-  );
-  vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(52));
+  // 바이트 회수는 runStorageByteJob이 같은 차례 안에서 합니다(projects.test의 줄 세우기 검사).
+  const read = (bytes: number) =>
+    vi.mocked(runStorageByteJob).mockResolvedValue({
+      result: { schemaVersion: 1, stem },
+      bytes: new ArrayBuffer(bytes),
+    });
+  read(52);
   expect(
     (await importedStemsApi.read(projectId, id, controller.signal, progress))
       .bytes.byteLength,
   ).toBe(52);
-  vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(51));
+  expect(runStorageByteJob).toHaveBeenLastCalledWith(
+    'read_imported_guitar_stem',
+    { projectId, stemId: id },
+    controller.signal,
+    progress,
+    { waitForCancellation: true },
+  );
+  read(51);
   await expect(
     importedStemsApi.read(projectId, id, controller.signal, progress),
   ).rejects.toThrow();

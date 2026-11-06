@@ -18,7 +18,7 @@ import { useScoreEditing } from './useScoreEditing';
 import { scoreEditingFixture } from '../../test/scoreEditingFixture';
 import { renderedNoteId } from './scoreNoteSelection';
 
-const bounds = vi.hoisted(() => ({ x: 30, y: 20 }));
+const bounds = vi.hoisted(() => ({ x: 30, y: 20, step: 0 }));
 const clicks = vi.hoisted(() => ({
   listeners: [] as Array<
     (beat: import('@coderline/alphatab').model.Beat) => void
@@ -39,6 +39,10 @@ vi.mock('@coderline/alphatab', async (importOriginal) => ({
   AlphaTabApi: class {
     events: (typeof clicks.events)[number] = { destroy: vi.fn() };
     constructor(_host: unknown, settings: unknown) {
+      // 실제 alphaTab 1.6.1처럼 공용 스타일을 매번 추가합니다.
+      const shared = document.createElement('style');
+      shared.id = 'alphaTabStyleShared';
+      document.head.append(shared);
       clicks.settings.push(settings);
       clicks.events.push(this.events);
     }
@@ -63,9 +67,15 @@ vi.mock('@coderline/alphatab', async (importOriginal) => ({
       },
     };
     boundsLookup = {
-      findBeat: () => ({
-        onNotesX: bounds.x,
+      findBeat: (beat: { index: number }) => ({
+        onNotesX: bounds.x + bounds.step * beat.index,
         realBounds: { y: bounds.y, h: 20 },
+        barBounds: {
+          masterBarBounds: {
+            realBounds: { x: bounds.x, w: bounds.step * 2 },
+            staffSystemBounds: null,
+          },
+        },
       }),
     };
     renderScore = vi.fn(
@@ -93,6 +103,7 @@ beforeEach(() => {
   clicks.deferred = false;
   bounds.x = 30;
   bounds.y = 20;
+  bounds.step = 0;
   pageScroll.mockClear();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true,
@@ -166,7 +177,7 @@ it('표시 변경만 새 렌더를 만들고 이전 완료/오류는 현재 커�
   expect(cursor).toHaveProperty('hidden', false);
   expect(clicks.settings[0]).toMatchObject({
     display: {
-      staveProfile: StaveProfile.Tab,
+      staveProfile: StaveProfile.Default,
       layoutMode: LayoutMode.Page,
       scale: 1,
     },
@@ -176,11 +187,21 @@ it('표시 변경만 새 렌더를 만들고 이전 완료/오류는 현재 커�
   expect(clicks.events[0]!.destroy).toHaveBeenCalledOnce();
   expect(clicks.settings[1]).toMatchObject({
     display: {
-      staveProfile: StaveProfile.Score,
+      staveProfile: StaveProfile.Default,
       layoutMode: LayoutMode.Horizontal,
       scale: 1.5,
     },
   });
+  // 보기 종류는 표시 복사본의 줄 설정으로 나뉩니다.
+  expect(
+    [0, 1].map((i) => {
+      const staff = clicks.scores[i]!.tracks[0]!.staves[0]!;
+      return [staff.showTablature, staff.showStandardNotation];
+    }),
+  ).toEqual([
+    [true, false],
+    [false, true],
+  ]);
   expect(cursor).toHaveProperty('hidden', true);
   expect(region.getAttribute('aria-busy')).toBe('true');
   const beat =
@@ -518,4 +539,44 @@ it('커서 추적은 악보 안에서만 스크롤하고 REC 포커스와 전체
   );
   expect(scroller.scrollTop).toBe(0);
   expect(main.scrollTop).toBe(88);
+});
+it('재생 중 커서는 박 사이를 시간 비율로 부드럽게 이동하고 마디 끝을 넘지 않는다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
+  const lookup = buildPlaybackLookup(score);
+  bounds.step = 100;
+  const view = (tick: number) => (
+    <ScoreViewport score={score} lookup={lookup} trackIndex={0} tick={tick} />
+  );
+  const { rerender, container } = render(view(0));
+  const cursor = container.querySelector('.score-cursor') as HTMLElement;
+  expect(cursor.style.left).toBe('30px');
+  rerender(view(480));
+  expect(cursor.style.left).toBe('80px');
+  rerender(view(960));
+  expect(cursor.style.left).toBe('130px');
+  // 마지막 박은 마디 끝까지 이어지므로 줄 끝(마디 오른쪽 230px)을 향해 움직이되 넘지 않습니다.
+  rerender(view(1440));
+  const middle = parseFloat(cursor.style.left);
+  expect(middle).toBeGreaterThan(130);
+  expect(middle).toBeLessThan(230);
+  rerender(view(3839));
+  expect(parseFloat(cursor.style.left)).toBeLessThanOrEqual(230);
+});
+
+it('악보 화면을 여러 번 열어도 alphaTab 공용 스타일은 하나만 남긴다', () => {
+  const score = importer.ScoreLoader.loadAlphaTex('. 0.1.4 3.1.4');
+  for (let i = 0; i < 3; i++) {
+    const { unmount } = render(
+      <ScoreViewport
+        score={score}
+        lookup={buildPlaybackLookup(score)}
+        trackIndex={0}
+        tick={0}
+      />,
+    );
+    unmount();
+  }
+  expect(document.querySelectorAll('style#alphaTabStyleShared')).toHaveLength(
+    1,
+  );
 });

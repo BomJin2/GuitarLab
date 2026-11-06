@@ -41,7 +41,7 @@ it('녹음 잠금 중 프로그램식 drop도 읽지 않고 잠금을 풀면 같
   const rendered = render(view());
   const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer');
   const drop = () =>
-    fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+    fireEvent.drop(screen.getByRole('heading', { name: /작업 공간/ }), {
       dataTransfer: {
         files: [new File([xml], '자체.musicxml')],
         items: [],
@@ -55,7 +55,7 @@ it('녹음 잠금 중 프로그램식 drop도 읽지 않고 잠금을 풀면 같
   rendered.rerender(view());
   // 실제 WebView는 dragenter를 취소한 요소만 drop 대상으로 삼습니다(jsdom은 이 단계를 생략).
   expect(
-    fireEvent.dragEnter(screen.getByLabelText('로컬 파일 끌어놓기'), {
+    fireEvent.dragEnter(screen.getByRole('heading', { name: /작업 공간/ }), {
       dataTransfer: { files: [], items: [], types: ['Files'] },
     }),
   ).toBe(false);
@@ -75,7 +75,7 @@ it('악보 교체 확인 중 녹음 잠금이 시작되면 늦은 허가도 파�
   );
   const rendered = render(view());
   const drop = () =>
-    fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+    fireEvent.drop(screen.getByRole('heading', { name: /작업 공간/ }), {
       dataTransfer: {
         files: [new File([xml], '자체.musicxml')],
         items: [],
@@ -120,7 +120,7 @@ it('녹음 잠금 중 편집 단축키·버튼이 기록을 보존하고 해제 
     </Context.Provider>
   );
   const rendered = render(view());
-  fireEvent.drop(screen.getByLabelText('로컬 파일 끌어놓기'), {
+  fireEvent.drop(screen.getByRole('heading', { name: /작업 공간/ }), {
     dataTransfer: {
       files: [new File([xml], '자체.musicxml')],
       items: [],
@@ -241,5 +241,41 @@ it('프로젝트 없이 불러오는 중 두 번째 드롭은 안내와 함께 �
     await screen.findByText(/파일 처리를 마친 뒤 파일을 놓아주세요/),
   ).toBeTruthy();
   expect(read).toHaveBeenCalledOnce();
+  engine.dispose();
+});
+
+it('주법 편집 v1: 편집 패널에서 주법을 체크해 적용하면 음표 목록에 남고 실행 취소로 되돌린다', async () => {
+  window.location.hash = '#/copy';
+  const engine = new PlayerEngine();
+  render(
+    <Context.Provider value={engine}>
+      <App />
+    </Context.Provider>,
+  );
+  fireEvent.drop(screen.getByRole('heading', { name: /작업 공간/ }), {
+    dataTransfer: {
+      files: [new File([xml], '자체.musicxml')],
+      items: [],
+      types: ['Files'],
+    },
+  });
+  await screen.findByLabelText('악보 트랙');
+  fireEvent.click(screen.getByText('안내 확인 · 편집 시작'));
+  fireEvent.click(screen.getByRole('checkbox', { name: '팜뮤트' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: '벤딩' }));
+  fireEvent.change(screen.getByLabelText('벤딩 양'), {
+    target: { value: '2' },
+  });
+  fireEvent.click(screen.getByText('음표 수정 적용'));
+  const list = screen.getByLabelText('편집할 음표') as HTMLSelectElement;
+  expect(list.options[0]?.textContent).toContain('팜뮤트·벤딩');
+  // 다시 선택된 음의 칸에 저장된 주법이 표시됩니다.
+  expect(
+    (screen.getByRole('checkbox', { name: '팜뮤트' }) as HTMLInputElement)
+      .checked,
+  ).toBe(true);
+  expect(screen.getByLabelText('벤딩 양')).toHaveProperty('value', '2');
+  fireEvent.click(screen.getByText('되돌리기'));
+  expect(list.options[0]?.textContent).not.toContain('팜뮤트');
   engine.dispose();
 });

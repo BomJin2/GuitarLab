@@ -64,6 +64,10 @@ export function ScoreViewport({
       player: { enablePlayer: false, enableUserInteraction: false },
     });
     apiRef.current = api;
+    // alphaTab 1.6.1은 공용 스타일을 다른 ID로 찾아 화면이 열릴 때마다 중복 추가합니다(docs/12). 첫 번째만 남깁니다.
+    document
+      .querySelectorAll('style#alphaTabStyleShared')
+      .forEach((style, index) => index > 0 && style.remove());
     api.renderStarted.on(() => {
       if (apiRef.current !== api) return;
       renderReady.current = false;
@@ -118,8 +122,31 @@ export function ScoreViewport({
     const cursor = cursorRef.current;
     if (!cursor) return;
     cursor.hidden = !bounds;
-    if (bounds) {
-      cursor.style.left = `${bounds.onNotesX}px`;
+    if (bounds && result && tick !== null) {
+      // 박 사이를 재생 시간 비율로 보간해 커서가 점프하지 않고 흐르게 합니다.
+      // 다음 박이 다음 줄에 있으면 현재 마디 오른쪽 끝까지만 이동합니다.
+      const next = result.nextBeat
+        ? displayScore.current?.beats.get(result.nextBeat.beat)
+        : null;
+      const nextBounds = next
+        ? apiRef.current?.boundsLookup?.findBeat(next)
+        : null;
+      const bar = bounds.barBounds.masterBarBounds;
+      const endX =
+        nextBounds &&
+        nextBounds.barBounds.masterBarBounds.staffSystemBounds ===
+          bar.staffSystemBounds &&
+        nextBounds.onNotesX > bounds.onNotesX
+          ? nextBounds.onNotesX
+          : bar.realBounds.x + bar.realBounds.w;
+      const progress =
+        result.tickDuration > 0
+          ? Math.min(
+              1,
+              Math.max(0, (tick - result.start) / result.tickDuration),
+            )
+          : 0;
+      cursor.style.left = `${bounds.onNotesX + (endX - bounds.onNotesX) * progress}px`;
       cursor.style.top = `${bounds.realBounds.y}px`;
       cursor.style.height = `${bounds.realBounds.h}px`;
       const scroller = scrollerRef.current;

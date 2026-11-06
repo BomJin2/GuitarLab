@@ -259,16 +259,125 @@ function delay(signal: AbortSignal) {
     signal.addEventListener('abort', abort, { once: true });
   });
 }
-export async function runStorageJob(
+type StorageJobOptions = {
+  waitForCancellation?: boolean;
+  body?: Uint8Array;
+  prepare?: (job: JobSnapshot) => Promise<void>;
+};
+// 네이티브 StorageJobs는 현재 작업 하나만 기억합니다. 끝난 작업의 결과·바이트를 회수하기 전에
+// 다른 작업이 시작되면 결과를 잃으므로(JOB_NOT_FOUND), 화면의 작업은 시작부터 회수까지 한 번에 하나씩 실행합니다.
+let storageQueue: Promise<void> = Promise.resolve();
+let queuedJobs = 0;
+async function inStorageQueue<T>(
+  signal: AbortSignal,
+  run: () => Promise<T>,
+): Promise<T> {
+  const previous = storageQueue;
+  // 앞 작업이 없으면 지금처럼 바로 시작합니다(기다리는 틈이 생기지 않게).
+  const idle = queuedJobs === 0;
+  queuedJobs++;
+  let finish = () => {};
+  const mine = new Promise<void>((resolve) => (finish = resolve));
+  // 기다리다 취소돼도 다음 작업은 앞 작업이 끝난 뒤에 시작됩니다.
+  storageQueue = previous.then(() => mine);
+  try {
+    if (!idle)
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => reject(new DOMException('작업 취소', 'AbortError'));
+        if (signal.aborted) return abort();
+        signal.addEventListener('abort', abort, { once: true });
+        void previous.then(() => {
+          signal.removeEventListener('abort', abort);
+          resolve();
+        });
+      });
+    return await run();
+  } finally {
+    queuedJobs--;
+    finish();
+  }
+}
+/**
+ * 취소하면 호출한 쪽에는 바로 취소를 돌려주되, 차례는 네이티브 작업이 실제로 끝날 때까지 잡아 둡니다.
+ * (네이티브는 취소 중(CANCELING)에도 새 작업을 STORAGE_BUSY로 거부합니다.) waitForCancellation이면 끝까지 기다려 돌려줍니다.
+ */
+function returnOnAbort<T>(
+  queued: Promise<T>,
+  signal: AbortSignal,
+  waitForCancellation: boolean | undefined,
+): Promise<T> {
+  if (waitForCancellation) return queued;
+  queued.catch(() => undefined);
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(new DOMException('작업 취소', 'AbortError'));
+    if (signal.aborted) return abort();
+    signal.addEventListener('abort', abort, { once: true });
+    queued.then(
+      (value) => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      (cause: unknown) => {
+        signal.removeEventListener('abort', abort);
+        reject(cause);
+      },
+    );
+  });
+}
+export function runStorageJob(
   command: string,
   request: Record<string, unknown>,
   signal: AbortSignal,
   progress: (value: JobSnapshot) => void,
-  options: {
-    waitForCancellation?: boolean;
-    body?: Uint8Array;
-    prepare?: (job: JobSnapshot) => Promise<void>;
-  } = {},
+  options: StorageJobOptions = {},
+): Promise<unknown> {
+  return returnOnAbort(
+    inStorageQueue(signal, () =>
+      runStorageJobNow(command, request, signal, progress, {
+        ...options,
+        waitForCancellation: true,
+      }),
+    ),
+    signal,
+    options.waitForCancellation,
+  );
+}
+/** 바이트를 돌려주는 작업: 바이트 회수(take_storage_bytes)까지 같은 차례 안에서 합니다. hasBytes가 false면 회수하지 않습니다. */
+export function runStorageByteJob(
+  command: string,
+  request: Record<string, unknown>,
+  signal: AbortSignal,
+  progress: (value: JobSnapshot) => void,
+  options: StorageJobOptions = {},
+  hasBytes: (result: unknown) => boolean = () => true,
+): Promise<{ result: unknown; bytes: unknown }> {
+  const queued = inStorageQueue(signal, async () => {
+    let jobId = '';
+    const result = await runStorageJobNow(
+      command,
+      request,
+      signal,
+      (job) => {
+        jobId = job.jobId;
+        progress(job);
+      },
+      { ...options, waitForCancellation: true },
+    );
+    if (!hasBytes(result)) return { result, bytes: undefined };
+    if (!isUuid(jobId)) throw new Error('PROJECT_CONTRACT_INVALID');
+    const bytes = await invoke<unknown>('take_storage_bytes', {
+      request: { schemaVersion: 1, jobId },
+    });
+    return { result, bytes };
+  });
+  return returnOnAbort(queued, signal, options.waitForCancellation);
+}
+async function runStorageJobNow(
+  command: string,
+  request: Record<string, unknown>,
+  signal: AbortSignal,
+  progress: (value: JobSnapshot) => void,
+  options: StorageJobOptions,
 ): Promise<unknown> {
   if (signal.aborted) throw new DOMException('작업 취소', 'AbortError');
   let snapshot = decodeJob(
@@ -536,28 +645,20 @@ export const projectApi = {
     progress: (v: JobSnapshot) => void,
     options: { waitForCancellation?: boolean } = {},
   ) {
-    let jobId = '';
-    const v = envelope(
-      await runStorageJob(
-        'read_project_asset',
-        { projectId, assetId },
-        signal,
-        (snapshot) => {
-          jobId = snapshot.jobId;
-          progress(snapshot);
-        },
-        options,
-      ),
+    const { result, bytes: data } = await runStorageByteJob(
+      'read_project_asset',
+      { projectId, assetId },
+      signal,
+      progress,
+      options,
     );
+    const v = envelope(result);
     if (
       !text(v.name, 512) ||
       !isSafeUnsigned(v.bytes, 256 * 1024 * 1024) ||
       v.bytes === 0
     )
       throw new Error('PROJECT_CONTRACT_INVALID');
-    const data = await invoke<unknown>('take_storage_bytes', {
-      request: { schemaVersion: 1, jobId },
-    });
     if (!(data instanceof ArrayBuffer) || data.byteLength !== v.bytes)
       throw new Error('PROJECT_CONTRACT_INVALID');
     return { name: v.name, data };

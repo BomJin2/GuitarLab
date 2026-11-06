@@ -30,6 +30,8 @@ it('권한 확인 전 파일 출력을 막고 REC 중 소스/출력은 잠그되
     takes: [take],
     stems: [],
     importedStems: [],
+    stemPeaks: {},
+    levelSources: () => [],
     refreshImported: vi.fn(),
     addImported: vi.fn(),
     configureStems: vi.fn(),
@@ -51,6 +53,7 @@ it('권한 확인 전 파일 출력을 막고 REC 중 소스/출력은 잠그되
     cancel: vi.fn(),
     referenceTakeIds: [take.id],
     needsPreparation: false,
+    revisionId: undefined,
   };
   const { rerender } = render(<MixPanel controller={c} locked={false} />);
   const exportButton = screen.getByRole('button', {

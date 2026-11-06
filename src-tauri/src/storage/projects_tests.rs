@@ -103,11 +103,14 @@ pub(crate) fn score() -> ScoreDocument {
             tuning_midi: vec![64, 59, 55, 50, 45, 40],
             notes: vec![ScoreNote {
                 judgement_support: None,
+                techniques: None,
+                bend_semitones: None,
                 id: "note-0".into(),
                 track_id: "track-0".into(),
                 measure_index: 0,
                 start_tick: 960,
                 duration_ticks: 960,
+                playback_tick: None,
                 pitch_midi: 67,
                 string_index: Some(1),
                 fret: Some(3),
@@ -1213,4 +1216,157 @@ fn unsupported_technique_metadata_reopens_without_rewriting_legacy_and_binds_tar
         .expect("이전 목표")
         .unsupported
     );
+}
+#[test]
+fn playback_tick_survives_reopen_and_rejects_out_of_range_or_null() {
+    // docs/12 "playbackTick v1": 음표 길이 안(시작 초과·끝 미만)의 소리 시각만 저장합니다.
+    let f = Fixture::new();
+    let p = f.project();
+    let a = f.asset(&p, AssetStorage::Managed);
+    let mut document = score();
+    document.tracks[0].notes[0].playback_tick = Some(1280);
+    let anchors = document.sync_anchors.clone();
+    let saved = f
+        .store
+        .save_revision(&p, 0, &a, document, workspace(), &AtomicBool::new(false))
+        .expect("소리 시각 저장");
+    // 연습 기록 검증도 화면처럼 소리 시각으로 목표를 맞춥니다.
+    let time = |tick: u64| {
+        let pair = anchors
+            .windows(2)
+            .find(|pair| pair[1].score_tick > tick)
+            .unwrap_or(&anchors[anchors.len() - 2..]);
+        pair[0].audio_time_ms
+            + (tick - pair[0].score_tick) as f64 * (pair[1].audio_time_ms - pair[0].audio_time_ms)
+                / (pair[1].score_tick - pair[0].score_tick) as f64
+    };
+    let target = |tick: u64| crate::judgement::practice::PracticeTarget {
+        unsupported: false,
+        id: "note-0".into(),
+        song_time_ms: time(tick),
+        pitch_midi: 67,
+    };
+    let context = crate::storage::practice_records::PracticeArchiveRequest {
+        project_id: p.clone(),
+        session_id: Uuid::new_v4().to_string(),
+        range_start_ms: 0.0,
+        range_end_ms: time(3000),
+    };
+    assert!(f
+        .store
+        .prepare_archive(
+            context.clone(),
+            &saved.revision_id,
+            "track-0",
+            &[target(1280)]
+        )
+        .is_ok());
+    assert_eq!(
+        f.store
+            .prepare_archive(context, &saved.revision_id, "track-0", &[target(960)])
+            .err()
+            .expect("악보 위치 목표는 거부")
+            .code,
+        "REVISION_CONFLICT"
+    );
+    let reopened = ProjectStore::new(f.store.root.clone());
+    reopened.initialize().expect("재실행");
+    assert_eq!(
+        reopened
+            .open(&p)
+            .expect("프로젝트")
+            .1
+            .expect("악보")
+            .score
+            .tracks[0]
+            .notes[0]
+            .playback_tick,
+        Some(1280)
+    );
+    for tick in [0, 960, 1920, 5000] {
+        let mut bad = score();
+        bad.tracks[0].notes[0].playback_tick = Some(tick);
+        assert_eq!(bad.validate().expect_err("범위 밖").code, "INVALID_INPUT");
+    }
+    let mut value = serde_json::to_value(score()).expect("JSON");
+    value["tracks"][0]["notes"][0]["playbackTick"] = serde_json::Value::Null;
+    assert!(serde_json::from_value::<ScoreDocument>(value).is_err());
+}
+#[test]
+fn shared_fixture_targets_match_rust_archive_verification() {
+    // fixtures/practice-targets-v1.json: 화면 practiceTargetsShared.test.ts와 같은 자료입니다.
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Shared {
+        range_end_ms: f64,
+        score: ScoreDocument,
+        targets: Vec<crate::judgement::practice::PracticeTarget>,
+    }
+    let shared: Shared =
+        serde_json::from_str(include_str!("../../../fixtures/practice-targets-v1.json"))
+            .expect("공통 자료");
+    shared.score.validate().expect("공통 악보");
+    let f = Fixture::new();
+    let p = f.project();
+    let a = f.asset(&p, AssetStorage::Managed);
+    let track = shared.score.tracks[0].id.clone();
+    let saved = f
+        .store
+        .save_revision(
+            &p,
+            0,
+            &a,
+            shared.score,
+            workspace(),
+            &AtomicBool::new(false),
+        )
+        .expect("공통 악보 저장");
+    let context = crate::storage::practice_records::PracticeArchiveRequest {
+        project_id: p.clone(),
+        session_id: Uuid::new_v4().to_string(),
+        range_start_ms: 0.0,
+        range_end_ms: shared.range_end_ms,
+    };
+    f.store
+        .prepare_archive(context.clone(), &saved.revision_id, &track, &shared.targets)
+        .expect("화면과 같은 목표 시각");
+    // 소리 시각 대신 악보 위치(1800틱 = 937.5ms)를 보내면 거부합니다.
+    let mut straight = shared.targets.clone();
+    straight[2].song_time_ms = 937.5;
+    assert!(f
+        .store
+        .prepare_archive(context, &saved.revision_id, &track, &straight)
+        .is_err());
+}
+#[test]
+fn shared_fixture_score_validation_matches_typescript() {
+    // fixtures/score-validation-v1.json: 화면 scoreValidationShared.test.ts와 같은 자료입니다.
+    let shared: serde_json::Value =
+        serde_json::from_str(include_str!("../../../fixtures/score-validation-v1.json"))
+            .expect("공통 자료");
+    for case in shared["cases"].as_array().expect("변형 목록") {
+        let mut value = shared["base"].clone();
+        if let Some(path) = case["path"].as_str() {
+            // TS 테스트처럼 마지막 키는 없어도 넣습니다(모르는 필드 변형).
+            let (parent, key) = path.rsplit_once('/').expect("경로");
+            match value.pointer_mut(parent).expect("상위 경로") {
+                serde_json::Value::Object(map) => {
+                    map.insert(key.into(), case["value"].clone());
+                }
+                serde_json::Value::Array(list) => {
+                    list[key.parse::<usize>().expect("배열 위치")] = case["value"].clone();
+                }
+                _ => panic!("경로"),
+            }
+        }
+        let valid = serde_json::from_value::<ScoreDocument>(value)
+            .ok()
+            .is_some_and(|document| document.validate().is_ok());
+        assert_eq!(
+            valid,
+            case["valid"].as_bool().expect("기대 판정"),
+            "{}",
+            case["name"]
+        );
+    }
 }

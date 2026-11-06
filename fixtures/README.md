@@ -22,3 +22,11 @@ standard.gp는 자체 MusicXML을 alphaTab 1.6.1 Gp7Exporter로 변환한 GP7 ro
 - EGSet12 Zenodo11406378: 공식 CC BY4.0,분석 전01/12 고정2개/1명 앰프 마이크 WAV/JAMS4개·15,442,646바이트. 전체 공식 MD5/크기와 로컬SHA를 확인합니다.24bit stereo 원본을 보존하고 별도 float mono/PCM 조각만 만듭니다. 정수 음표 주석이므로 연속 음정 변화·실제 주법·샘플 정밀 정답/학습 비중복을 주장하지 않습니다. 모델 가중치는 받지 않습니다.
 
 재현 명령/결과와 좁은 표본/제외 수는 docs/progress/PHASE-07.md를 참조합니다.
+
+## 채점 목표 시각 공통 검사 자료 — 2026-11-06
+
+`fixtures/practice-targets-v1.json`: 손으로 만든 작은 악보(앵커 0→0, 1920→1000, 3840→3000ms)와 기대 채점 목표 시각입니다. 화면 `buildPracticeTargets`(TS)와 연습 기록 검증 `prepare_archive`(Rust)가 같은 규칙으로 목표를 만드는지 두 언어 테스트가 함께 읽어 확인합니다. 소리 시각(`playbackTick`)이 있는 음, 앵커 경계를 넘는 음, 공격 없는 음(제외), 감점 제외 음, 주법 편집 v2의 연결 슬라이드(도착 음 채점)·해머온(도착 음 제외), 같은 시각 화음의 ID 순서(대소문자·전각·이모지, 코드 포인트 순서)를 담았습니다. 기대값은 Python으로 같은 선형 보간을 계산해 넣었습니다.
+
+## 악보 검사 공통 자료 — 2026-11-06
+
+`fixtures/score-validation-v1.json`: `practice-targets-v1.json`의 악보를 기본으로, JSON Pointer 경로의 값을 바꾼 변형 43개(주법 필드 16개, 그중 v2 이음·순서 6개 포함, BOM 제목 1개, 모르는 필드 6개)와 기대 판정(유효/무효)입니다. 화면 `decodeScoreDocument`(TS)와 저장소 `ScoreDocument::validate`(Rust, 역직렬화 실패 포함)가 같은 판정을 내는지 두 언어 테스트가 확인합니다. 제어문자·UTF-8 길이·소리 시각 범위·운지·앵커·템포·박자 경계를 담았습니다.

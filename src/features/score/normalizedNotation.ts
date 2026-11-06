@@ -1,7 +1,8 @@
-import type { ScoreDocument, NoteEvent } from '../../entities/score';
+import type { ScoreDocument, NoteEvent, Technique } from '../../entities/score';
 import { decodeScoreDocument } from '../../entities/scoreValidation';
 import type { ScoreSession } from './scoreSession';
 import { decodeScoreJson, isScoreJson } from './scoreJson';
+import { exporter, importer, model } from '@coderline/alphatab';
 import {
   buildPlaybackLookup,
   importScore,
@@ -41,7 +42,10 @@ export function prepareEditingDocument(session: ScoreSession): ScoreDocument {
   return {
     ...session.document,
     tracks: session.document.tracks.map((track, index) => {
-      const tuning = session.score.tracks[index]?.staves[0]?.tuning;
+      // normalizeScore와 같이 줄 있는 첫 보표의 튜닝(두 보표 악보의 오선보 쪽은 줄이 없음)
+      const staves = session.score.tracks[index]?.staves ?? [];
+      const tuning = (staves.find((s) => s.tuning.length > 0) ?? staves[0])
+        ?.tuning;
       if (!tuning) throw unsupported();
       return { ...track, tuningMidi: [...tuning] };
     }),
@@ -138,10 +142,28 @@ function pitch(midi: number, prefix = '') {
   const sharp = [1, 3, 6, 8, 10].includes(midi % 12);
   return `<${prefix}step>${steps[midi % 12]}</${prefix}step>${sharp ? `<${prefix}alter>1</${prefix}alter>` : ''}<${prefix}octave>${Math.floor(midi / 12) - 1}</${prefix}octave>`;
 }
+/** docs/12 "주법 편집 v1": alphaTab이 다시 읽을 수 있는 MusicXML 표기(실측)로 씁니다. */
+function techniqueXml(note: NoteEvent) {
+  const has = (t: Technique) => note.techniques?.includes(t) ?? false;
+  const notehead =
+    has('DEAD') || has('GHOST')
+      ? `<notehead${has('GHOST') ? ' parentheses="yes"' : ''}>${has('DEAD') ? 'x' : 'normal'}</notehead>`
+      : '';
+  const technical = `${has('BEND') ? `<bend><bend-alter>${note.bendSemitones}</bend-alter></bend>` : ''}${has('TAP') ? '<tap/>' : ''}`;
+  const articulations = has('STACCATO')
+    ? '<articulations><staccato/></articulations>'
+    : '';
+  const ornaments = has('VIBRATO')
+    ? '<ornaments><wavy-line type="start"/><wavy-line type="stop"/></ornaments>'
+    : '';
+  const play = has('PALM_MUTE') ? '<play><mute>palm</mute></play>' : '';
+  return { notehead, technical, rest: articulations + ornaments, play };
+}
 function notation(duration: number, note?: NoteEvent) {
   const type = noteDurations.find((d) => d.ticks === duration);
   if (!type) throw unsupported();
-  return `<note>${note ? `<pitch>${pitch(note.pitchMidi)}</pitch>` : '<rest/>'}<duration>${duration}</duration><voice>1</voice><type>${type.type}</type>${type.dotted ? '<dot/>' : ''}${note ? `<notations><technical><string>${note.stringIndex}</string><fret>${note.fret}</fret></technical></notations>` : ''}</note>`;
+  const t = note ? techniqueXml(note) : null;
+  return `<note>${note ? `<pitch>${pitch(note.pitchMidi)}</pitch>` : '<rest/>'}<duration>${duration}</duration><voice>1</voice><type>${type.type}</type>${type.dotted ? '<dot/>' : ''}${t?.notehead ?? ''}${note ? `<notations><technical><string>${note.stringIndex}</string><fret>${note.fret}</fret>${t?.technical ?? ''}</technical>${t?.rest ?? ''}</notations>${t?.play ?? ''}` : ''}</note>`;
 }
 function rests(duration: number) {
   let xml = '';
@@ -213,15 +235,153 @@ function events(document: ScoreDocument) {
         n.pitchMidi,
         n.stringIndex,
         n.fret,
+        // 주법을 잃어버린 왕복은 적용하지 않습니다(docs/12 주법 편집 v1).
+        n.techniques ?? [],
+        n.bendSemitones ?? null,
       ]),
   );
 }
-export function renderNormalized(document: ScoreDocument) {
-  const score = importScore(
-    new TextEncoder().encode(toNormalizedMusicXml(document)),
+// docs/12 "주법 편집 v2": 편집 그리기는 alphaTab이 기타 주법을 가장 온전히 읽는 AlphaTex로 합니다.
+const texDurations: Record<string, number> = {
+  whole: 1,
+  half: 2,
+  quarter: 4,
+  eighth: 8,
+  '16th': 16,
+  '32nd': 32,
+  '64th': 64,
+};
+const texNames = [
+  'c',
+  'c#',
+  'd',
+  'd#',
+  'e',
+  'f',
+  'f#',
+  'g',
+  'g#',
+  'a',
+  'a#',
+  'b',
+];
+const texString = (text: string) =>
+  `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+const texPitch = (midi: number) =>
+  `${texNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+const noteEffect: Partial<Record<Technique, string>> = {
+  PALM_MUTE: 'pm',
+  DEAD: 'x',
+  GHOST: 'g',
+  STACCATO: 'st',
+  VIBRATO: 'v',
+  HAMMER: 'h',
+  SLIDE_LEGATO: 'sl',
+  SLIDE_SHIFT: 'ss',
+  HARMONIC_NATURAL: 'nh',
+  LET_RING: 'lr',
+};
+function texBeat(duration: number, note?: NoteEvent) {
+  const type = noteDurations.find((d) => d.ticks === duration);
+  if (!type) throw unsupported();
+  const length = texDurations[type.type];
+  const effects = (note?.techniques ?? []).flatMap((t) =>
+    t === 'BEND'
+      ? [`b (0 ${(note?.bendSemitones ?? 1) * 2})`]
+      : noteEffect[t]
+        ? [noteEffect[t]]
+        : [],
   );
+  const beat = [
+    ...(type.dotted ? ['d'] : []),
+    ...(note?.techniques?.includes('TAP') ? ['tt'] : []),
+  ];
+  const head = note
+    ? `${note.fret}.${note.stringIndex}${effects.length ? `{${effects.join(' ')}}` : ''}`
+    : 'r';
+  return `${head}.${length}${beat.length ? `{${beat.join(' ')}}` : ''} `;
+}
+function texRests(duration: number) {
+  let text = '';
+  for (const d of noteDurations) {
+    while (duration >= d.ticks) {
+      text += texBeat(d.ticks);
+      duration -= d.ticks;
+    }
+  }
+  if (duration !== 0) throw unsupported();
+  return text;
+}
+export function toNormalizedAlphaTex(document: ScoreDocument): string {
+  const bars = validateEditable(document);
+  let text = `\\title ${texString(document.title)} .\n`;
+  for (const track of document.tracks) {
+    text += `\\track ${texString(track.name)} \\staff {tabs} \\tuning ${track.tuningMidi.map(texPitch).join(' ')}\n`;
+    const notes = [...track.notes].sort((a, b) => a.startTick - b.startTick);
+    let noteIndex = 0;
+    bars.forEach((bar, barIndex) => {
+      const previous = bars[barIndex - 1];
+      const tempo = document.tempoMap.find((t) => t.tick === bar.start);
+      // \tempo는 뒤의 숫자를 위치 값으로 더 읽으므로, 템포를 쓰면 바로 뒤에 \ts를 둡니다.
+      const meta =
+        (tempo ? `\\tempo ${tempo.bpm} ` : '') +
+        (tempo ||
+        !previous ||
+        previous.numerator !== bar.numerator ||
+        previous.denominator !== bar.denominator
+          ? `\\ts ${bar.numerator} ${bar.denominator} `
+          : '');
+      let cursor = bar.start;
+      let body = '';
+      while ((notes[noteIndex]?.startTick ?? Infinity) < bar.end) {
+        const note = notes[noteIndex++];
+        if (!note) throw unsupported();
+        body +=
+          texRests(note.startTick - cursor) + texBeat(note.durationTicks, note);
+        cursor = note.startTick + note.durationTicks;
+      }
+      text += `${meta}${body}${texRests(bar.end - cursor)}${barIndex < bars.length - 1 ? '| ' : '\n'}`;
+    });
+  }
+  if (new TextEncoder().encode(text).length > 8 * 1024 * 1024)
+    throw new Error('SCORE_XML_LIMIT');
+  return text;
+}
+/** AlphaTex의 데드 표시(`x`)는 프렛을 0으로 바꾸므로, 직접 만든 순서대로 원래 프렛을 되돌립니다. */
+function restoreDeadFrets(score: model.Score, document: ScoreDocument) {
+  document.tracks.forEach((track, index) => {
+    const notes = [...track.notes].sort((a, b) => a.startTick - b.startTick);
+    const rendered = (score.tracks[index]?.staves[0]?.bars ?? []).flatMap(
+      (bar) =>
+        (bar.voices[0]?.beats ?? []).flatMap((beat) =>
+          beat.isRest ? [] : beat.notes,
+        ),
+    );
+    // 개수가 다르면 건드리지 않고 왕복 비교가 거부하게 둡니다.
+    if (rendered.length !== notes.length) return;
+    notes.forEach((note, i) => {
+      const target = rendered[i];
+      if (
+        target &&
+        note.techniques?.includes('DEAD') &&
+        note.fret !== undefined
+      )
+        target.fret = note.fret;
+    });
+  });
+}
+export function renderNormalized(document: ScoreDocument) {
+  // 편집본은 언제나 MusicXML로도 내보낼 수 있어야 하므로 그 용량 한도(8MiB)를 먼저 확인합니다.
+  toNormalizedMusicXml(document);
+  const score = importer.ScoreLoader.loadAlphaTex(
+    toNormalizedAlphaTex(document),
+  );
+  restoreDeadFrets(score, document);
   const playbackLookup = buildPlaybackLookup(score);
-  const roundTrip = normalizeScore(score, playbackLookup);
+  checkRoundTrip(normalizeScore(score, playbackLookup), document);
+  return { score, playbackLookup };
+}
+function checkRoundTrip(roundTrip: ScoreDocument, document: ScoreDocument) {
   const signatures = editorBars(document).map((b) => ({
     tick: b.start,
     numerator: b.numerator,
@@ -239,9 +399,24 @@ export function renderNormalized(document: ScoreDocument) {
       JSON.stringify(tempos)
   )
     throw new Error(
-      '편집본 렌더 왕복에서 음정·시간·운지·박자·템포가 달라 적용하지 않았습니다.',
+      '편집본 렌더 왕복에서 음정·시간·운지·주법·박자·템포가 달라 적용하지 않았습니다.',
     );
-  return { score, playbackLookup };
+}
+/** docs/12 주법 편집 v2: 편집본을 그린 악보를 GP7로 쓰고, 다시 읽어 같을 때만 내보냅니다. */
+export function toNormalizedGp7(document: ScoreDocument): Uint8Array {
+  // 스윙 소리 시각(playbackTick)은 편집 그리기·GP7에 담기지 않아, 손실 없이 내보낼 수 없으면 거부합니다.
+  if (
+    document.tracks.some((t) =>
+      t.notes.some((n) => n.playbackTick !== undefined),
+    )
+  )
+    throw new Error('SCORE_GP7_SWING');
+  const bytes = new exporter.Gp7Exporter().export(
+    renderNormalized(document).score,
+  );
+  if (bytes.length > 8 * 1024 * 1024) throw new Error('SCORE_XML_LIMIT');
+  checkRoundTrip(normalizeScore(importScore(bytes)), document);
+  return bytes;
 }
 export function renderStoredScore(
   document: ScoreDocument,

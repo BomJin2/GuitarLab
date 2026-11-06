@@ -92,16 +92,23 @@ impl ProjectStore {
         let anchors = &revision.score.sync_anchors;
         let mut expected = Vec::new();
         let mut measures = HashMap::new();
+        let unpicked = crate::storage::project_model::unpicked_destinations(&track.notes);
         for note in &track.notes {
             if note.attack == Some(false) {
                 continue;
             }
-            let pair = anchors
-                .windows(2)
-                .find(|pair| pair[1].score_tick > note.start_tick)
-                .unwrap_or_else(|| &anchors[anchors.len() - 2..]);
+            // 화면의 buildPracticeTargets와 같이 스윙 뒤 음은 실제 소리 시각을 씁니다(docs/12 playbackTick v1).
+            let tick = note.playback_tick.unwrap_or(note.start_tick);
+            // 처음으로 tick보다 큰 앵커의 바로 앞 구간(없으면 마지막 구간)을 이진 탐색으로 찾습니다(docs/12).
+            let first_greater = anchors.partition_point(|anchor| anchor.score_tick <= tick);
+            let index = if first_greater == anchors.len() {
+                anchors.len() - 2
+            } else {
+                first_greater.saturating_sub(1)
+            };
+            let pair = &anchors[index..index + 2];
             let time = pair[0].audio_time_ms
-                + (note.start_tick as f64 - pair[0].score_tick as f64)
+                + (tick as f64 - pair[0].score_tick as f64)
                     * (pair[1].audio_time_ms - pair[0].audio_time_ms)
                     / (pair[1].score_tick - pair[0].score_tick) as f64;
             if time >= context.range_start_ms && time < context.range_end_ms {
@@ -109,7 +116,7 @@ impl ProjectStore {
                     note.id.clone(),
                     time,
                     note.pitch_midi,
-                    note.judgement_support.is_some(),
+                    note.excluded_from_scoring(unpicked.contains(note.id.as_str())),
                 ));
                 measures.insert(note.id.clone(), note.measure_index);
             }

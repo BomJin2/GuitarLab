@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { aiRuntimeApi, decodeAiRuntime } from './runtime';
+import { aiRuntimeApi, aiRuntimeError, decodeAiRuntime } from './runtime';
 import { runStorageJob } from '../library/projects';
 vi.mock('../library/projects', () => ({ runStorageJob: vi.fn() }));
 const fixture = () => ({
@@ -53,4 +53,18 @@ it('사용 가능 위조·누락/중복 모델·다른 버전·경로/알 수 �
     { ...fixture(), models: [] },
   ])
     expect(() => decodeAiRuntime(value)).toThrow('AI_PROTOCOL_INVALID');
+});
+it('설치 실패 단계마다 다른 안내를 보여 주고 모르는 코드는 일반 안내로 둔다', () => {
+  const message = (code: string) => aiRuntimeError(new Error(code));
+  const steps = [
+    'AI_SETUP_INSTALL_FAILED',
+    'AI_SETUP_DEPENDENCY_FAILED',
+    'AI_RUNTIME_COPY_FAILED',
+    'AI_SETUP_PROCESS_FAILED',
+  ].map(message);
+  expect(new Set(steps).size).toBe(4);
+  expect(message('AI_SETUP_INSTALL_FAILED')).toContain('패키지 설치');
+  expect(message('AI_SETUP_DEPENDENCY_FAILED')).toContain('의존성 검사');
+  expect(message('AI_RUNTIME_COPY_FAILED')).toContain('복사');
+  expect(message('DEMO_UNKNOWN')).toBe(message('ANOTHER_UNKNOWN'));
 });

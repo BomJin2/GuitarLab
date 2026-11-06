@@ -16,6 +16,17 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
         .manage(Arc::new(crate::backing::PlayerService::default()))
         .manage(Arc::new(crate::ai::setup::SetupService::default()))
         .setup(|app| {
+            // docs/12 "숨은 이벤트 창 닫기 차단": setup은 이벤트 루프가 만든 메인 스레드에서 실행됩니다.
+            #[cfg(windows)]
+            let main = app
+                .get_webview_window("main")
+                .and_then(|window| window.hwnd().ok())
+                .map(|hwnd| hwnd.0 as isize);
+            #[cfg(not(windows))]
+            let main = None;
+            if !crate::event_target::guard_current_thread(main) {
+                eprintln!("GuitarLab 숨은 이벤트 창을 찾지 못함: EVENT_TARGET_UNGUARDED");
+            }
             let root = app.path().app_data_dir()?;
             match crate::instance::InstanceGuard::acquire(&root) {
                 Ok(instance) => {
@@ -140,10 +151,18 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
                 if blocked && window.emit("application-close-blocked", ()).is_err() {
                     eprintln!("GuitarLab 파일 종료 안내 실패: STORAGE_CLOSE_NOTICE_FAILED");
                 }
-                match window
-                    .state::<crate::close_guard::CloseGuard>()
-                    .on_close(blocked, std::time::Instant::now())
+                let guard = window.state::<crate::close_guard::CloseGuard>();
+                let decision = guard.on_close(blocked, std::time::Instant::now());
+                // 확인 창·화면 알림을 보낼 통로가 끊기면 영구히 닫을 수 없게 되므로 닫기를 허용합니다.
+                if !blocked
+                    && !matches!(decision, Ok(crate::close_guard::Decision::Allow))
+                    && !crate::close_guard::ui_channel_alive(window.app_handle())
                 {
+                    let _ = guard.abandon();
+                    eprintln!("GuitarLab 종료 확인 통로 끊김: CLOSE_UI_UNREACHABLE");
+                    return;
+                }
+                match decision {
                     Ok(crate::close_guard::Decision::Allow) => {}
                     Ok(crate::close_guard::Decision::Block) => api.prevent_close(),
                     Ok(crate::close_guard::Decision::AskFrontend(intent)) => {
@@ -174,6 +193,7 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::project_purge_api::prepare_trashed_project_purge,
             commands::project_purge_api::purge_trashed_project,
             commands::ai_api::inspect_ai_runtime,
+            commands::ai_api::get_ai_model_status,
             commands::backup_api::backup_local_data,
             commands::backup_api::verify_local_backup,
             commands::backup_api::preview_local_backup,

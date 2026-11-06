@@ -359,7 +359,7 @@ pub(super) fn ensure_persistent(
                 .write(true)
                 .create_new(true)
                 .open(output)
-                .map_err(|_| error("AI_SETUP_PROCESS_FAILED"))?;
+                .map_err(|_| error("AI_RUNTIME_COPY_FAILED"))?;
             use std::io::Write;
             let mut file_bytes = 0u64;
             loop {
@@ -376,7 +376,7 @@ pub(super) fn ensure_persistent(
                 }
                 output
                     .write_all(&buffer[..count])
-                    .map_err(|_| error("AI_SETUP_PROCESS_FAILED"))?;
+                    .map_err(|_| error("AI_RUNTIME_COPY_FAILED"))?;
                 completed += count as u64;
                 if completed > total {
                     return Err(error("AI_RUNTIME_INTEGRITY"));
@@ -385,11 +385,11 @@ pub(super) fn ensure_persistent(
             }
             output
                 .sync_all()
-                .map_err(|_| error("AI_SETUP_PROCESS_FAILED"))?;
+                .map_err(|_| error("AI_RUNTIME_COPY_FAILED"))?;
         }
         verify(&stage, &entries, cancel)?;
         canceled(cancel)?;
-        fs::rename(&stage, &target).map_err(|_| error("AI_SETUP_PROCESS_FAILED"))?;
+        fs::rename(&stage, &target).map_err(|_| error("AI_RUNTIME_COPY_FAILED"))?;
         Ok(target)
     })();
     if result.is_err() && stage.exists() {

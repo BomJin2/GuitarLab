@@ -124,7 +124,14 @@ fn step(
         }
     })
 }
-fn run_fixed(mut command: Command, cancel: &AtomicBool, timeout: Duration) -> Result<(), AppError> {
+/// `failed`는 프로세스가 0이 아닌 코드로 끝났을 때의 오류 코드입니다.
+/// 출력은 개인 경로가 섞일 수 있어 버리므로, 어느 단계에서 실패했는지는 코드로만 구분합니다.
+fn run_fixed(
+    mut command: Command,
+    cancel: &AtomicBool,
+    timeout: Duration,
+    failed: &'static str,
+) -> Result<(), AppError> {
     canceled(cancel)?;
     #[cfg(windows)]
     {
@@ -152,7 +159,7 @@ fn run_fixed(mut command: Command, cancel: &AtomicBool, timeout: Duration) -> Re
             return if status.success() {
                 Ok(())
             } else {
-                Err(error("AI_SETUP_PROCESS_FAILED"))
+                Err(error(failed))
             };
         }
         if started.elapsed() > timeout {
@@ -202,6 +209,9 @@ pub fn install_with_resources(
     } else {
         None
     };
+    if let Some(runtime) = &runtime {
+        managed::migrate_legacy_portable(root, model, runtime)?;
+    }
     let bootstrap = |token: &AtomicBool| {
         if let Some(resources) = resources {
             super::bundled::persistent_command(resources, root, None, token)
@@ -298,11 +308,21 @@ pub fn install_with_resources(
                 "-r",
             ])
             .arg(candidate.join("requirements.lock"));
-        run_fixed(install, cancel, Duration::from_secs(900))?;
+        run_fixed(
+            install,
+            cancel,
+            Duration::from_secs(900),
+            "AI_SETUP_INSTALL_FAILED",
+        )?;
         progress(2)?;
         let mut check = pip();
         check.arg("check");
-        run_fixed(check, cancel, Duration::from_secs(60))?;
+        run_fixed(
+            check,
+            cancel,
+            Duration::from_secs(60),
+            "AI_SETUP_DEPENDENCY_FAILED",
+        )?;
         progress(3)?;
         step(
             worker(candidate.clone())?,
@@ -356,6 +376,37 @@ pub fn install_with_resources(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(windows)]
+    fn fixed_process_failure_reports_the_step_code_and_success_passes() {
+        let exit = |code: &str| {
+            let mut command = Command::new(std::env::var_os("ComSpec").expect("cmd"));
+            command.args(["/D", "/C", &format!("exit {code}")]);
+            command
+        };
+        let cancel = AtomicBool::new(false);
+        let timeout = Duration::from_secs(30);
+        for failed in ["AI_SETUP_INSTALL_FAILED", "AI_SETUP_DEPENDENCY_FAILED"] {
+            assert_eq!(
+                run_fixed(exit("3"), &cancel, timeout, failed)
+                    .expect_err("0이 아닌 종료")
+                    .code,
+                failed
+            );
+        }
+        run_fixed(exit("0"), &cancel, timeout, "AI_SETUP_INSTALL_FAILED").expect("정상 종료");
+        assert_eq!(
+            run_fixed(
+                Command::new("guitarlab-missing-program-DEMO"),
+                &cancel,
+                timeout,
+                "AI_SETUP_INSTALL_FAILED"
+            )
+            .expect_err("실행 실패")
+            .code,
+            "AI_SETUP_PROCESS_FAILED"
+        );
+    }
     #[test]
     fn setup_guard_prevents_overlap_and_releases_after_error_or_completion() {
         let service = Arc::new(SetupService::default());

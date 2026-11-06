@@ -1,6 +1,6 @@
 use crate::ipc::AppError;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub const MAX_SCORE_BYTES: usize = 8 * 1024 * 1024;
@@ -59,11 +59,32 @@ pub struct ScoreNote {
         skip_serializing_if = "Option::is_none"
     )]
     pub judgement_support: Option<JudgementSupport>,
+    /// docs/12 "주법 편집 v1": 선언 순서로 정렬, 중복·빈 목록 금지
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub techniques: Option<Vec<Technique>>,
+    /// BEND일 때만: 반음 1, 온음 2
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bend_semitones: Option<u8>,
     pub id: String,
     pub track_id: String,
     pub measure_index: u32,
     pub start_tick: u64,
     pub duration_ticks: u64,
+    /// docs/12 "playbackTick v1": 악보 위치와 다른 실제 소리 시각(스윙 뒤 음)
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub playback_tick: Option<u64>,
     pub pitch_midi: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub string_index: Option<u8>,
@@ -74,6 +95,125 @@ pub struct ScoreNote {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attack: Option<bool>,
     pub source: NoteSource,
+}
+/// 이음 시작 음 ID → 도착 음(같은 트랙에서 시작 tick이 더 큰 같은 줄의 첫 음). TS linkTargets와 같은 규칙입니다.
+pub fn link_targets(notes: &[ScoreNote]) -> HashMap<&str, Option<&ScoreNote>> {
+    let mut sorted: Vec<&ScoreNote> = notes.iter().collect();
+    sorted.sort_by(|a, b| {
+        a.start_tick
+            .cmp(&b.start_tick)
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    let mut result = HashMap::new();
+    let mut next: HashMap<u8, &ScoreNote> = HashMap::new();
+    let mut end = sorted.len();
+    while end > 0 {
+        let tick = sorted[end - 1].start_tick;
+        let mut start = end - 1;
+        while start > 0 && sorted[start - 1].start_tick == tick {
+            start -= 1;
+        }
+        for note in &sorted[start..end] {
+            if note.link().is_some() {
+                result.insert(
+                    note.id.as_str(),
+                    note.string_index.and_then(|s| next.get(&s).copied()),
+                );
+            }
+        }
+        // 같은 tick·같은 줄 후보가 여럿이면 정렬상 첫 음(작은 ID)이 남도록 역순으로 갱신합니다.
+        for note in sorted[start..end].iter().rev() {
+            if let Some(s) = note.string_index {
+                next.insert(s, note);
+            }
+        }
+        end = start;
+    }
+    result
+}
+/// 피킹 없이 이어지는 도착 음(해머온·이어 치기 슬라이드)의 ID
+pub fn unpicked_destinations(notes: &[ScoreNote]) -> HashSet<&str> {
+    let origins: HashMap<&str, &ScoreNote> = notes.iter().map(|n| (n.id.as_str(), n)).collect();
+    link_targets(notes)
+        .into_iter()
+        .filter_map(|(origin, target)| {
+            let link = origins.get(origin)?.link()?;
+            matches!(link, Technique::Hammer | Technique::SlideLegato)
+                .then_some(target?.id.as_str())
+        })
+        .collect()
+}
+/// 선언 순서가 저장 순서입니다(TS techniqueOrder와 같음).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Technique {
+    PalmMute,
+    Dead,
+    Ghost,
+    Staccato,
+    Vibrato,
+    Bend,
+    Tap,
+    Hammer,
+    SlideLegato,
+    SlideShift,
+    HarmonicNatural,
+    LetRing,
+}
+impl ScoreNote {
+    /// docs/12 "주법 편집 v1": 채점에서 빼는 음(표현 불가 주법 또는 음정만으로 판정할 수 없는 v1 주법)
+    /// `unpicked_destination`: 해머온·이어 치기 슬라이드의 도착 음(피킹 없음, docs/12 주법 편집 v2)
+    pub fn excluded_from_scoring(&self, unpicked_destination: bool) -> bool {
+        unpicked_destination
+            || self.judgement_support.is_some()
+            || self.techniques.as_ref().is_some_and(|list| {
+                list.iter().any(|t| {
+                    !matches!(
+                        t,
+                        Technique::PalmMute
+                            | Technique::Staccato
+                            | Technique::Hammer
+                            | Technique::SlideLegato
+                            | Technique::SlideShift
+                            | Technique::LetRing
+                    )
+                })
+            })
+    }
+    fn link(&self) -> Option<Technique> {
+        self.techniques.as_ref().and_then(|list| {
+            list.iter().copied().find(|t| {
+                matches!(
+                    t,
+                    Technique::Hammer | Technique::SlideLegato | Technique::SlideShift
+                )
+            })
+        })
+    }
+    fn techniques_valid(&self) -> bool {
+        match &self.techniques {
+            None => self.bend_semitones.is_none(),
+            Some(list) => {
+                !list.is_empty()
+                    && list.windows(2).all(|pair| pair[0] < pair[1])
+                    && list
+                        .iter()
+                        .filter(|t| {
+                            matches!(
+                                t,
+                                Technique::Hammer | Technique::SlideLegato | Technique::SlideShift
+                            )
+                        })
+                        .count()
+                        <= 1
+                    && if list.contains(&Technique::Bend) {
+                        matches!(self.bend_semitones, Some(1 | 2))
+                    } else {
+                        self.bend_semitones.is_none()
+                    }
+            }
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -191,6 +331,10 @@ impl ScoreDocument {
             {
                 return Err(AppError::invalid());
             }
+            // 이음 시작 음에는 도착 음이 있어야 합니다(docs/12 주법 편집 v2).
+            if link_targets(&track.notes).values().any(Option::is_none) {
+                return Err(AppError::invalid());
+            }
             for note in &track.notes {
                 if !identifier(&note.id)
                     || !notes.insert(&note.id)
@@ -200,6 +344,10 @@ impl ScoreDocument {
                     || note.duration_ticks == 0
                     || note.start_tick > MAX_SAFE
                     || note.duration_ticks > MAX_SAFE - note.start_tick
+                    || note.playback_tick.is_some_and(|tick| {
+                        tick <= note.start_tick || tick >= note.start_tick + note.duration_ticks
+                    })
+                    || !note.techniques_valid()
                     || note.pitch_midi > 127
                     || note
                         .string_index

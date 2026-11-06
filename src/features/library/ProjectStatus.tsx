@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ProjectController } from './useProjects';
 import { ScoreHistoryPanel } from './ScoreHistoryPanel';
+import { MoreMenu } from '../../components/ui/MoreMenu';
 export function ProjectStatus({ project }: { project: ProjectController }) {
   const storage = project.importStorage;
   const setStorage = project.setImportStorage;
@@ -23,28 +24,6 @@ export function ProjectStatus({ project }: { project: ProjectController }) {
           <div className="toolbar">
             <button
               disabled={project.busy}
-              onClick={() => void project.createBlankScore()}
-            >
-              빈 악보 만들기
-            </button>
-            <label>
-              원본 보관{' '}
-              <select
-                aria-label="원본 보관 방식"
-                value={storage}
-                disabled={project.busy}
-                onChange={(e) =>
-                  setStorage(
-                    e.target.value === 'REFERENCE' ? 'REFERENCE' : 'MANAGED',
-                  )
-                }
-              >
-                <option value="MANAGED">관리용 복사 · 기본</option>
-                <option value="REFERENCE">외부 파일 참조</option>
-              </select>
-            </label>
-            <button
-              disabled={project.busy}
               onClick={() => void project.importAsset('SCORE_IMPORT', storage)}
             >
               프로젝트 악보 선택
@@ -58,23 +37,47 @@ export function ProjectStatus({ project }: { project: ProjectController }) {
             <button disabled={project.busy} onClick={() => void project.save()}>
               프로젝트 저장
             </button>
-            {project.native && (
+            <MoreMenu>
               <button
-                aria-expanded={showHistory}
-                onClick={() => setShowHistory(!showHistory)}
+                disabled={project.busy}
+                onClick={() => void project.createBlankScore()}
               >
-                저장 악보 버전 {showHistory ? '닫기' : '보기'}
+                빈 악보 만들기
               </button>
-            )}
-            <button
-              disabled={project.busy}
-              onClick={() => {
-                if (project.details)
-                  void project.open(project.details.project.id);
-              }}
-            >
-              프로젝트 다시 열기
-            </button>
+              <label>
+                원본 보관{' '}
+                <select
+                  aria-label="원본 보관 방식"
+                  value={storage}
+                  disabled={project.busy}
+                  onChange={(e) =>
+                    setStorage(
+                      e.target.value === 'REFERENCE' ? 'REFERENCE' : 'MANAGED',
+                    )
+                  }
+                >
+                  <option value="MANAGED">관리용 복사 · 기본</option>
+                  <option value="REFERENCE">외부 파일 참조</option>
+                </select>
+              </label>
+              {project.native && (
+                <button
+                  aria-expanded={showHistory}
+                  onClick={() => setShowHistory(!showHistory)}
+                >
+                  저장 악보 버전 {showHistory ? '닫기' : '보기'}
+                </button>
+              )}
+              <button
+                disabled={project.busy}
+                onClick={() => {
+                  if (project.details)
+                    void project.open(project.details.project.id);
+                }}
+              >
+                프로젝트 다시 열기
+              </button>
+            </MoreMenu>
           </div>
           <p>
             악보·WAV/MP3 파일 한 개를 프로젝트 작업 화면에 놓아도 불러올 수

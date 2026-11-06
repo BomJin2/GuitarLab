@@ -1,0 +1,669 @@
+{
+  "schemaVersion": 1,
+  "note": "docs/12 '악보 검사 규칙 TS·Rust 일치': base에 path(JSON Pointer)의 값을 바꾼 악보를 화면(TS)과 저장소(Rust)가 같은 판정(valid)으로 처리하는지 확인합니다.",
+  "base": {
+    "schemaVersion": 1,
+    "id": "practice-targets-v1",
+    "title": "채점 목표 시각 공통 검사",
+    "ppq": 960,
+    "tempoMap": [
+      {
+        "tick": 0,
+        "bpm": 120
+      }
+    ],
+    "timeSignatures": [
+      {
+        "tick": 0,
+        "numerator": 4,
+        "denominator": 4
+      }
+    ],
+    "syncAnchors": [
+      {
+        "scoreTick": 0,
+        "audioTimeMs": 0
+      },
+      {
+        "scoreTick": 1920,
+        "audioTimeMs": 1000
+      },
+      {
+        "scoreTick": 3840,
+        "audioTimeMs": 3000
+      }
+    ],
+    "tracks": [
+      {
+        "id": "lead",
+        "name": "Lead",
+        "tuningMidi": [64, 59, 55, 50, 45, 40],
+        "notes": [
+          {
+            "id": "note-1",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 0,
+            "durationTicks": 480,
+            "pitchMidi": 64,
+            "stringIndex": 1,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "id": "note-2",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 480,
+            "durationTicks": 480,
+            "pitchMidi": 65,
+            "stringIndex": 1,
+            "fret": 1,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 640
+          },
+          {
+            "id": "note-3",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 1800,
+            "durationTicks": 240,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 1960
+          },
+          {
+            "id": "note-4",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2400,
+            "durationTicks": 480,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": false,
+            "source": "import"
+          },
+          {
+            "id": "note-5",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2880,
+            "durationTicks": 480,
+            "pitchMidi": 69,
+            "stringIndex": 1,
+            "fret": 5,
+            "attack": true,
+            "source": "import",
+            "judgementSupport": "UNSUPPORTED"
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "기본 악보",
+      "path": null,
+      "value": null,
+      "valid": true
+    },
+    {
+      "name": "제목 줄바꿈",
+      "path": "/title",
+      "value": "첫 줄\n둘째 줄",
+      "valid": false
+    },
+    {
+      "name": "제목 탭",
+      "path": "/title",
+      "value": "A\tB",
+      "valid": false
+    },
+    {
+      "name": "제목 공백만",
+      "path": "/title",
+      "value": "   ",
+      "valid": false
+    },
+    {
+      "name": "제목 200자",
+      "path": "/title",
+      "value": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+      "valid": true
+    },
+    {
+      "name": "제목 201자",
+      "path": "/title",
+      "value": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+      "valid": false
+    },
+    {
+      "name": "트랙 이름 탭",
+      "path": "/tracks/0/name",
+      "value": "Gt\t1",
+      "valid": false
+    },
+    {
+      "name": "트랙 이름 DEL",
+      "path": "/tracks/0/name",
+      "value": "Gt",
+      "valid": false
+    },
+    {
+      "name": "음표 ID DEL",
+      "path": "/tracks/0/notes/0/id",
+      "value": "note",
+      "valid": false
+    },
+    {
+      "name": "음표 ID C1",
+      "path": "/tracks/0/notes/0/id",
+      "value": "note",
+      "valid": false
+    },
+    {
+      "name": "음표 ID 42자(126바이트)",
+      "path": "/tracks/0/notes/0/id",
+      "value": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+      "valid": true
+    },
+    {
+      "name": "음표 ID 43자(129바이트)",
+      "path": "/tracks/0/notes/0/id",
+      "value": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+      "valid": false
+    },
+    {
+      "name": "소리 시각 = 시작",
+      "path": "/tracks/0/notes/1/playbackTick",
+      "value": 480,
+      "valid": false
+    },
+    {
+      "name": "소리 시각 = 끝",
+      "path": "/tracks/0/notes/1/playbackTick",
+      "value": 960,
+      "valid": false
+    },
+    {
+      "name": "프렛 37",
+      "path": "/tracks/0/notes/0/fret",
+      "value": 37,
+      "valid": false
+    },
+    {
+      "name": "줄 7(6현)",
+      "path": "/tracks/0/notes/0/stringIndex",
+      "value": 7,
+      "valid": false
+    },
+    {
+      "name": "앵커 시간 역행",
+      "path": "/syncAnchors/1/audioTimeMs",
+      "value": 0,
+      "valid": false
+    },
+    {
+      "name": "템포 601",
+      "path": "/tempoMap/0/bpm",
+      "value": 601,
+      "valid": false
+    },
+    {
+      "name": "박자 분모 3",
+      "path": "/timeSignatures/0/denominator",
+      "value": 3,
+      "valid": false
+    },
+    {
+      "name": "음표 트랙 불일치",
+      "path": "/tracks/0/notes/0/trackId",
+      "value": "other",
+      "valid": false
+    },
+    {
+      "name": "주법 팜뮤트·벤딩 온음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["PALM_MUTE", "BEND"],
+        "bendSemitones": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "주법 7가지 전부·반음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": [
+          "PALM_MUTE",
+          "DEAD",
+          "GHOST",
+          "STACCATO",
+          "VIBRATO",
+          "BEND",
+          "TAP"
+        ],
+        "bendSemitones": 1
+      },
+      "valid": true
+    },
+    {
+      "name": "주법 순서 뒤바뀜",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["STACCATO", "PALM_MUTE"]
+      },
+      "valid": false
+    },
+    {
+      "name": "주법 중복",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["DEAD", "DEAD"]
+      },
+      "valid": false
+    },
+    {
+      "name": "주법 빈 목록",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": []
+      },
+      "valid": false
+    },
+    {
+      "name": "주법 모르는 값",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["SLIDE"]
+      },
+      "valid": false
+    },
+    {
+      "name": "벤딩 양 없음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["BEND"]
+      },
+      "valid": false
+    },
+    {
+      "name": "벤딩 아닌데 양 있음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["VIBRATO"],
+        "bendSemitones": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "벤딩 양 3",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["BEND"],
+        "bendSemitones": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "주법 null",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": null
+      },
+      "valid": false
+    },
+    {
+      "name": "해머온 도착 음 있음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["HAMMER"]
+      },
+      "valid": true
+    },
+    {
+      "name": "이어 치기 슬라이드 도착 음 있음",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["PALM_MUTE", "SLIDE_LEGATO"]
+      },
+      "valid": true
+    },
+    {
+      "name": "도착 음 없는 연결 슬라이드",
+      "path": "/tracks/0/notes/4",
+      "value": {
+        "id": "note-5",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 2880,
+        "durationTicks": 480,
+        "pitchMidi": 69,
+        "stringIndex": 1,
+        "fret": 5,
+        "attack": true,
+        "source": "import",
+        "judgementSupport": "UNSUPPORTED",
+        "techniques": ["SLIDE_SHIFT"]
+      },
+      "valid": false
+    },
+    {
+      "name": "이음 둘",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["HAMMER", "SLIDE_SHIFT"]
+      },
+      "valid": false
+    },
+    {
+      "name": "자연 하모닉·렛링",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["HARMONIC_NATURAL", "LET_RING"]
+      },
+      "valid": true
+    },
+    {
+      "name": "렛링·하모닉 역순",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "techniques": ["LET_RING", "HARMONIC_NATURAL"]
+      },
+      "valid": false
+    },
+    {
+      "name": "제목이 BOM 하나",
+      "path": "/title",
+      "value": "﻿",
+      "valid": true
+    },
+    {
+      "name": "음표에 모르는 필드",
+      "path": "/tracks/0/notes/0",
+      "value": {
+        "id": "note-1",
+        "trackId": "lead",
+        "measureIndex": 0,
+        "startTick": 0,
+        "durationTicks": 480,
+        "pitchMidi": 64,
+        "stringIndex": 1,
+        "fret": 0,
+        "attack": true,
+        "source": "import",
+        "velocity": 100
+      },
+      "valid": false
+    },
+    {
+      "name": "트랙에 모르는 필드",
+      "path": "/tracks/0",
+      "value": {
+        "id": "lead",
+        "name": "Lead",
+        "tuningMidi": [64, 59, 55, 50, 45, 40],
+        "notes": [
+          {
+            "id": "note-1",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 0,
+            "durationTicks": 480,
+            "pitchMidi": 64,
+            "stringIndex": 1,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "id": "note-2",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 480,
+            "durationTicks": 480,
+            "pitchMidi": 65,
+            "stringIndex": 1,
+            "fret": 1,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 640
+          },
+          {
+            "id": "note-3",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 1800,
+            "durationTicks": 240,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 1960
+          },
+          {
+            "id": "note-4",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2400,
+            "durationTicks": 480,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": false,
+            "source": "import"
+          },
+          {
+            "id": "note-5",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2880,
+            "durationTicks": 480,
+            "pitchMidi": 69,
+            "stringIndex": 1,
+            "fret": 5,
+            "attack": true,
+            "source": "import",
+            "judgementSupport": "UNSUPPORTED"
+          }
+        ],
+        "color": "red"
+      },
+      "valid": false
+    },
+    {
+      "name": "템포에 모르는 필드",
+      "path": "/tempoMap/0",
+      "value": {
+        "tick": 0,
+        "bpm": 120,
+        "unit": "bpm"
+      },
+      "valid": false
+    },
+    {
+      "name": "앵커에 모르는 필드",
+      "path": "/syncAnchors/0",
+      "value": {
+        "scoreTick": 0,
+        "audioTimeMs": 0,
+        "label": "start"
+      },
+      "valid": false
+    },
+    {
+      "name": "박자에 모르는 필드",
+      "path": "/timeSignatures/0",
+      "value": {
+        "tick": 0,
+        "numerator": 4,
+        "denominator": 4,
+        "beam": "auto"
+      },
+      "valid": false
+    },
+    {
+      "name": "악보에 모르는 필드",
+      "path": "/composer",
+      "value": "누군가",
+      "valid": false
+    }
+  ]
+}

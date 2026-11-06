@@ -1,4 +1,4 @@
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { isTauri } from '@tauri-apps/api/core';
 import type { GuitarPartRole } from '../../entities/score';
 import { isGuitarPartRole } from '../../entities/guitarRoles';
 import {
@@ -6,7 +6,12 @@ import {
   isNumberWithin,
   isSafeUnsigned,
 } from '../../shared/validation';
-import { isUuid, runStorageJob, type JobSnapshot } from '../library/projects';
+import {
+  isUuid,
+  runStorageByteJob,
+  runStorageJob,
+  type JobSnapshot,
+} from '../library/projects';
 export type ImportedGuitarStem = {
   schemaVersion: 1;
   id: string;
@@ -142,26 +147,17 @@ export const importedStemsApi = {
     progress: (value: JobSnapshot) => void,
   ) {
     if (!isUuid(projectId) || !isUuid(stemId)) invalid();
-    let jobId = '';
-    const value = await runStorageJob(
+    const { result: value, bytes } = await runStorageByteJob(
       'read_imported_guitar_stem',
       { projectId, stemId },
       signal,
-      (job) => {
-        jobId = job.jobId;
-        progress(job);
-      },
+      progress,
       { waitForCancellation: true },
     );
     if (signal.aborted)
       throw new DOMException('기타 파일 읽기 취소', 'AbortError');
     const stem = resultStem(value, projectId);
-    if (stem.id !== stemId || !isUuid(jobId)) invalid();
-    const bytes = await invoke<unknown>('take_storage_bytes', {
-      request: { schemaVersion: 1, jobId },
-    });
-    if (signal.aborted)
-      throw new DOMException('기타 파일 읽기 취소', 'AbortError');
+    if (stem.id !== stemId) invalid();
     if (!(bytes instanceof ArrayBuffer) || bytes.byteLength !== stem.bytes)
       invalid();
     return { stem, bytes };

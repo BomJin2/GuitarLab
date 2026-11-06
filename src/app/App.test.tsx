@@ -76,8 +76,9 @@ it('모드 전환과 키보드 패널 조절을 지원한다', () => {
   fireEvent(window, new HashChangeEvent('hashchange'));
   expect(screen.getByRole('heading', { name: '연습 작업 공간' })).toBeTruthy();
   const separator = screen.getByRole('separator');
+  // 작업 공간 인스펙터는 v2 시안의 넓은 오른쪽 패널로 300px에서 시작합니다(악보 폭 우선).
   fireEvent.keyDown(separator, { key: 'ArrowLeft' });
-  expect(separator.getAttribute('aria-valuenow')).toBe('276');
+  expect(separator.getAttribute('aria-valuenow')).toBe('316');
   fireEvent.click(screen.getByRole('button', { name: '패널 접기' }));
   expect(screen.queryByRole('separator')).toBeNull();
   fireEvent.keyDown(window, { key: '?' });
@@ -114,4 +115,40 @@ it('모드·안내 단축키는 조합 입력·반복·이미 처리한 키를 �
   fireEvent(window, event);
   expect(window.location.hash).toBe('');
   expect(screen.queryByRole('heading', { name: '키보드 조작' })).toBeNull();
+});
+
+it('왼쪽 트랙 목록을 접고 펼치며, 작은 창에서는 접혀 시작한다', () => {
+  // jsdom 기본 창(1024×768)은 작은 창으로 판정되므로 넓은 창을 지정합니다.
+  vi.stubGlobal('innerWidth', 1440);
+  window.location.hash = '#/copy';
+  const view = render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  const panel = screen.getByRole('complementary', { name: '트랙 패널' });
+  const toggle = screen.getByRole('button', { name: /트랙 목록 접기/ });
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(toggle);
+  expect(
+    screen
+      .getByRole('button', { name: /트랙 목록 펼치기/ })
+      .getAttribute('aria-expanded'),
+  ).toBe('false');
+  expect(
+    panel.querySelector('.workspace-tracks-body')?.hasAttribute('hidden'),
+  ).toBe(true);
+  view.unmount();
+  vi.stubGlobal('innerWidth', 1100);
+  render(
+    <PlayerProvider>
+      <App />
+    </PlayerProvider>,
+  );
+  expect(
+    screen
+      .getByRole('button', { name: /트랙 목록 펼치기/ })
+      .getAttribute('aria-expanded'),
+  ).toBe('false');
+  vi.unstubAllGlobals();
 });

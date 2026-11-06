@@ -3,16 +3,22 @@ export function ResizablePanel({
   children,
   side,
   label,
+  min = 196,
+  max = 320,
+  initial = 260,
 }: {
   children: ReactNode;
   side: ReactNode;
   label: string;
+  min?: number;
+  max?: number;
+  initial?: number;
 }) {
-  const [width, setWidth] = useState(260);
+  const [width, setWidth] = useState(initial);
   const [collapsed, setCollapsed] = useState(false);
   const dragging = useRef(false);
   const resize = (value: number) =>
-    setWidth(Math.min(320, Math.max(196, value)));
+    setWidth(Math.min(max, Math.max(min, value)));
   return (
     <div className="split-layout">
       <div className="split-main">{children}</div>
@@ -31,8 +37,8 @@ export function ResizablePanel({
             role="separator"
             aria-label={label}
             aria-orientation="vertical"
-            aria-valuemin={196}
-            aria-valuemax={320}
+            aria-valuemin={min}
+            aria-valuemax={max}
             aria-valuenow={width}
             tabIndex={0}
             onKeyDown={(event) => {

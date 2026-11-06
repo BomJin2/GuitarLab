@@ -106,11 +106,27 @@ impl CloseGuard {
         state.permit = accepted;
         Ok(())
     }
+    /// 확인을 띄울 수 없을 때 대기 중인 종료 요청을 지웁니다.
+    pub fn abandon(&self) -> Result<(), AppError> {
+        let mut state = self.0.lock().map_err(|_| unavailable())?;
+        state.pending = None;
+        state.permit = false;
+        Ok(())
+    }
     pub fn revoke(&self) -> Result<(), AppError> {
         let mut state = self.0.lock().map_err(|_| unavailable())?;
         state.permit = false;
         Ok(())
     }
+}
+
+/// docs/12 "종료 확인 통로가 끊겼을 때": 확인 창·화면 알림이 쓰는 메인 스레드 통로(proxy)가 살아 있는지.
+/// 메인 스레드에서 직접 부르면 통로를 거치지 않으므로 별도 스레드에서 보냅니다(보내기만 하고 기다리지 않음).
+pub fn ui_channel_alive(app: &tauri::AppHandle) -> bool {
+    let handle = app.clone();
+    std::thread::spawn(move || handle.run_on_main_thread(|| {}).is_ok())
+        .join()
+        .unwrap_or(false)
 }
 
 pub fn finish_close(app: &tauri::AppHandle, id: Uuid, accepted: bool) -> Result<(), AppError> {
@@ -190,6 +206,31 @@ mod tests {
             Decision::Block
         ));
         intent(&guard, now);
+    }
+    #[test]
+    fn abandon_clears_stuck_prompt_without_granting_close() {
+        let guard = CloseGuard::default();
+        guard.enable().expect("활성화");
+        let now = Instant::now();
+        let id = intent(&guard, now);
+        // 확인 창이 뜨지 못한 채 응답 대기 상태로 남으면 이후 닫기는 계속 막힙니다.
+        assert!(matches!(
+            guard
+                .on_close(false, now + Duration::from_secs(6))
+                .expect("확인 창"),
+            Decision::AskFallback(_)
+        ));
+        assert!(matches!(
+            guard
+                .on_close(false, now + Duration::from_secs(60))
+                .expect("막힘"),
+            Decision::Block
+        ));
+        guard.abandon().expect("대기 요청 정리");
+        // 늦게 온 응답은 허가가 되지 않고, 다음 닫기는 새 확인부터 시작합니다.
+        assert!(guard.finish(id, true).is_err());
+        assert!(guard.resolve(id, false).is_err());
+        assert_ne!(intent(&guard, now), id);
     }
     #[test]
     fn dirty_cancel_and_stale_callbacks_never_grant_close() {

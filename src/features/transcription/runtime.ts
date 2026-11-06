@@ -94,6 +94,12 @@ export function aiRuntimeError(cause: unknown) {
       '기존 설치 정보가 올바르지 않습니다. 자동 덮어쓰기하지 않았습니다.',
     AI_SETUP_PROCESS_FAILED:
       '오프라인 패키지 설치 또는 의존성 검사가 실패했습니다.',
+    AI_SETUP_INSTALL_FAILED:
+      '오프라인 패키지 설치가 실패했습니다. 새 임시 환경을 정리했고 기존 설치는 유지했습니다.',
+    AI_SETUP_DEPENDENCY_FAILED:
+      '설치된 패키지의 의존성 검사가 실패했습니다. 새 임시 환경을 정리했고 기존 설치는 유지했습니다.',
+    AI_RUNTIME_COPY_FAILED:
+      'AI 런타임을 앱 데이터에 복사하지 못했습니다. 디스크 공간과 권한을 확인하세요. 기존 설치는 유지했습니다.',
     AI_SETUP_SELF_TEST_FAILED:
       '자체 8음 분석 검증에 실패해 새 환경을 활성화하지 않았습니다.',
     AI_SETUP_FIXTURE_INVALID:

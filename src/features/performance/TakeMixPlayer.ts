@@ -128,6 +128,10 @@ export class TakeMixPlayer {
       throw cause;
     }
   }
+  /** docs/12 "실시간 레벨 미터": 반주와 믹스 레이어의 재생 요소(음량은 각 요소에 이미 적용됨) */
+  mediaElements(): HTMLMediaElement[] {
+    return [this.main.audio, ...this.voices.map((voice) => voice.media)];
+  }
   update(mix: MixDocument) {
     this.mix = decodeMix(mix);
     this.sync();

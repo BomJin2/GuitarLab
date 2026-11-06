@@ -48,7 +48,8 @@ export function importScoreSession(
 export type LocalMediaKind = 'score' | 'audio';
 
 export function localMediaKind(name: string): LocalMediaKind | null {
-  if (/\.(json|musicxml|xml|gp|gp3|gp4|gp5|gpx)$/i.test(name)) return 'score';
+  if (/\.(json|musicxml|xml|mxl|gp|gp3|gp4|gp5|gpx)$/i.test(name))
+    return 'score';
   if (/\.(wav|mp3)$/i.test(name)) return 'audio';
   return null;
 }

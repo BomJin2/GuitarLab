@@ -110,7 +110,9 @@ pub(super) fn launch(
 }
 fn pick(app: &tauri::AppHandle, kind: AssetKind) -> Result<PathBuf, AppError> {
     let extensions: &[&str] = match kind {
-        AssetKind::ScoreImport => &["gp", "gp3", "gp4", "gp5", "gpx", "xml", "musicxml", "json"],
+        AssetKind::ScoreImport => &[
+            "gp", "gp3", "gp4", "gp5", "gpx", "xml", "musicxml", "mxl", "json",
+        ],
         AssetKind::Original => &["wav", "mp3"],
     };
     let title = if kind == AssetKind::ScoreImport {

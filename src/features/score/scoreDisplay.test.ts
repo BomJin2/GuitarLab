@@ -1,4 +1,4 @@
-import { importer, model } from '@coderline/alphatab';
+import { importer, model, rendering, Settings } from '@coderline/alphatab';
 import { expect, it } from 'vitest';
 import xml from '../../../public/fixtures/standard.musicxml?raw';
 import dual from '../../../public/fixtures/dual-guitar.musicxml?raw';
@@ -7,7 +7,7 @@ import {
   importScore,
   normalizeScore,
 } from './alphaTabAdapter';
-import { createDisplayScore } from './scoreDisplay';
+import { alphaTabDisplay, createDisplayScore } from './scoreDisplay';
 import { renderedNoteId } from './scoreNoteSelection';
 import { scoreCapacityFixture } from '../../test/scoreCapacityFixture';
 import { renderNormalized } from './normalizedNotation';
@@ -130,4 +130,37 @@ it('쉼표·화음·반복의 직접 객체 관계와 원본 경계를 유지한
       expect(result.notes.get(copy!.notes[i]!) === note).toBe(true);
   }
   expect(() => createDisplayScore(source, -1, 'tab')).toThrow('악보 표시 트랙');
+});
+
+// 실제 alphaTab SVG 렌더러로 그려 주법 표시가 빠지지 않는지 봅니다(docs/12 주법 편집 v1).
+function svgOf(notation: 'tab' | 'score') {
+  const source = importer.ScoreLoader.loadAlphaTex(
+    '. 0.1{pm}.4 r.4 3.1{v}.4 5.1.4 | 5.1.4 {tt} 7.1.2 r.4',
+  );
+  const { score } = createDisplayScore(source, 0, notation);
+  const settings = new Settings();
+  settings.core.engine = 'svg';
+  settings.core.enableLazyLoading = false;
+  settings.display.staveProfile = alphaTabDisplay({
+    notation,
+    layout: 'page',
+    scale: 1,
+  }).staveProfile;
+  const renderer = new rendering.ScoreRenderer(settings);
+  renderer.width = 1200;
+  let svg = '';
+  renderer.partialRenderFinished.on((r) => {
+    svg += String(r.renderResult ?? '');
+  });
+  renderer.renderScore(score, [0]);
+  return svg;
+}
+
+it('TAB 보기에서도 팜뮤트(P.M.)·태핑(T)과 쉼표·박자표를 그린다', () => {
+  const svg = svgOf('tab');
+  expect(svg).toContain('P.M.');
+  expect(svg).toContain('>T<');
+  // 쉼표(U+E4E5)와 박자표 숫자(U+E084)도 기존 TAB 보기처럼 남습니다.
+  expect(svg).toContain('&#58597;');
+  expect(svg).toContain('&#57476;');
 });

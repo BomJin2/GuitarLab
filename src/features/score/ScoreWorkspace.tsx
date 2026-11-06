@@ -18,6 +18,8 @@ import { timingAt, validateTiming } from '../player/timing';
 import { usePlayer } from '../player/usePlayer';
 import { LatestTask } from '../../shared/latestTask';
 import { ScoreViewport } from './ScoreViewport';
+import { DawTimeline } from '../daw/DawTimeline';
+import type { DawTrack } from '../daw/useDawTracks';
 import { ScoreDisplayControls } from './ScoreDisplayControls';
 import { ScoreLoopPanel } from './ScoreLoopPanel';
 import type { ScoreDisplaySettings } from './scoreDisplay';
@@ -36,6 +38,7 @@ import type { PracticeController } from '../practice/usePractice';
 import { ProjectStatus } from '../library/ProjectStatus';
 import type { ProjectController } from '../library/useProjects';
 import { ScoreTrackSelector } from './ScoreTrackSelector';
+import { isSmallWindow } from '../../shared/windowSize';
 import { ScoreEditor } from './ScoreEditor';
 import type { ScoreEditingController } from './useScoreEditing';
 import type { LocalMediaKind } from './localMediaImport';
@@ -64,6 +67,8 @@ export function ScoreWorkspace({
   onDisplayChange,
   playbackLocked = false,
   localDrop,
+  view = 'score',
+  dawTracks,
 }: {
   session: ScoreSession | null;
   setSession: Dispatch<SetStateAction<ScoreSession | null>>;
@@ -79,6 +84,10 @@ export function ScoreWorkspace({
   playbackLocked?: boolean;
   /** 프로젝트가 없을 때 App의 화면 전체 드롭이 부르는 로컬 불러오기 */
   localDrop?: MutableRefObject<LocalDrop | null>;
+  /** 곡 정보 줄의 작업 공간 보기(docs/12 DAW 보기 v1) */
+  view?: 'score' | 'daw';
+  /** DAW 보기 v2의 프로젝트 믹스 레이어 줄 */
+  dawTracks?: DawTrack[];
 }) {
   const { engine, state } = usePlayer();
   const [draft, setDraft] = useState<SyncAnchor[]>(
@@ -86,6 +95,7 @@ export function ScoreWorkspace({
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tracksOpen, setTracksOpen] = useState(() => !isSmallWindow());
   const [notice, setNotice] = useState<string | null>(null);
   const task = useRef(new LatestTask());
   const importing = useRef(false);
@@ -233,12 +243,9 @@ export function ScoreWorkspace({
         시작합니다. 채점 시작을 누르면 선택한 트랙의 단음을 판정합니다. 녹음은
         저장된 프로젝트에서 명시적으로 REC를 눌렀을 때만 기록합니다.
       </p>
-      {project?.native && <ProjectStatus project={project} />}
-      {!project?.details && (
-        <section className="panel" aria-label="로컬 파일 끌어놓기">
-          악보 또는 WAV/MP3 파일 한 개를 작업 화면 어디에나 끌어다 놓아
-          불러오세요. 파일 선택 버튼도 사용할 수 있습니다.
-        </section>
+      {/* 프로젝트가 없을 때의 안내는 라이브러리에만 둡니다(끌어놓기는 앱 전체가 받음). */}
+      {project?.native && project.details && (
+        <ProjectStatus project={project} />
       )}
       {!project?.details && (
         <div className="toolbar">
@@ -255,7 +262,7 @@ export function ScoreWorkspace({
             <input
               aria-label="악보 선택"
               type="file"
-              accept=".gp,.gp3,.gp4,.gp5,.gpx,.xml,.musicxml,.json"
+              accept=".gp,.gp3,.gp4,.gp5,.gpx,.xml,.musicxml,.mxl,.json"
               disabled={loading || importBlocked}
               onChange={choose('score')}
             />
@@ -308,91 +315,135 @@ export function ScoreWorkspace({
           locked={playbackLocked || loading || !!project?.busy}
         />
       )}
-      {mode === 'copy' && (
-        <>
-          <StemSeparationPanel project={project} />
-          <AiDraftPanel session={session} project={project} editor={editor} />
-        </>
-      )}
-      {mode !== 'copy' && <InputPanel input={input} clock={clock} />}
-      {session && (
-        <ScoreTrackSelector
-          session={session}
-          onSelect={(id) => {
-            engine.pause();
-            setSession(selectScoreTrack(session, id));
-          }}
-          onRole={(id, role) => {
-            engine.pause();
-            setSession({
-              ...session,
-              document: setGuitarRole(session.document, id, role),
-            });
-          }}
-        />
-      )}
-      {session && (
-        <ScoreDisplayControls settings={display} onChange={onDisplayChange} />
-      )}
-      {session && (
-        <ScoreLoopPanel
-          key={session.document.id}
-          lookup={session.playbackLookup}
-          anchors={session.document.syncAnchors}
-          locked={playbackLocked || loading || !!project?.busy}
-        />
-      )}
-      <ResizablePanel
-        label={mode === 'copy' ? '속성 패널 너비' : '판정 패널 너비'}
-        side={
-          mode !== 'copy' ? (
-            <ScorePanel practice={practice} />
-          ) : (
-            <Panel title={mode === 'copy' ? '음표 속성' : '연주 상태'}>
-              <p>곡: {session?.document.title ?? '선택하지 않음'}</p>
-              <p>
-                악보 목표:{' '}
-                {target ? `MIDI ${target.pitchMidi}` : '다음 음을 준비하세요'}
-              </p>
-              <p>다음 음: {next ? `MIDI ${next.pitchMidi}` : '없음'}</p>
-              <p>녹음 꺼짐</p>
-              <p>편집은 상단 수동 음표 패널에서 조작합니다.</p>
-            </Panel>
-          )
+      {/* v2 시안의 3단 배치: 왼쪽 트랙 / 가운데 악보 / 오른쪽 인스펙터 */}
+      <div
+        className={
+          tracksOpen
+            ? 'workspace-columns'
+            : 'workspace-columns tracks-collapsed'
         }
       >
-        {session ? (
-          <ScoreViewport
-            display={display}
-            score={session.score}
-            lookup={session.playbackLookup}
-            trackIndex={track}
-            onNavigateNote={
-              mode === 'copy' && editor?.enabled && !loading && !project?.busy
-                ? editor.moveSelection
-                : undefined
-            }
-            tick={
-              mode === 'copy' && editor?.enabled && state.status !== 'playing'
-                ? (editor.selectedNote?.startTick ?? tick)
-                : tick
-            }
-            onSelectNote={
-              mode === 'copy' && editor?.enabled && !loading && !project?.busy
-                ? (note) => {
-                    const id = renderedNoteId(session, note, tick);
-                    if (id) editor.selectNote(id);
-                  }
-                : undefined
-            }
-          />
-        ) : (
-          <div className="panel">
-            악보를 선택하세요. 장치가 없어도 악보를 볼 수 있습니다.
+        <aside className="workspace-tracks" aria-label="트랙 패널">
+          <button
+            className="tracks-toggle"
+            aria-expanded={tracksOpen}
+            title={tracksOpen ? '트랙 목록 접기' : '트랙 목록 펼치기'}
+            onClick={() => setTracksOpen(!tracksOpen)}
+          >
+            {tracksOpen ? '◂ 트랙 목록 접기' : '▸'}
+            {!tracksOpen && <span className="sr-only">트랙 목록 펼치기</span>}
+          </button>
+          {/* 접어도 숨기기만 해서 선택·표시·반복 상태를 유지합니다(docs/12 "왼쪽 트랙 목록 접기"). */}
+          <div className="workspace-tracks-body" hidden={!tracksOpen}>
+            {!session && (
+              <p className="empty-note">
+                트랙이 없습니다. 파일을 불러오면 트랙이 표시됩니다.
+              </p>
+            )}
+            {session && (
+              <ScoreTrackSelector
+                session={session}
+                onSelect={(id) => {
+                  engine.pause();
+                  setSession(selectScoreTrack(session, id));
+                }}
+                onRole={(id, role) => {
+                  engine.pause();
+                  setSession({
+                    ...session,
+                    document: setGuitarRole(session.document, id, role),
+                  });
+                }}
+              />
+            )}
+            {session && (
+              <ScoreDisplayControls
+                settings={display}
+                onChange={onDisplayChange}
+              />
+            )}
+            {session && (
+              <ScoreLoopPanel
+                key={session.document.id}
+                lookup={session.playbackLookup}
+                anchors={session.document.syncAnchors}
+                locked={playbackLocked || loading || !!project?.busy}
+              />
+            )}
           </div>
-        )}
-        <Fretboard note={target} />
-      </ResizablePanel>
+        </aside>
+        <ResizablePanel
+          label={mode === 'copy' ? '인스펙터 패널 너비' : '판정 패널 너비'}
+          min={220}
+          max={520}
+          initial={300}
+          side={
+            mode === 'copy' ? (
+              <>
+                <AiDraftPanel
+                  session={session}
+                  project={project}
+                  editor={editor}
+                />
+                <Panel title="음표 속성">
+                  <p>곡: {session?.document.title ?? '선택하지 않음'}</p>
+                  <p>
+                    악보 목표:{' '}
+                    {target
+                      ? `MIDI ${target.pitchMidi}`
+                      : '다음 음을 준비하세요'}
+                  </p>
+                  <p>다음 음: {next ? `MIDI ${next.pitchMidi}` : '없음'}</p>
+                </Panel>
+              </>
+            ) : (
+              <>
+                <InputPanel input={input} clock={clock} />
+                <ScorePanel practice={practice} />
+              </>
+            )
+          }
+        >
+          {view === 'daw' ? (
+            <DawTimeline
+              anchors={session?.document.syncAnchors ?? null}
+              locked={playbackLocked || loading}
+              tracks={dawTracks}
+            />
+          ) : session ? (
+            <ScoreViewport
+              display={display}
+              score={session.score}
+              lookup={session.playbackLookup}
+              trackIndex={track}
+              onNavigateNote={
+                mode === 'copy' && editor?.enabled && !loading && !project?.busy
+                  ? editor.moveSelection
+                  : undefined
+              }
+              tick={
+                mode === 'copy' && editor?.enabled && state.status !== 'playing'
+                  ? (editor.selectedNote?.startTick ?? tick)
+                  : tick
+              }
+              onSelectNote={
+                mode === 'copy' && editor?.enabled && !loading && !project?.busy
+                  ? (note) => {
+                      const id = renderedNoteId(session, note, tick);
+                      if (id) editor.selectNote(id);
+                    }
+                  : undefined
+              }
+            />
+          ) : (
+            <div className="panel">
+              악보를 선택하세요. 장치가 없어도 악보를 볼 수 있습니다.
+            </div>
+          )}
+          <Fretboard note={target} />
+        </ResizablePanel>
+      </div>
+      {mode === 'copy' && <StemSeparationPanel project={project} />}
       <p role="status">
         목표 운지:{' '}
         {target

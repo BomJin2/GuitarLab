@@ -4,7 +4,12 @@ import {
   isNumberWithin,
   isSafeUnsigned,
 } from '../../shared/validation';
-import { isUuid, runStorageJob, type JobSnapshot } from '../library/projects';
+import {
+  isUuid,
+  runStorageByteJob,
+  runStorageJob,
+  type JobSnapshot,
+} from '../library/projects';
 export type MixLayer = {
   kind: 'TAKE' | 'LOCAL_ASSET' | 'STEM' | 'IMPORTED_STEM';
   id: string;
@@ -111,15 +116,11 @@ export const mixApi = {
   ) {
     if (![projectId, assetId, stemId].every(isUuid))
       throw new Error('MIX_CONTRACT_INVALID');
-    let jobId = '';
-    const value = await runStorageJob(
+    const { result: value, bytes } = await runStorageByteJob(
       'read_project_stem',
       { projectId, assetId, stemId },
       signal,
-      (job) => {
-        jobId = job.jobId;
-        progress(job);
-      },
+      progress,
     );
     if (signal.aborted) throw new DOMException('믹스 취소', 'AbortError');
     if (
@@ -133,10 +134,6 @@ export const mixApi = {
       value.bytes <= 44
     )
       throw new Error('MIX_CONTRACT_INVALID');
-    const bytes = await invoke<unknown>('take_storage_bytes', {
-      request: { schemaVersion: 1, jobId },
-    });
-    if (signal.aborted) throw new DOMException('믹스 취소', 'AbortError');
     if (!(bytes instanceof ArrayBuffer) || bytes.byteLength !== value.bytes)
       throw new Error('MIX_CONTRACT_INVALID');
     return bytes;
@@ -168,17 +165,14 @@ export const mixApi = {
     progress: (v: JobSnapshot) => void,
   ) {
     decodeMix(mix);
-    let jobId = '';
-    const stats = decodeMixStats(
-      await runStorageJob('render_project_mix', mix, signal, (v) => {
-        jobId = v.jobId;
-        progress(v);
-      }),
+    const { result, bytes } = await runStorageByteJob(
+      'render_project_mix',
+      mix,
+      signal,
+      progress,
     );
+    const stats = decodeMixStats(result);
     if (signal.aborted) throw new DOMException('믹스 취소', 'AbortError');
-    const bytes = await invoke<unknown>('take_storage_bytes', {
-      request: { schemaVersion: 1, jobId },
-    });
     if (!(bytes instanceof ArrayBuffer) || bytes.byteLength !== stats.bytes)
       throw new Error('MIX_CONTRACT_INVALID');
     return { bytes, stats };

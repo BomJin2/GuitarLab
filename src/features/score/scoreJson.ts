@@ -56,12 +56,15 @@ export function decodeScoreJson(bytes: Uint8Array): ScoreDocument {
           'measureIndex',
           'startTick',
           'durationTicks',
+          'playbackTick',
           'pitchMidi',
           'stringIndex',
           'fret',
           'notationNoteId',
           'attack',
           'judgementSupport',
+          'techniques',
+          'bendSemitones',
           'source',
         ]);
         identifiers.push(note.id, note.trackId);

@@ -20,6 +20,8 @@ export type PlayerSnapshot = {
 export class PlayerEngine {
   audio: HTMLAudioElement;
   private url: string | null = null;
+  /** 지금 불러온 음원 원본. DAW 보기가 파형을 그릴 때 같은 Blob을 읽습니다. */
+  source: Blob | null = null;
   private listeners = new Set<() => void>();
   private frame = 0;
   private generation = 0;
@@ -242,6 +244,7 @@ export class PlayerEngine {
     this.audio.playbackRate = this.snapshot.rate;
     this.audio.volume = this.snapshot.volume;
     this.url = URL.createObjectURL(blob);
+    this.source = blob;
     this.publish({
       status: 'loading',
       error: null,
@@ -268,6 +271,7 @@ export class PlayerEngine {
     this.audio.load();
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = null;
+    this.source = null;
     this.publish({ status: 'empty', durationMs: 0, error: null, loop: null });
   }
   clear() {
@@ -277,6 +281,7 @@ export class PlayerEngine {
     this.audio.load();
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = null;
+    this.source = null;
     this.publish({
       status: 'empty',
       durationMs: 0,
@@ -442,6 +447,7 @@ export class PlayerEngine {
     this.audio.load();
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = null;
+    this.source = null;
     this.publish({
       status: 'empty',
       audioTimeMs: 0,

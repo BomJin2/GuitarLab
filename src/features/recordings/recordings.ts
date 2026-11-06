@@ -11,6 +11,7 @@ import {
 } from '../settings/calibration';
 import {
   isUuid,
+  runStorageByteJob,
   runStorageJob,
   decodeRevision,
   type JobSnapshot,
@@ -237,18 +238,13 @@ export const recordingApi = {
     signal: AbortSignal,
     progress: (job: JobSnapshot) => void,
   ) {
-    let jobId = '';
-    const value = envelope(
-      await runStorageJob(
-        'read_recording',
-        { projectId, takeId },
-        signal,
-        (job) => {
-          jobId = job.jobId;
-          progress(job);
-        },
-      ),
+    const { result, bytes: data } = await runStorageByteJob(
+      'read_recording',
+      { projectId, takeId },
+      signal,
+      progress,
     );
+    const value = envelope(result);
     if (
       value.projectId !== projectId ||
       value.takeId !== takeId ||
@@ -256,9 +252,6 @@ export const recordingApi = {
       value.bytes <= 58
     )
       throw new Error('RECORDING_CONTRACT_INVALID');
-    const data = await invoke<unknown>('take_storage_bytes', {
-      request: { schemaVersion: 1, jobId },
-    });
     if (!(data instanceof ArrayBuffer) || data.byteLength !== value.bytes)
       throw new Error('RECORDING_CONTRACT_INVALID');
     return data;

@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 1,
+  "note": "docs/12 playbackTick v1: 화면 buildPracticeTargets와 Rust prepare_archive가 같은 목표 시각을 내는지 두 언어 테스트가 함께 확인합니다. 음표 3은 소리 시각이 앵커 경계(1920)를 넘어 다른 구간으로 계산돼야 합니다. 음표 6(팜뮤트·스타카토)은 채점하고 음표 7(비브라토)은 감점 제외해야 합니다(주법 편집 v1). 주법 편집 v2: 음 1→2 연결 슬라이드의 도착 음 2는 다시 피킹하므로 채점하고, 음 2→3 해머온의 도착 음 3은 피킹이 없어 제외해야 합니다. 같은 시각(tick 3000) 화음 4음은 ID의 코드 포인트 순서(Chord-Z, chord-a, chord-Ａ, chord-🎸)로 와야 합니다(대소문자·전각·이모지, localeCompare나 UTF-16 비교와 다름). 6번 줄 해머온(low-origin) 뒤 같은 tick·같은 줄 후보가 둘이면 ID 순서상 첫 음(low-a)만 도착 음으로 채점에서 빠져야 합니다.",
+  "trackIndex": 0,
+  "rangeEndMs": 3000,
+  "score": {
+    "schemaVersion": 1,
+    "id": "practice-targets-v1",
+    "title": "채점 목표 시각 공통 검사",
+    "ppq": 960,
+    "tempoMap": [
+      {
+        "tick": 0,
+        "bpm": 120
+      }
+    ],
+    "timeSignatures": [
+      {
+        "tick": 0,
+        "numerator": 4,
+        "denominator": 4
+      }
+    ],
+    "syncAnchors": [
+      {
+        "scoreTick": 0,
+        "audioTimeMs": 0
+      },
+      {
+        "scoreTick": 1920,
+        "audioTimeMs": 1000
+      },
+      {
+        "scoreTick": 3840,
+        "audioTimeMs": 3000
+      }
+    ],
+    "tracks": [
+      {
+        "id": "lead",
+        "name": "Lead",
+        "tuningMidi": [64, 59, 55, 50, 45, 40],
+        "notes": [
+          {
+            "id": "note-1",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 0,
+            "durationTicks": 480,
+            "pitchMidi": 64,
+            "stringIndex": 1,
+            "fret": 0,
+            "attack": true,
+            "source": "import",
+            "techniques": ["SLIDE_SHIFT"]
+          },
+          {
+            "id": "note-2",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 480,
+            "durationTicks": 480,
+            "pitchMidi": 65,
+            "stringIndex": 1,
+            "fret": 1,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 640,
+            "techniques": ["HAMMER"]
+          },
+          {
+            "id": "note-3",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 1800,
+            "durationTicks": 240,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": true,
+            "source": "import",
+            "playbackTick": 1960
+          },
+          {
+            "id": "note-4",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2400,
+            "durationTicks": 480,
+            "pitchMidi": 67,
+            "stringIndex": 1,
+            "fret": 3,
+            "attack": false,
+            "source": "import"
+          },
+          {
+            "id": "note-5",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 2880,
+            "durationTicks": 480,
+            "pitchMidi": 69,
+            "stringIndex": 1,
+            "fret": 5,
+            "attack": true,
+            "source": "import",
+            "judgementSupport": "UNSUPPORTED"
+          },
+          {
+            "id": "chord-a",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3000,
+            "durationTicks": 240,
+            "pitchMidi": 59,
+            "stringIndex": 2,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "id": "Chord-Z",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3000,
+            "durationTicks": 240,
+            "pitchMidi": 55,
+            "stringIndex": 3,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "id": "chord-Ａ",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3000,
+            "durationTicks": 240,
+            "pitchMidi": 50,
+            "stringIndex": 4,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "id": "chord-🎸",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3000,
+            "durationTicks": 240,
+            "pitchMidi": 45,
+            "stringIndex": 5,
+            "fret": 0,
+            "attack": true,
+            "source": "import"
+          },
+          {
+            "trackId": "lead",
+            "measureIndex": 0,
+            "durationTicks": 120,
+            "stringIndex": 6,
+            "attack": true,
+            "source": "import",
+            "id": "low-origin",
+            "startTick": 3120,
+            "pitchMidi": 40,
+            "fret": 0,
+            "techniques": ["HAMMER"]
+          },
+          {
+            "trackId": "lead",
+            "measureIndex": 0,
+            "durationTicks": 120,
+            "stringIndex": 6,
+            "attack": true,
+            "source": "import",
+            "id": "low-z",
+            "startTick": 3240,
+            "pitchMidi": 43,
+            "fret": 3
+          },
+          {
+            "trackId": "lead",
+            "measureIndex": 0,
+            "durationTicks": 120,
+            "stringIndex": 6,
+            "attack": true,
+            "source": "import",
+            "id": "low-a",
+            "startTick": 3240,
+            "pitchMidi": 42,
+            "fret": 2
+          },
+          {
+            "id": "note-6",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3360,
+            "durationTicks": 240,
+            "pitchMidi": 64,
+            "stringIndex": 1,
+            "fret": 0,
+            "attack": true,
+            "source": "import",
+            "techniques": ["PALM_MUTE", "STACCATO"]
+          },
+          {
+            "id": "note-7",
+            "trackId": "lead",
+            "measureIndex": 0,
+            "startTick": 3600,
+            "durationTicks": 240,
+            "pitchMidi": 65,
+            "stringIndex": 1,
+            "fret": 1,
+            "attack": true,
+            "source": "import",
+            "techniques": ["VIBRATO"]
+          }
+        ]
+      }
+    ]
+  },
+  "targets": [
+    {
+      "id": "note-1",
+      "songTimeMs": 0.0,
+      "pitchMidi": 64
+    },
+    {
+      "id": "note-2",
+      "songTimeMs": 333.3333333333333,
+      "pitchMidi": 65
+    },
+    {
+      "id": "note-3",
+      "songTimeMs": 1041.6666666666667,
+      "pitchMidi": 67,
+      "unsupported": true
+    },
+    {
+      "id": "note-5",
+      "songTimeMs": 2000.0,
+      "pitchMidi": 69,
+      "unsupported": true
+    },
+    {
+      "id": "Chord-Z",
+      "songTimeMs": 2125.0,
+      "pitchMidi": 55
+    },
+    {
+      "id": "chord-a",
+      "songTimeMs": 2125.0,
+      "pitchMidi": 59
+    },
+    {
+      "id": "chord-Ａ",
+      "songTimeMs": 2125.0,
+      "pitchMidi": 50
+    },
+    {
+      "id": "chord-🎸",
+      "songTimeMs": 2125.0,
+      "pitchMidi": 45
+    },
+    {
+      "id": "low-origin",
+      "songTimeMs": 2250.0,
+      "pitchMidi": 40
+    },
+    {
+      "id": "low-a",
+      "songTimeMs": 2375.0,
+      "pitchMidi": 42,
+      "unsupported": true
+    },
+    {
+      "id": "low-z",
+      "songTimeMs": 2375.0,
+      "pitchMidi": 43
+    },
+    {
+      "id": "note-6",
+      "songTimeMs": 2500.0,
+      "pitchMidi": 64
+    },
+    {
+      "id": "note-7",
+      "songTimeMs": 2750.0,
+      "pitchMidi": 65,
+      "unsupported": true
+    }
+  ]
+}

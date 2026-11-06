@@ -79,9 +79,10 @@ pub(crate) fn extension(path: &Path, kind: AssetKind) -> Result<String, AppError
         .to_lowercase();
     let supported = match kind {
         AssetKind::Original => ["wav", "mp3"].contains(&ext.as_str()),
-        AssetKind::ScoreImport => {
-            ["musicxml", "xml", "gp", "gp3", "gp4", "gp5", "gpx", "json"].contains(&ext.as_str())
-        }
+        AssetKind::ScoreImport => [
+            "musicxml", "xml", "mxl", "gp", "gp3", "gp4", "gp5", "gpx", "json",
+        ]
+        .contains(&ext.as_str()),
     };
     if supported {
         Ok(ext)
@@ -837,5 +838,22 @@ impl ProjectStore {
             return Err(storage_error());
         }
         Ok((summary, revision, self.assets(project_id)?))
+    }
+}
+
+#[cfg(test)]
+mod score_extension_tests {
+    use super::*;
+
+    #[test]
+    fn compressed_musicxml_is_accepted_with_zip_header_only() {
+        // docs/12 MusicXML 보강: .mxl은 ZIP(PK) 머리여야 합니다.
+        assert_eq!(
+            extension(Path::new("C:/a/guitar.MXL"), AssetKind::ScoreImport).expect("mxl"),
+            "mxl"
+        );
+        assert!(extension(Path::new("C:/a/guitar.mxl"), AssetKind::Original).is_err());
+        assert!(valid_header(b"PK\x03\x04rest", "mxl"));
+        assert!(!valid_header(b"<?xml", "mxl"));
     }
 }
