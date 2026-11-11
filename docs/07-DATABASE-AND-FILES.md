@@ -10,6 +10,10 @@
 
 010은 기존 행/원본을 바꾸지 않고 `project_purge_intents`를 추가합니다. 실제 삭제를 시작한 보관 프로젝트와 trash UUID/revision·시작 시각만 기록하고,목록에서 삭제 진행을 표시합니다. intent가 남으면 일반 복원과 정상 백업을 거부하고 자동 삭제/원복하지 않습니다. 사용자의 새 계획 확인/동의로만 남은 삭제를 재개합니다. 이미 삭제한 파일은 되살리지 못하며 파일 작업이 끝나야 프로젝트 관련 DB 행을 한 트랜잭션에서 삭제합니다. 실제 백업으로 AppData를 교체하는 기능은 범위 밖입니다.9→10 이전/기존8·9 백업 지원·부분 삭제/재시작/외부 원본 보존 검증이 끝나기 전 완료로 기록하지 않습니다. 상세 요청/결과는 docs/12를 따릅니다.
 
+011(2026-11-07)은 기존 행/원본을 바꾸지 않고 `project_plugin_states`를 추가합니다. 프로젝트마다 AmpliTube 상태 하나(class ID·플러그인 버전·형식 `VST3_HOST_SNAPSHOT`·1B~8MiB blob·SHA-256)를 사용자가 저장 버튼을 누를 때만 upsert하고, 읽을 때 크기·SHA·형식을 검사합니다. 프로젝트 영구 삭제 시 함께 지우며 백업은 DB와 함께 포함합니다. 10→11 이후 DB는 이전 앱이 열지 않습니다. 상세는 docs/12 "프로젝트 AmpliTube 톤 v1".
+
+012(2026-11-07)는 기존 행/원본을 바꾸지 않고 `take_renders`를 추가합니다. 테이크를 AmpliTube로 오프라인 처리한 캐시(Freeze, 이후 Bounce)의 메타데이터(JSON+SHA)와 렌더에 쓴 톤 blob(+SHA)을 두고, 파일은 `projects/<id>/renders/<render-id>.wav`(stereo float32, 새 파일·원자적 이동)입니다. 테이크당 Freeze는 하나이며 Unfreeze는 행과 캐시 파일을 지웁니다(DI 불변). 영구 삭제는 프로젝트 폴더 전체 정리와 행 삭제로 함께 지웁니다. 11→12 이후 DB는 이전 앱이 열지 않습니다. 상세는 docs/12 "테이크 Freeze v1".
+
 ## 음원 조각 수신과 공유 staging — 2026-10-28
 
 DB v9/기존 자산·revision 형식은 유지합니다. 악보 raw v1과 음원 분할 수신은 asset_staging의 안전한 basename/원본 종류·크기 검증과 incoming UUID 보관/동일 import_asset을 공유합니다. 새 파일은 create_new, 임시+최종 복사를 위한2배 용량과1MiB 여유를 사전 확인하며 쓰기 실패/취소·DB 실패 후 이번 파일/빈 폴더만 정리합니다. 이미 commit한 자산은 유지합니다.

@@ -88,7 +88,7 @@ pub struct AudioSnapshot {
 pub struct InputClock {
     schema_version: u8,
     stream_generation: u64,
-    monotonic_ns: String,
+    pub(crate) monotonic_ns: String,
     last_request_sequence: u64,
     last_playback_epoch: u64,
 }
@@ -257,6 +257,14 @@ impl AudioService {
         &self,
         request: super::monitor::MonitorRequest,
     ) -> Result<super::monitor::MonitorSnapshot, AppError> {
+        self.start_monitor_with(request, |_| Ok(Box::new(super::monitor::DryInsert)))
+    }
+    /// `make_insert`는 현재 입력 샘플레이트로 삽입을 만듭니다(docs/12 "모니터 AmpliTube 삽입 v1").
+    pub fn start_monitor_with(
+        &self,
+        request: super::monitor::MonitorRequest,
+        make_insert: impl FnOnce(u32) -> Result<Box<dyn super::monitor::MonitorInsert>, AppError>,
+    ) -> Result<super::monitor::MonitorSnapshot, AppError> {
         request.validate()?;
         let (buffer, failed, sample_rate, generation) = {
             let active = self.active.lock().map_err(|_| AppError::internal())?;
@@ -286,7 +294,8 @@ impl AudioService {
         // 출력 장치를 여는 동안 입력 상태 잠금을 잡아 DSP/녹음 검사를 지연시키지 않습니다.
         let mut monitor = self.monitor.lock().map_err(|_| AppError::internal())?;
         monitor.status(Some(generation))?;
-        monitor.start(request, buffer, failed, sample_rate)
+        let insert = make_insert(sample_rate)?;
+        monitor.start(request, buffer, failed, sample_rate, insert)
     }
     pub fn monitor_snapshot(&self) -> Result<super::monitor::MonitorSnapshot, AppError> {
         self.monitor
@@ -315,6 +324,55 @@ impl AudioService {
             .lock()
             .map_err(|_| AppError::internal())?
             .set_volume(request)
+    }
+    /// docs/12 "네이티브 재생 v1": 모니터 서비스(재생 버스 포함)를 잠근 채 작업합니다.
+    pub fn with_monitor<R>(
+        &self,
+        f: impl FnOnce(&mut super::monitor::MonitorService) -> R,
+    ) -> Result<R, AppError> {
+        Ok(f(&mut *self
+            .monitor
+            .lock()
+            .map_err(|_| AppError::internal())?))
+    }
+    pub fn set_monitor_bypass(
+        &self,
+        request: super::monitor::MonitorBypassRequest,
+    ) -> Result<super::monitor::MonitorSnapshot, AppError> {
+        self.monitor
+            .lock()
+            .map_err(|_| AppError::internal())?
+            .set_bypass(request)
+    }
+    /// docs/12 "모니터 테이크 재생 v1"
+    pub fn load_monitor_playback(
+        &self,
+        take_id: Option<String>,
+        clip: Option<Vec<f32>>,
+    ) -> Result<super::monitor_playback::MonitorPlaybackSnapshot, AppError> {
+        self.monitor
+            .lock()
+            .map_err(|_| AppError::internal())?
+            .load_playback(take_id, clip)
+    }
+    pub fn set_monitor_playback(
+        &self,
+        playing: bool,
+        position_ms: f64,
+    ) -> Result<super::monitor_playback::MonitorPlaybackSnapshot, AppError> {
+        self.monitor
+            .lock()
+            .map_err(|_| AppError::internal())?
+            .set_playback(playing, position_ms)
+    }
+    pub fn monitor_playback(
+        &self,
+    ) -> Result<super::monitor_playback::MonitorPlaybackSnapshot, AppError> {
+        Ok(self
+            .monitor
+            .lock()
+            .map_err(|_| AppError::internal())?
+            .playback())
     }
     pub fn recording_capture(
         &self,
@@ -633,14 +691,14 @@ impl AudioService {
     }
     pub fn snapshot(&self) -> Result<AudioSnapshot, AppError> {
         let mut active = self.active.lock().map_err(|_| AppError::internal())?;
-        if active
+        let failure = active
             .as_ref()
-            .is_some_and(|input| input.failed.load(Ordering::Acquire) != 0)
-        {
+            .map_or(0, |input| input.failed.load(Ordering::Acquire));
+        if failure != 0 {
             active.take();
             let mut snapshot = self.snapshot.lock().map_err(|_| AppError::internal())?;
             snapshot.state = "ERROR";
-            snapshot.error_code = Some("AUDIO_DEVICE_UNAVAILABLE");
+            snapshot.error_code = Some(failure_code(failure));
             snapshot.pitch_midi = None;
             snapshot.confidence = None;
         }
@@ -782,7 +840,7 @@ impl AudioService {
                     }
                 },
                 move |_| {
-                    error_flag.store(1, Ordering::Release);
+                    mark_failed(&error_flag, FAILED_STREAM);
                 },
                 Some(Duration::from_secs(3)),
             )
@@ -832,7 +890,7 @@ impl AudioService {
                     let route = match recording_router.route() {
                         Ok(route) => route,
                         Err(_) => {
-                            worker_failed.store(1, Ordering::Release);
+                            mark_failed(&worker_failed, FAILED_ROUTE);
                             break;
                         }
                     };
@@ -872,9 +930,10 @@ impl AudioService {
                         processed += 1;
                     }
                     if last_sample.elapsed() > Duration::from_secs(2) {
-                        worker_failed.store(1, Ordering::Release);
+                        mark_failed(&worker_failed, FAILED_STALLED);
                     }
-                    let error = worker_failed.load(Ordering::Acquire) != 0;
+                    let failure = worker_failed.load(Ordering::Acquire);
+                    let error = failure != 0;
                     if last_publish.elapsed() >= Duration::from_millis(100) || error {
                         if let Ok(mut snapshot) = status.lock() {
                             snapshot.state = if error {
@@ -884,11 +943,7 @@ impl AudioService {
                             } else {
                                 "STARTING"
                             };
-                            snapshot.error_code = if error {
-                                Some("AUDIO_DEVICE_UNAVAILABLE")
-                            } else {
-                                None
-                            };
+                            snapshot.error_code = error.then(|| failure_code(failure));
                             snapshot.callback_frames = callback_frames.load(Ordering::Relaxed);
                             snapshot.captured_frames = captured.load(Ordering::Relaxed);
                             snapshot.dropped_frames = dropped.load(Ordering::Relaxed);
@@ -951,6 +1006,21 @@ impl AudioService {
     }
 }
 
+/// 입력 실패 원인(처음 생긴 것 하나만 남김). docs/12 "입력 오류 원인 구분 v1"
+const FAILED_STREAM: u8 = 1;
+const FAILED_STALLED: u8 = 2;
+const FAILED_ROUTE: u8 = 3;
+fn mark_failed(flag: &AtomicU8, cause: u8) {
+    let _ = flag.compare_exchange(0, cause, Ordering::AcqRel, Ordering::Acquire);
+}
+fn failure_code(cause: u8) -> &'static str {
+    if cause == FAILED_STALLED {
+        "AUDIO_INPUT_STALLED"
+    } else {
+        "AUDIO_DEVICE_UNAVAILABLE"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -983,6 +1053,16 @@ mod tests {
         assert_eq!(status.state, "ERROR");
         assert_eq!(status.error_code, Some("AUDIO_DEVICE_UNAVAILABLE"));
         assert_eq!(status.full_scale_frames, 12);
+        // 원인 구분: 처음 생긴 원인만 남고 무입력은 별도 코드입니다.
+        let flag = AtomicU8::new(0);
+        mark_failed(&flag, FAILED_STALLED);
+        mark_failed(&flag, FAILED_STREAM);
+        assert_eq!(
+            failure_code(flag.load(Ordering::Acquire)),
+            "AUDIO_INPUT_STALLED"
+        );
+        assert_eq!(failure_code(FAILED_STREAM), "AUDIO_DEVICE_UNAVAILABLE");
+        assert_eq!(failure_code(FAILED_ROUTE), "AUDIO_DEVICE_UNAVAILABLE");
         assert!(service.active.lock().expect("테스트 상태").is_none());
         let stopped = service
             .stop(StopRequest { schema_version: 1 })

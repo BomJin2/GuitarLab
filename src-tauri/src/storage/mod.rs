@@ -11,6 +11,7 @@ pub mod imported_stems;
 #[cfg(test)]
 mod imported_stems_tests;
 pub mod jobs;
+pub mod plugin_states;
 pub mod practice_records;
 pub mod project_metadata;
 pub mod project_model;
@@ -33,6 +34,7 @@ pub(crate) mod restore_requests;
 pub(crate) mod restore_state;
 pub mod score_history;
 pub mod score_upload;
+pub mod take_renders;
 pub mod youtube_sync;
 #[cfg(test)]
 mod youtube_sync_tests;

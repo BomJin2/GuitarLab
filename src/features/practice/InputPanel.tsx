@@ -1,5 +1,6 @@
 import type { AudioInputController } from './useAudioInput';
 import { TunerDisplay } from './TunerDisplay';
+import { inputFailureMessage } from './audioInput';
 import { useInputSelection } from './useInputSelection';
 import type { ClockState } from '../player/useCaptureClock';
 
@@ -233,10 +234,7 @@ export function InputPanel({
             </p>
           </details>
           {state.errorCode && (
-            <p role="alert">
-              입력이 끊겼습니다. 장치를 확인하고 입력을 중단한 뒤 다시
-              연결하세요.
-            </p>
+            <p role="alert">{inputFailureMessage(state.errorCode)}</p>
           )}
         </>
       )}

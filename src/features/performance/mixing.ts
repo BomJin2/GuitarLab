@@ -11,7 +11,8 @@ import {
   type JobSnapshot,
 } from '../library/projects';
 export type MixLayer = {
-  kind: 'TAKE' | 'LOCAL_ASSET' | 'STEM' | 'IMPORTED_STEM';
+  /** RENDER: docs/12 "Bounce to New Track v1"의 영구 처리 결과 */
+  kind: 'TAKE' | 'LOCAL_ASSET' | 'STEM' | 'IMPORTED_STEM' | 'RENDER';
   id: string;
   gain: number;
   mute: boolean;
@@ -32,6 +33,8 @@ export type MixStats = {
   peak: number;
   limitedFrames: number;
   bytes: number;
+  /** docs/12 "테이크 Freeze v1": 캐시를 쓴 TAKE 레이어 수(구버전 응답에는 없음 → 0). */
+  frozenLayers: number;
 };
 export function decodeMix(value: unknown): MixDocument {
   if (
@@ -49,7 +52,8 @@ export function decodeMix(value: unknown): MixDocument {
       (layer.kind !== 'TAKE' &&
         layer.kind !== 'LOCAL_ASSET' &&
         layer.kind !== 'STEM' &&
-        layer.kind !== 'IMPORTED_STEM') ||
+        layer.kind !== 'IMPORTED_STEM' &&
+        layer.kind !== 'RENDER') ||
       !isUuid(layer.id) ||
       !isNumberWithin(layer.gain, 0, 1) ||
       typeof layer.mute !== 'boolean' ||
@@ -88,7 +92,8 @@ export function decodeMixStats(value: unknown): MixStats {
     value.channels !== 1 ||
     !isNumberWithin(value.peak, 0, Number.MAX_VALUE) ||
     !isSafeUnsigned(value.limitedFrames, value.frames) ||
-    value.bytes !== 58 + value.frames * 4
+    value.bytes !== 58 + value.frames * 4 ||
+    !(value.frozenLayers === undefined || isSafeUnsigned(value.frozenLayers, 8))
   )
     throw new Error('MIX_CONTRACT_INVALID');
   return {
@@ -99,7 +104,24 @@ export function decodeMixStats(value: unknown): MixStats {
     peak: value.peak,
     limitedFrames: value.limitedFrames,
     bytes: value.bytes,
+    frozenLayers: value.frozenLayers ?? 0,
   };
+}
+/** 이 레이어를 재생하려면 믹스 준비(파일 읽기)가 필요한지. 새 종류를 더하면 여기서 컴파일 오류가 납니다. */
+export function layerNeedsPreparation(
+  mix: MixDocument,
+  layer: MixLayer,
+): boolean {
+  switch (layer.kind) {
+    case 'STEM':
+    case 'IMPORTED_STEM':
+    case 'RENDER':
+      return true;
+    case 'TAKE':
+      return layerVolume(mix, layer) > 0;
+    case 'LOCAL_ASSET':
+      return false;
+  }
 }
 export function layerVolume(mix: MixDocument, layer: MixLayer) {
   return layer.mute || (mix.layers.some((l) => l.solo) && !layer.solo)
@@ -213,7 +235,7 @@ export function mixError(cause: unknown) {
     case 'MIX_FORMAT_UNSUPPORTED':
       return '믹스 출력 반주는 PCM16/float32 mono·stereo WAV만 지원합니다. MP3/다른 WAV는 재생만 가능합니다.';
     case 'MIX_LIMIT_EXCEEDED':
-      return '믹스 입력 합계64MiB·출력10분/256MiB 제한을 넘었습니다.';
+      return '믹스 입력 합계512MiB·출력10분/256MiB 제한을 넘었습니다.';
     case 'MIX_DESTINATION_EXISTS':
       return '기존 파일은 덮어쓰지 않습니다. 새 WAV 파일명을 선택하세요.';
     case 'MIX_EMPTY':

@@ -10,6 +10,7 @@ pub mod instance;
 pub mod ipc;
 pub mod judgement;
 pub mod mixer;
+pub mod plugins;
 pub mod recording;
 pub mod storage;
 

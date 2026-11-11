@@ -6,7 +6,9 @@ mod egipt_benchmark;
 mod guitarset_benchmark;
 mod input;
 pub mod monitor;
+pub mod monitor_playback;
 pub mod pitch_track;
+pub mod playback_bus;
 pub mod polyphonic;
 #[cfg(test)]
 mod technique_benchmark;

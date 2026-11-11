@@ -503,20 +503,63 @@ fn import_commit_failure_removes_only_new_copy_and_preserves_previous_revision()
 }
 
 #[test]
+fn failed_revision_commit_removes_only_the_new_score_file() {
+    // 2026-11-08 리뷰: DB 확정이 실패하면 이번에 만든 악보 파일을 남기지 않습니다.
+    let f = Fixture::new();
+    let project = f.project();
+    let asset = f.asset(&project, AssetStorage::Managed);
+    let scores = f.store.root.join("projects").join(&project).join("scores");
+    let listing = || -> Vec<String> {
+        fs::read_dir(&scores)
+            .map(|entries| {
+                let mut names: Vec<String> = entries
+                    .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
+                    .collect();
+                names.sort();
+                names
+            })
+            .unwrap_or_default()
+    };
+    let before = listing();
+    let db = connect(&f.store.root).expect("DB");
+    db.execute_batch(
+        "CREATE TRIGGER fail_revision BEFORE INSERT ON score_revisions BEGIN SELECT RAISE(ABORT,'fixture'); END;",
+    )
+    .expect("실패 fixture");
+    drop(db);
+    let no = AtomicBool::new(false);
+    assert!(f
+        .store
+        .save_revision(&project, 0, &asset, score(), workspace(), &no)
+        .is_err());
+    assert_eq!(listing(), before, "새 악보 파일이 남지 않음");
+    let db = connect(&f.store.root).expect("DB");
+    db.execute_batch("DROP TRIGGER fail_revision;")
+        .expect("정리");
+    drop(db);
+    let saved = f
+        .store
+        .save_revision(&project, 0, &asset, score(), workspace(), &no)
+        .expect("다시 저장");
+    assert_eq!(listing().len(), before.len() + 1);
+    assert_eq!(saved.revision, 1);
+}
+
+#[test]
 fn migration_reopens_and_rejects_future_or_corrupt_database_without_overwrite() {
     let f = Fixture::new();
     let db = connect(&f.store.root).expect("DB");
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
             .expect("버전"),
-        10
+        12
     );
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "foreign_keys", |row| row.get(0))
             .expect("FK"),
         1
     );
-    db.pragma_update(None, "user_version", 11)
+    db.pragma_update(None, "user_version", 13)
         .expect("향후 버전 fixture");
     drop(db);
     assert_eq!(
@@ -527,7 +570,7 @@ fn migration_reopens_and_rejects_future_or_corrupt_database_without_overwrite() 
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0))
             .expect("보존"),
-        11
+        13
     );
     drop(db);
     let corrupt = f.root.join("손상 DB");

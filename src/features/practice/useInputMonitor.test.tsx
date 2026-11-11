@@ -131,7 +131,12 @@ it('PC 기본 출력은 선택하되 입력을 시작해도 기본 꺼짐이며 
   expect(inputMonitorApi.start).not.toHaveBeenCalled();
   act(() => hook.result.current.enable());
   await waitFor(() => expect(hook.result.current.state.state).toBe('RUNNING'));
-  expect(inputMonitorApi.start).toHaveBeenCalledExactlyOnceWith(7, 'out', 0.25);
+  expect(inputMonitorApi.start).toHaveBeenCalledExactlyOnceWith(
+    7,
+    'out',
+    0.25,
+    'DRY',
+  );
   await act(async () => {
     await hook.result.current.stop();
   });

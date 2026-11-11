@@ -101,3 +101,18 @@ it('다른 트랙·겹친 후보·불일치한 운지는 ID를 추측하지 않�
   };
   expect(renderedNoteId(ambiguous, original, 0)).toBeNull();
 });
+
+it('자연 하모닉 5·7·12프렛을 TAB에서 눌러도 각 음을 선택한다(2026-11-08 리뷰)', () => {
+  const session = scoreEditingFixture();
+  const score = importer.ScoreLoader.loadAlphaTex(
+    '. 5.6{nh}.4 7.6{nh}.4 12.6{nh}.4 3.1.4',
+  );
+  const playbackLookup = buildPlaybackLookup(score);
+  const document = normalizeScore(score, playbackLookup);
+  const harmonics = { ...session, score, document, playbackLookup };
+  const beats = score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats;
+  const ids = beats.map((beat, i) =>
+    renderedNoteId(harmonics, beat.notes[0]!, i * 960),
+  );
+  expect(ids).toEqual(document.tracks[0]!.notes.map((n) => n.id));
+});

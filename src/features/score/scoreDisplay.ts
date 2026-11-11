@@ -54,8 +54,15 @@ export function createDisplayScore(
         );
   const notes = new Map<model.Note, model.Note>();
   const beats = new Map<model.Beat, model.Beat>();
+  // 같은 선율의 오선보(줄 없음)·TAB(줄 있음) 짝이면 오선보 보기에서 TAB 쪽 오선보를 숨겨 중복을 막습니다.
+  // 내용이 다른 다중 보표는 그대로 둡니다(2026-11-08 리뷰).
+  const notationOnly = new Set(
+    track.staves.filter((s) => s.tuning.length === 0).map(staffSignature),
+  );
   for (const [staffIndex, staff] of track.staves.entries()) {
-    staff.showStandardNotation = notation === 'score';
+    const twin =
+      staff.tuning.length > 0 && notationOnly.has(staffSignature(staff));
+    staff.showStandardNotation = notation === 'score' && !twin;
     staff.showTablature = notation === 'tab' && staff.tuning.length > 0;
     staff.showSlash = false;
     staff.showNumbered = false;
@@ -87,4 +94,21 @@ export function createDisplayScore(
         }
   }
   return { score, renderTrackIndex: 0, notes, beats };
+}
+/** 보표 내용 지문: 마디마다 소리 나는 음(시각·길이·음정) 집합. 성부 번호·쉼표는 보지 않습니다(MusicXML TAB 보표는 성부 번호가 다를 수 있음). */
+function staffSignature(staff: model.Staff) {
+  return JSON.stringify(
+    staff.bars.map((bar) =>
+      bar.voices
+        .flatMap((voice) =>
+          voice.beats.flatMap((beat) =>
+            beat.notes.map(
+              (note) =>
+                `${beat.playbackStart}:${beat.playbackDuration}:${note.realValue}`,
+            ),
+          ),
+        )
+        .sort(),
+    ),
+  );
 }

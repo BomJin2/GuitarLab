@@ -1,4 +1,4 @@
-import type { model } from '@coderline/alphatab';
+import { model } from '@coderline/alphatab';
 import type { ScoreSession } from './scoreSession';
 import { getActiveTrackIndex } from './trackSelection';
 
@@ -21,6 +21,11 @@ export function renderedNoteId(
     !note.beat.notes.includes(note)
   )
     return null;
+  // 자연 하모닉: 지원되는 음은 정규화가 프렛 음정, 미지원 음은 소리 음정으로 둡니다(alphaTabAdapter). 둘 다 받습니다.
+  const pitches =
+    note.harmonicType === model.HarmonicType.Natural
+      ? [note.realValueWithoutHarmonic, note.realValue]
+      : [note.realValue];
   const starts = new Set(
     session.playbackLookup.masterBars
       .filter((entry) => entry.masterBar === bar.masterBar)
@@ -32,7 +37,7 @@ export function renderedNoteId(
         entry.measureIndex === bar.index &&
         starts.has(entry.startTick) &&
         entry.durationTicks === Math.max(1, note.beat.playbackDuration) &&
-        entry.pitchMidi === note.realValue &&
+        pitches.includes(entry.pitchMidi) &&
         entry.stringIndex === staff.tuning.length - note.string + 1 &&
         entry.fret === note.fret,
     )

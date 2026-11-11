@@ -45,7 +45,7 @@ def _validate(root, value, *, prepared=False):
             type(value["files"]) is not int or not 1 <= value["files"] < backup.MAX_FILES or
             type(value["bytes"]) is not int or not 1 <= value["bytes"] <= backup.MAX_BYTES or
             type(value["externalReferencesNotCopied"]) is not int or not 0 <= value["externalReferencesNotCopied"] <= 100000 or
-            type(value["databaseVersion"]) is not int or value["databaseVersion"] not in (8, 9, 10) or
+            type(value["databaseVersion"]) is not int or value["databaseVersion"] not in (8, 9, 10, 11, 12) or
             value["errorCode"] not in ERRORS):
         raise engine._error("RESTORE_STATE_INVALID")
     _id(value["recoveryId"])

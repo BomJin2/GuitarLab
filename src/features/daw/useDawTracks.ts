@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { importedStemsApi } from '../performance/importedStems';
 import { mixApi } from '../performance/mixing';
 import type { ProjectMixController } from '../performance/useProjectMix';
+import { freezeApi } from '../performance/freeze';
 import { recordingApi } from '../recordings/recordings';
 import { decodePeaks } from './dawWaveform';
 
@@ -51,7 +52,12 @@ type Loaded = {
 
 /** 프로젝트 믹스의 STEM·IMPORTED_STEM·TAKE 레이어를 DAW 트랙 줄로 바꾸고, 보기가 열려 있을 때 파형을 하나씩 읽습니다. */
 export function useDawTracks(
-  mix: Pick<ProjectMixController, 'mix' | 'takes' | 'stems' | 'importedStems'>,
+  mix: Pick<
+    ProjectMixController,
+    'mix' | 'takes' | 'stems' | 'importedStems'
+  > & {
+    bounces?: ProjectMixController['bounces'];
+  },
   projectId: string | undefined,
   backingId: string | null,
   active: boolean,
@@ -98,6 +104,11 @@ export function useDawTracks(
             if (kind === 'TAKE')
               return {
                 bytes: await recordingApi.read(projectId, id, signal, noop),
+                name: undefined,
+              };
+            if (kind === 'RENDER')
+              return {
+                bytes: await freezeApi.readBounce(projectId, id, signal, noop),
                 name: undefined,
               };
             if (kind === 'STEM') {
@@ -166,6 +177,23 @@ export function useDawTracks(
         lengthMs: take
           ? (take.frames / take.sampleRate) * 1000 * (take.transport?.rate ?? 1)
           : null,
+      };
+    }
+    if (layer.kind === 'RENDER') {
+      // docs/12 "Bounce to New Track v1": 재생과 같이 원본 테이크의 곡 시각을 씁니다.
+      const bounce = mix.bounces?.find((b) => b.id === layer.id);
+      const take = mix.takes.find((t) => t.id === bounce?.takeId);
+      return {
+        ...base,
+        name: `Bounce · ${take?.name ?? layer.id.slice(0, 8)}`,
+        startMs:
+          take && take.songStartMs !== null
+            ? take.songStartMs + take.alignmentOffsetMs + layer.offsetMs
+            : null,
+        lengthMs:
+          bounce && take
+            ? bounce.durationMs * (take.transport?.rate ?? 1)
+            : (item?.durationMs ?? null),
       };
     }
     const role =

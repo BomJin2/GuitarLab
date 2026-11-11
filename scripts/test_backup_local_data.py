@@ -54,7 +54,7 @@ class BackupTests(unittest.TestCase):
             snapshot.write_bytes(archive.read("guitarlab.sqlite"))
         with closing(sqlite3.connect(snapshot)) as db:
             self.assertEqual(db.execute("SELECT title FROM projects").fetchone()[0], "자체 테스트")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 12)
         with self.assertRaises(BackupError):
             self.create()
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
@@ -162,10 +162,10 @@ class BackupTests(unittest.TestCase):
         self.assertFalse(list(self.base.glob(".guitarlab-backup-*")))
 
     def test_database_version_links_low_disk_and_destination_race(self):
-        self.db.execute("PRAGMA user_version=11")
+        self.db.execute("PRAGMA user_version=13")
         with self.assertRaisesRegex(BackupError, "VERSION"):
             self.create()
-        self.db.execute("PRAGMA user_version=10")
+        self.db.execute("PRAGMA user_version=12")
         with patch("backup_local_data.shutil.disk_usage", return_value=type("Disk", (), {"free": 0})()):
             with self.assertRaisesRegex(BackupError, "DISK_SPACE"):
                 self.create()
@@ -340,7 +340,7 @@ class BackupTests(unittest.TestCase):
         target = self.base / "v10 보관 복원 미리보기"
         restore_to_new_folder(self.destination, target, consent=True)
         with closing(sqlite3.connect(target / "guitarlab.sqlite")) as restored:
-            self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 10)
+            self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 12)
             self.assertEqual(restored.execute("SELECT project_id,trash_id,trashed_at_ms,project_revision FROM project_trash").fetchall(), [("test", token, 42, 0)])
         self.assertEqual((target / "projects/test/자체 파일.wav").read_bytes(), b"synthetic test only")
         self.assertEqual(self.db.execute("SELECT trash_id FROM project_trash").fetchone()[0], token)
@@ -356,6 +356,25 @@ class BackupTests(unittest.TestCase):
         with closing(sqlite3.connect(target / "guitarlab.sqlite")) as restored:
             self.assertEqual(restored.execute("PRAGMA user_version").fetchone()[0], 9)
 
+    def test_version_twelve_tables_are_checked_and_render_files_are_included(self):
+        # DB12: 새 표(AmpliTube 톤·Freeze/Bounce)와 renders/ 파일을 함께 보존합니다.
+        render = self.root / "projects/test/renders/00000000-0000-4000-8000-000000000009.wav"
+        render.parent.mkdir(parents=True, exist_ok=True)
+        render.write_bytes(b"synthetic render only")
+        self.create()
+        target = self.base / "v12 미리보기"
+        restore_to_new_folder(self.destination, target, consent=True)
+        self.assertEqual((target / "projects/test/renders/00000000-0000-4000-8000-000000000009.wav").read_bytes(), b"synthetic render only")
+        with closing(sqlite3.connect(target / "guitarlab.sqlite")) as restored:
+            self.assertEqual(restored.execute("SELECT COUNT(*) FROM take_renders").fetchone()[0], 0)
+        # 새 표가 깨진 DB는 백업하지 않습니다.
+        self.db.execute("DROP TABLE take_renders")
+        self.db.commit()
+        self.destination.unlink()
+        with self.assertRaisesRegex(BackupError, "BACKUP_DATABASE_INVALID"):
+            self.create()
+        self.assertFalse(self.destination.exists())
+
     def test_partial_purge_refuses_new_backup_and_preview_without_replacing_data(self):
         token = "00000000-0000-4000-8000-000000000001"
         self.db.execute("INSERT INTO project_trash VALUES(?,?,42,0)", ("test", token))
@@ -364,7 +383,7 @@ class BackupTests(unittest.TestCase):
         with self.assertRaisesRegex(BackupError, "BACKUP_PROJECT_PURGE_IN_PROGRESS"):
             self.create()
         self.assertFalse(self.destination.exists())
-        with patch("backup_local_data.check_database", return_value=10):
+        with patch("backup_local_data.check_database", return_value=12):
             self.create()
         before = self.destination.read_bytes()
         target = self.base / "중단 자료를 정상 복원하지 않음"

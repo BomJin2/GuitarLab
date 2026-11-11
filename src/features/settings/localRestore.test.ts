@@ -26,7 +26,7 @@ describe('실제 복원 계약', () => {
       path: 'private',
       fingerprint: '0'.repeat(64),
       errorCode: 'private',
-      databaseVersion: 11,
+      databaseVersion: 13,
       state: 'PREPARED',
     }))
       expect(() => decodeLocalRestore({ ...valid, [key]: value })).toThrow(

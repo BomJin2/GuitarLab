@@ -27,10 +27,13 @@ export function TakeReplay({
   take,
   peer,
   playRequest = 0,
+  playOnMount = false,
 }: {
   take: RecordedTake;
   peer: RecordedTake | null;
   playRequest?: number;
+  /** 듣기 버튼이 이 화면을 처음 띄웠으면 처음 받은 요청도 재생합니다(2026-11-08 리뷰). */
+  playOnMount?: boolean;
 }) {
   const {
     projectId,
@@ -56,7 +59,7 @@ export function TakeReplay({
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const requested = useRef(playRequest);
+  const requested = useRef(playOnMount ? playRequest - 1 : playRequest);
   const autoPlay = useRef(false);
   const restore = useRef<{ song: number | null; time: number } | null>(null);
   const latest = useRef(take);

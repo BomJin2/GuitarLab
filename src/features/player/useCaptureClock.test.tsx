@@ -63,6 +63,7 @@ function harness() {
   );
   return {
     wrapper,
+    engine,
     pause: () => {
       playing = false;
       epoch++;
@@ -79,6 +80,43 @@ const running = {
   channels: 1,
 };
 describe('capture clock의 비동기 생명주기', () => {
+  it('Rust 재생 중에는 장치에서 들리는 곡 위치로 기준점을 만든다(docs/12 네이티브 재생 v1 R3)', async () => {
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === 'get_native_clock'
+        ? {
+            schemaVersion: 1,
+            streamGeneration: 1,
+            monotonicNs: '2000000000',
+            lastRequestSequence: 0,
+            lastPlaybackEpoch: 0,
+            songTimeMs: 1234.5,
+          }
+        : {
+            schemaVersion: 1,
+            ready: true,
+            anchorCount: 3,
+            maximumResidualRealMs: 1,
+          },
+    );
+    const { wrapper, engine } = harness();
+    vi.spyOn(engine, 'nativeAttached', 'get').mockReturnValue(true);
+    renderHook(() => useCaptureClock(running, true), { wrapper });
+    await act(async () => {});
+    expect(invoke).not.toHaveBeenCalledWith('get_audio_clock');
+    expect(invoke).toHaveBeenCalledWith(
+      'update_capture_clock',
+      expect.objectContaining({
+        request: expect.objectContaining({
+          anchor: expect.objectContaining({
+            monotonicNs: '2000000000',
+            songTimeMs: 1234.5,
+            rate: 1,
+            uncertaintyRealMs: 0.5,
+          }),
+        }),
+      }),
+    );
+  });
   it('실제 media 표본으로 handshake하며 native가 검증한 진단만 표시한다', async () => {
     vi.mocked(invoke).mockImplementation(async (command) =>
       command === 'get_audio_clock'

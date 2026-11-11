@@ -538,7 +538,7 @@ mod tests {
             restored_db
                 .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
                 .expect("버전"),
-            10
+            12
         );
         assert_eq!(
             restored_db
@@ -776,7 +776,7 @@ mod tests {
             database
                 .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
                 .expect("버전"),
-            10
+            12
         );
     }
     #[test]

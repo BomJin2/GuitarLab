@@ -1062,6 +1062,19 @@ input[type='number'] {
   flex-basis: 100%;
   color: var(--color-secondary);
 }
+/* docs/12 "AmpliTube FX 랙": 펼친 랙은 믹서 줄 아래 한 줄을 다 씁니다. */
+.fx-rack {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-elevated);
+}
+.fx-rack small {
+  color: var(--color-secondary);
+}
 /* 긴 입력 장치 이름이 오른쪽 패널을 넘쳐 작업 화면 전체가 가로로 밀리지 않게 합니다. */
 .split-side label {
   min-width: 0;

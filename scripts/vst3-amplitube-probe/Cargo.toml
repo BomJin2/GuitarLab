@@ -1,0 +1,14 @@
+[package]
+name = "guitarlab-vst3-amplitube-probe"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+# 제품 앱(src-tauri)의 Cargo.toml/Cargo.lock과 분리한 Phase 0 개발 전용 검사입니다.
+[workspace]
+
+[dependencies]
+# 기존 엔진과 중복 오디오 스트림을 만들지 않도록 CPAL 백엔드·프로세스 격리 기본 기능을 끕니다.
+vst3-host = { version = "=0.11.0", default-features = false }
+windows-sys = { version = "=0.61.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Ole"] }

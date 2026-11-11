@@ -23,7 +23,8 @@ import { useProjects } from '../features/library/useProjects';
 import { useRecording } from '../features/recordings/useRecording';
 import { RecordingPanel } from '../features/recordings/RecordingPanel';
 import { RecordingsPage } from '../features/recordings/RecordingsPage';
-import { InputMonitor } from '../features/practice/InputMonitor';
+import { InputMonitorPanel } from '../features/practice/InputMonitor';
+import { useMonitorFx } from '../features/practice/useMonitorFx';
 import { useProjectMix } from '../features/performance/useProjectMix';
 import { useDawTracks } from '../features/daw/useDawTracks';
 import { MixPanel } from '../features/performance/MixPanel';
@@ -64,12 +65,19 @@ export function App() {
   const mixEnabled =
     (route === 'performance' || route === 'practice' || recording.locked) &&
     !measurement.active;
+  const monitorStartBlocked =
+    measurement.active && measurement.mode === 'CABLE';
+  const projectId = project.native ? project.details?.project.id : undefined;
+  // 입력 모니터 패널과 하단 믹서 FX 랙이 같은 모니터·AmpliTube 상태를 씁니다.
+  const monitorFx = useMonitorFx(input, monitorStartBlocked, projectId);
   const mix = useProjectMix(
-    project.native ? project.details?.project.id : undefined,
+    projectId,
     project.audioAssetId,
     session?.savedRevision?.revisionId,
     mixEnabled,
     { take: recording.take, locked: recording.locked || project.busy },
+    // docs/12 "네이티브 재생 v1": 모니터와 같은 출력 장치로 Rust 재생
+    monitorFx.monitor.selectedOutput || undefined,
   );
   const practice = usePractice(
     session,
@@ -183,6 +191,7 @@ export function App() {
             locked={recording.locked}
             backing={player.engine.source}
             playing={player.state.status === 'playing'}
+            fx={input.native ? monitorFx : null}
           />
         }
       >
@@ -249,9 +258,11 @@ export function App() {
             locked={recording.locked}
           />
         )}
-        <InputMonitor
+        <InputMonitorPanel
           input={input}
-          startBlocked={measurement.active && measurement.mode === 'CABLE'}
+          startBlocked={monitorStartBlocked}
+          projectId={projectId}
+          fx={monitorFx}
         />
         {player.state.status === 'countIn' && (
           <PreparationCountdown

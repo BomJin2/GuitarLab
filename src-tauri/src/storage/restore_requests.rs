@@ -89,7 +89,8 @@ pub(crate) fn validate(value: &Value, prepared: bool) -> Result<(), AppError> {
             .is_none_or(|v| v > 100_000)
         || value["databaseVersion"]
             .as_u64()
-            .is_none_or(|v| ![8, 9, 10].contains(&v))
+            // 앱 DB 8~12(11: AmpliTube 톤, 12: Freeze·Bounce)
+            .is_none_or(|v| !(8..=12).contains(&v))
         || value["restartRequired"].as_bool() != Some(state == "SCHEDULED")
         || prepared && !hex(&value["fingerprint"])
         || match state {
@@ -239,7 +240,7 @@ mod tests {
             ("restartRequired", json!(false)),
             ("path", json!("private")),
             ("errorCode", json!("arbitrary")),
-            ("databaseVersion", json!(11)),
+            ("databaseVersion", json!(13)),
         ] {
             let mut changed = value.clone();
             changed[key] = change;

@@ -27,6 +27,22 @@ fn u32_at(bytes: &[u8], i: usize) -> Result<u32, AppError> {
     ))
 }
 pub fn decode(bytes: &[u8], budget: &mut usize, cancel: &AtomicBool) -> Result<Pcm, AppError> {
+    decode_inner(bytes, budget, cancel, false).map(|(pcm, _)| pcm)
+}
+/// docs/12 "네이티브 재생 v1": stereo 파일은 좌(`samples`)·우를 따로 돌려줍니다. mono면 우는 `None`.
+pub fn decode_stereo(
+    bytes: &[u8],
+    budget: &mut usize,
+    cancel: &AtomicBool,
+) -> Result<(Pcm, Option<Vec<f32>>), AppError> {
+    decode_inner(bytes, budget, cancel, true)
+}
+fn decode_inner(
+    bytes: &[u8],
+    budget: &mut usize,
+    cancel: &AtomicBool,
+    stereo: bool,
+) -> Result<(Pcm, Option<Vec<f32>>), AppError> {
     let invalid = || mix_error("MIX_FORMAT_UNSUPPORTED");
     if bytes.get(..4) != Some(b"RIFF")
         || bytes.get(8..12) != Some(b"WAVE")
@@ -78,12 +94,19 @@ pub fn decode(bytes: &[u8], budget: &mut usize, cancel: &AtomicBool) -> Result<P
         return Err(invalid());
     }
     let frames = data.len() / usize::from(align);
-    let needed = frames.checked_mul(4).ok_or_else(invalid)?;
-    if needed > *budget || frames as u64 > u64::from(rate) * 600 {
+    let split = stereo && channels == 2;
+    let needed = frames
+        .checked_mul(if split { 8 } else { 4 })
+        .ok_or_else(invalid)?;
+    // 레이어당 10분이지만 Freeze·Bounce 캐시는 tail을 포함해 조금 더 길 수 있습니다(리뷰 R11-3). 출력 10분 한도는 따로 검사합니다.
+    if needed > *budget
+        || frames as u64 > u64::from(rate) * crate::storage::take_renders::MAX_SECONDS
+    {
         return Err(mix_error("MIX_LIMIT_EXCEEDED"));
     }
     *budget -= needed;
     let mut samples = Vec::with_capacity(frames);
+    let mut right = split.then(|| Vec::with_capacity(frames));
     let mut peak = 0.0f64;
     for (i, frame) in data.chunks_exact(usize::from(align)).enumerate() {
         if i.is_multiple_of(4096) {
@@ -104,6 +127,15 @@ pub fn decode(bytes: &[u8], budget: &mut usize, cancel: &AtomicBool) -> Result<P
             }
             peak = peak.max(value.abs());
             sum += value;
+            if let (true, Some(right)) = (c == 1, right.as_mut()) {
+                right.push(value as f32);
+            }
+        }
+        if split {
+            samples.push(
+                (sum - f64::from(*right.as_ref().and_then(|r| r.last()).unwrap_or(&0.0))) as f32,
+            );
+            continue;
         }
         let sample = (sum / f64::from(channels)) as f32;
         if !sample.is_finite() {
@@ -111,10 +143,13 @@ pub fn decode(bytes: &[u8], budget: &mut usize, cancel: &AtomicBool) -> Result<P
         }
         samples.push(sample);
     }
-    Ok(Pcm {
-        rate,
-        channels,
-        peak,
-        samples,
-    })
+    Ok((
+        Pcm {
+            rate,
+            channels,
+            peak,
+            samples,
+        },
+        right,
+    ))
 }

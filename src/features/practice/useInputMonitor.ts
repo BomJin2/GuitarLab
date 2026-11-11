@@ -5,6 +5,7 @@ import {
   inputMonitorApi,
   monitorError,
   type InputMonitorSnapshot,
+  type MonitorInsertKind,
 } from './monitoring';
 
 export function useInputMonitor(
@@ -22,6 +23,8 @@ export function useInputMonitor(
   const [volume, setVolume] = useState(0.25);
   const [enabled, setEnabled] = useState(false);
   const [output, setOutput] = useState('');
+  // 실행 중에는 바꾸지 않습니다(docs/12: 모니터를 끄고 다시 켬).
+  const [insert, setInsert] = useState<MonitorInsertKind>('DRY');
   const [retry, setRetry] = useState(0);
   const outputQuery = useRef(0);
   const attempted = useRef<string | null>(null);
@@ -139,10 +142,10 @@ export function useInputMonitor(
       setEnabled(true);
       setOutput(id);
       return run(() =>
-        update(() => inputMonitorApi.start(generation, id, volume)),
+        update(() => inputMonitorApi.start(generation, id, volume, insert)),
       );
     },
-    [run, update, volume],
+    [run, update, volume, insert],
   );
   useEffect(() => {
     if (
@@ -190,6 +193,14 @@ export function useInputMonitor(
       setEnabled(true);
     },
     setVolume,
+    setBypass: (bypassed: boolean) =>
+      run(() =>
+        update(() => inputMonitorApi.bypass(state.sessionId, bypassed)),
+      ),
+    insert,
+    selectInsert: (value: MonitorInsertKind) => {
+      if (state.state !== 'RUNNING') setInsert(value);
+    },
     refresh: () =>
       run(async () => {
         attempted.current = null;

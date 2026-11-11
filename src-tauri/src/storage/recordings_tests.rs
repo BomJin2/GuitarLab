@@ -88,6 +88,14 @@ pub(crate) fn write_part(f: &Fixture, take: &mut RecordedTake, frames: u64, fini
     }
 }
 
+/// READY 테이크 하나(0.1초)를 만들어 (프로젝트, 테이크, 원본 경로)를 돌려줍니다.
+pub(crate) fn ready_take(f: &Fixture) -> (String, String, std::path::PathBuf) {
+    let mut take = prepared(f);
+    write_part(f, &mut take, 4800, true);
+    f.store.finalize_take(&mut take).expect("승격/DB");
+    let path = f.store.recording_path(&take, false).expect("원본 경로");
+    (take.project_id, take.id, path)
+}
 #[test]
 #[ignore = "부모 복구 검사에서 고정된 합성 임시 경로로만 실행하는 자식 프로세스"]
 fn unfinished_wave_crash_child() {
@@ -423,7 +431,7 @@ fn version_one_migrates_without_changing_projects_and_input_source_contract_is_s
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("v10"),
-        10
+        12
     );
     assert_eq!(
         db.query_row("SELECT title FROM projects", [], |r| r.get::<_, String>(0))

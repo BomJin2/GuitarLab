@@ -14,7 +14,7 @@ const run = (command, args) =>
     // pnpm은 Windows에서 .cmd라 셸을 거쳐야 실행됩니다(인자는 고정 문자열). cargo는 셸 없이 실행합니다.
     shell: command === 'pnpm' && process.platform === 'win32',
   });
-// localeCompare는 Node에 든 ICU 버전에 따라 순서가 달라질 수 있어(로컬 Node 20·CI Node 22) 코드 단위로 비교합니다.
+// 저장 파일과 비교하므로 언어 규칙(ICU 버전에 따라 다를 수 있음) 없이 코드 단위로 정렬합니다.
 const compare = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
 const order = (a, b) =>
   compare(a.name, b.name) || compare(a.version, b.version);
@@ -36,6 +36,9 @@ const cargo = [
   ...new Set(
     run('cargo', [
       'tree',
+      // CI의 CARGO_TERM_COLOR=always가 중복 표시 "(*)"에 색 코드를 붙여 아래 제거가 빗나가지 않게 합니다.
+      '--color',
+      'never',
       '--locked',
       '--manifest-path',
       'src-tauri/Cargo.toml',

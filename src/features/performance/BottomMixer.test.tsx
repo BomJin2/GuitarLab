@@ -3,6 +3,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { BottomMixer } from './BottomMixer';
 import { layerLevels, wavPeak } from './mixLabels';
 import type { ProjectMixController } from './useProjectMix';
+import type { MonitorFx } from './FxRack';
+import { emptyMonitorPlugin } from '../practice/monitorPlugin';
+import { emptyInputMonitor } from '../practice/monitoring';
 
 const live = vi.hoisted(() => ({ peak: 0.42 as number | null, closed: 0 }));
 vi.mock('./liveLevel', () => ({
@@ -54,6 +57,7 @@ function controller(patch: Partial<ProjectMixController> = {}) {
     importedStems: [],
     stemPeaks: {},
     levelSources: () => [],
+    freezes: [],
     busy: false,
     update: vi.fn(),
     ...patch,
@@ -252,4 +256,180 @@ it('재생 중에만 실시간 레벨을 보여 주고, 1.0 이상이면 실시�
   expect(screen.getByText('실시간 —')).toBeTruthy();
   expect(screen.queryByText(/실시간 클리핑/)).toBeNull();
   expect(live.closed).toBe(closed + 1);
+});
+function fakeFx(running: boolean, insert: 'DRY' | 'AMPLITUBE') {
+  return {
+    monitor: {
+      state: {
+        ...emptyInputMonitor,
+        state: running ? 'RUNNING' : 'STOPPED',
+        insert,
+        insertBypassed: false,
+      },
+      insert,
+      busy: false,
+      selectInsert: vi.fn(),
+      setBypass: vi.fn(),
+    },
+    plugin: {
+      state: { ...emptyMonitorPlugin, state: 'READY', version: '5.10.4' },
+      busy: false,
+      openEditor: vi.fn(),
+      closeEditor: vi.fn(),
+    },
+  } as unknown as MonitorFx;
+}
+it('입력·테이크 줄의 FX 랙은 적용·Bypass·편집 창을 같은 AmpliTube 상태로 다룬다(docs/12 FX 랙 v1)', () => {
+  vi.stubGlobal('innerWidth', 1440);
+  vi.stubGlobal('innerHeight', 900);
+  const stopped = fakeFx(false, 'DRY');
+  const c = controller({ wetTakeId: null, setWetTake: vi.fn() });
+  const { rerender } = render(
+    <BottomMixer controller={c} enabled locked={false} fx={stopped} />,
+  );
+  // 반주(LOCAL_ASSET) 줄에는 FX 버튼이 없습니다.
+  expect(screen.queryByRole('button', { name: '로컬 반주 FX' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '입력 FX' }));
+  const rack = screen.getByRole('region', { name: '입력 FX 랙' });
+  expect(rack.textContent).toContain('01 AmpliTube 5');
+  fireEvent.click(screen.getByRole('button', { name: '이 줄에 적용' }));
+  expect(stopped.monitor.selectInsert).toHaveBeenCalledWith('AMPLITUBE');
+  // 모니터가 꺼져 있으면 Bypass는 쓸 수 없고, 다른 VST3 추가는 막혀 있습니다.
+  expect(
+    (
+      screen.getByRole('button', {
+        name: '입력 AmpliTube Bypass',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    (screen.getByRole('button', { name: '+ VST3 추가' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '편집 창 열기' }));
+  expect(stopped.plugin.openEditor).toHaveBeenCalled();
+  const live = fakeFx(true, 'AMPLITUBE');
+  rerender(<BottomMixer controller={c} enabled locked={false} fx={live} />);
+  // 실행 중에는 입력 적용을 바꿀 수 없지만 Bypass는 바로 됩니다.
+  expect(
+    (
+      screen.getByRole('button', {
+        name: '이 줄에서 빼기',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  fireEvent.click(
+    screen.getByRole('button', { name: '입력 AmpliTube Bypass' }),
+  );
+  expect(live.monitor.setBypass).toHaveBeenCalledWith(true);
+  fireEvent.click(screen.getByRole('button', { name: '누락된 테이크 FX' }));
+  fireEvent.click(screen.getByRole('button', { name: '이 줄에 적용' }));
+  expect(c.setWetTake).toHaveBeenCalledWith(takeId);
+});
+it('테이크 FX 랙의 Freeze는 모니터가 꺼져 있을 때만 되고, Freeze된 줄은 ❄·Unfreeze를 보이며 실시간 적용을 막는다', () => {
+  vi.stubGlobal('innerWidth', 1440);
+  vi.stubGlobal('innerHeight', 900);
+  const freezeTake = vi.fn();
+  const c = controller({
+    wetTakeId: null,
+    setWetTake: vi.fn(),
+    freezeTake,
+    bounceTake: vi.fn(),
+    exportFreeze: vi.fn(),
+    unfreezeTake: vi.fn(),
+    restoreFreezeTone: vi.fn(),
+  });
+  const { rerender } = render(
+    <BottomMixer
+      controller={c}
+      enabled
+      locked={false}
+      fx={fakeFx(true, 'AMPLITUBE')}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '누락된 테이크 FX' }));
+  expect(
+    (screen.getByRole('button', { name: '❄ Freeze' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect(
+    (
+      screen.getByRole('button', {
+        name: '새 트랙으로 Bounce',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  rerender(
+    <BottomMixer
+      controller={c}
+      enabled
+      locked={false}
+      fx={fakeFx(false, 'DRY')}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: '❄ Freeze' }));
+  expect(freezeTake).toHaveBeenCalledWith(takeId);
+  fireEvent.click(screen.getByRole('button', { name: '새 트랙으로 Bounce' }));
+  expect(c.bounceTake).toHaveBeenCalledWith(takeId);
+  const frozen = controller({
+    ...c,
+    freezes: [
+      {
+        schemaVersion: 1,
+        id: '00000000-0000-4000-8000-000000000009',
+        projectId: '00000000-0000-4000-8000-000000000002',
+        takeId,
+        kind: 'FREEZE',
+        sampleRate: 48000,
+        channels: 2,
+        frames: 48000,
+        durationMs: 1000,
+        bytes: 384044,
+        sha256: 'a'.repeat(64),
+        takeSha256: 'b'.repeat(64),
+        pluginClassId: '56535441746235616D706C6974756265',
+        pluginVersion: '5.10.4',
+        latencyFrames: 7,
+        tailFrames: 24000,
+        createdAtMs: 1,
+      },
+    ],
+  });
+  rerender(
+    <BottomMixer
+      controller={frozen}
+      enabled
+      locked={false}
+      fx={fakeFx(false, 'DRY')}
+    />,
+  );
+  expect(
+    screen.getByText(/❄ Freeze됨 · AmpliTube 5.10.4 · 꼬리 0.5초/),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Unfreeze' }));
+  expect(frozen.unfreezeTake).toHaveBeenCalledWith(takeId);
+  fireEvent.click(
+    screen.getByRole('button', { name: '처리된 소리 WAV로 내보내기' }),
+  );
+  expect(frozen.exportFreeze).toHaveBeenCalledWith(takeId);
+  // Freeze된 테이크는 모니터가 켜져 있어도 들리는 그대로 Bounce(복사)할 수 있습니다.
+  rerender(
+    <BottomMixer
+      controller={frozen}
+      enabled
+      locked={false}
+      fx={fakeFx(true, 'AMPLITUBE')}
+    />,
+  );
+  expect(
+    (
+      screen.getByRole('button', {
+        name: '새 트랙으로 Bounce',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(false);
+  expect(
+    (screen.getByRole('button', { name: '이 줄에 적용' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
 });

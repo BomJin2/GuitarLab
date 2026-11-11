@@ -373,3 +373,242 @@ it('큰 편차는 지속 시간·재보정 간격을 확인하고 명시적 seek
   player.clear();
   main.dispose();
 });
+it('AmpliTube 재생 레이어는 media 대신 모니터 재생 명령을 보내고 배속·실패 때 원음으로 돌아간다', async () => {
+  const { main, voices, take, mix } = setup();
+  const snapshot = (takeId: string | null) => ({
+    schemaVersion: 1 as const,
+    takeId,
+    playing: false,
+    positionMs: null,
+    durationMs: null,
+    leadFrames: 0,
+  });
+  const wet = {
+    load: vi.fn(async (_: string, takeId: string | null) => snapshot(takeId)),
+    set: vi.fn(async () => snapshot(take.id)),
+    status: vi.fn(async () => snapshot(take.id)),
+  };
+  const onWet = vi.fn();
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const player = new TakeMixPlayer(main, vi.fn(), wet, onWet);
+  await player.prepare(
+    mix,
+    [{ take, bytes: recordingWaveFixture() }],
+    new AbortController().signal,
+  );
+  const voice = voices[0];
+  if (!voice) throw new Error('참조 media 필요');
+  // 저장 배속 0.5 테이크를 0.5배로 들으면 테이크 기준 1배입니다.
+  main.setRate(0.5);
+  await player.setWet(take.id);
+  expect(wet.load).toHaveBeenCalledWith(take.projectId, take.id);
+  expect(onWet).toHaveBeenLastCalledWith(take.id, null);
+  main.seek(1700);
+  await main.play();
+  await flush();
+  expect(voice.paused).toBe(true);
+  const layer = mix.layers[1];
+  if (!layer) throw new Error('레이어 필요');
+  expect(wet.set).toHaveBeenLastCalledWith(
+    true,
+    takeTimeMs(take, main.getSnapshot().audioTimeMs, layer.offsetMs),
+  );
+  main.pause();
+  await flush();
+  expect(wet.set).toHaveBeenLastCalledWith(false, expect.any(Number));
+  // 1배가 아니면 원음 재생으로 돌아가고 Rust 클립을 내립니다.
+  main.setRate(1);
+  await flush();
+  expect(player.wetTakeId()).toBeNull();
+  expect(onWet).toHaveBeenLastCalledWith(null, expect.stringContaining('1배'));
+  expect(wet.load).toHaveBeenLastCalledWith(take.projectId, null);
+  // 모니터가 꺼져 명령이 실패해도 원음으로 돌아갑니다.
+  main.setRate(0.5);
+  await player.setWet(take.id);
+  wet.set.mockRejectedValueOnce({ code: 'PLAYBACK_NOT_LOADED' });
+  await main.play();
+  await flush();
+  expect(player.wetTakeId()).toBeNull();
+  expect(onWet).toHaveBeenLastCalledWith(
+    null,
+    expect.stringContaining('모니터가 꺼져'),
+  );
+  player.clear();
+  main.dispose();
+});
+it('AmpliTube 재생 위치 확인 응답이 일시정지 뒤에 늦게 와도 다시 재생하지 않는다', async () => {
+  const { main, take, mix } = setup();
+  const snapshot = (positionMs: number | null) => ({
+    schemaVersion: 1 as const,
+    takeId: take.id,
+    playing: true,
+    positionMs,
+    durationMs: null,
+    leadFrames: 0,
+  });
+  let release: (value: ReturnType<typeof snapshot>) => void = () => {};
+  const wet = {
+    load: vi.fn(async () => snapshot(null)),
+    set: vi.fn(async () => snapshot(0)),
+    status: vi.fn(
+      () =>
+        new Promise<ReturnType<typeof snapshot>>((resolve) => {
+          release = resolve;
+        }),
+    ),
+  };
+  let now = 0;
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const player = new TakeMixPlayer(main, vi.fn(), wet, vi.fn());
+  await player.prepare(
+    mix,
+    [{ take, bytes: recordingWaveFixture() }],
+    new AbortController().signal,
+  );
+  main.setRate(0.5);
+  await player.setWet(take.id);
+  main.seek(1700);
+  await main.play();
+  await flush();
+  expect(wet.set).toHaveBeenLastCalledWith(true, expect.any(Number));
+  // 2초 뒤 위치 확인을 보내고, 응답 전에 일시정지합니다.
+  now = 2500;
+  player.update(mix);
+  await flush();
+  expect(wet.status).toHaveBeenCalledTimes(1);
+  main.pause();
+  await flush();
+  // 크게 벌어진 위치를 늦게 돌려줘도 다시 재생 명령을 보내지 않습니다.
+  release(snapshot(0));
+  await flush();
+  await flush();
+  expect(wet.set).toHaveBeenLastCalledWith(false, expect.any(Number));
+  expect(
+    wet.set.mock.calls.filter((call) => (call as unknown[])[0] === true),
+  ).toHaveLength(1);
+  player.clear();
+  main.dispose();
+});
+it('Bounce(RENDER) 줄만 있으면 그 원본 테이크를 AmpliTube 실시간 재생으로 고르지 않는다', async () => {
+  const { main, take, mix } = setup();
+  const renderId = '00000000-0000-4000-8000-000000000099';
+  const source = mix.layers[1];
+  if (!source) throw new Error('레이어 필요');
+  const onlyRender = {
+    ...mix,
+    layers: [
+      mix.layers[0]!,
+      { ...source, kind: 'RENDER' as const, id: renderId },
+    ],
+  };
+  const wet = {
+    load: vi.fn(),
+    set: vi.fn(),
+    status: vi.fn(),
+  };
+  const player = new TakeMixPlayer(main, vi.fn(), wet as never, vi.fn());
+  await player.prepare(
+    onlyRender,
+    [
+      {
+        kind: 'RENDER',
+        stemId: renderId,
+        projectId: take.projectId,
+        bytes: recordingWaveFixture(),
+        source: take,
+      },
+    ],
+    new AbortController().signal,
+  );
+  await expect(player.setWet(take.id)).rejects.toThrow('MIX_CONTRACT_INVALID');
+  expect(wet.load).not.toHaveBeenCalled();
+  player.clear();
+  main.dispose();
+});
+it('AmpliTube 테이크 불러오기가 늦게 끝나도 그 사이의 해제(최신 선택)를 덮지 않는다', async () => {
+  const { main, take, mix } = setup();
+  const snapshot = (takeId: string | null) => ({
+    schemaVersion: 1 as const,
+    takeId,
+    playing: false,
+    positionMs: null,
+    durationMs: null,
+    leadFrames: 0,
+  });
+  let finish: () => void = () => {};
+  const calls: (string | null)[] = [];
+  const wet = {
+    load: vi.fn((_: string, takeId: string | null) => {
+      calls.push(takeId);
+      return takeId
+        ? new Promise<ReturnType<typeof snapshot>>((resolve) => {
+            finish = () => resolve(snapshot(takeId));
+          })
+        : Promise.resolve(snapshot(null));
+    }),
+    set: vi.fn(async () => snapshot(take.id)),
+    status: vi.fn(async () => snapshot(take.id)),
+  };
+  const player = new TakeMixPlayer(main, vi.fn(), wet, vi.fn());
+  await player.prepare(
+    mix,
+    [{ take, bytes: recordingWaveFixture() }],
+    new AbortController().signal,
+  );
+  main.setRate(0.5);
+  const selecting = player.setWet(take.id);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await player.setWet(null);
+  finish();
+  await selecting;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(player.wetTakeId()).toBeNull();
+  // Rust가 받는 순서도 선택 순서(불러오기 → 해제)라 마지막은 해제입니다.
+  expect(calls).toEqual([take.id, null]);
+  player.clear();
+});
+it('AmpliTube 테이크를 불러오는 중에 준비를 해제하면 다시 준비해도 이전 선택이 살아나지 않는다(리뷰 R2-2)', async () => {
+  const { main, take, mix } = setup();
+  const snapshot = (takeId: string | null) => ({
+    schemaVersion: 1 as const,
+    takeId,
+    playing: false,
+    positionMs: null,
+    durationMs: null,
+    leadFrames: 0,
+  });
+  let finish: () => void = () => {};
+  const calls: (string | null)[] = [];
+  const wet = {
+    load: vi.fn((_: string, takeId: string | null) => {
+      calls.push(takeId);
+      return takeId
+        ? new Promise<ReturnType<typeof snapshot>>((resolve) => {
+            finish = () => resolve(snapshot(takeId));
+          })
+        : Promise.resolve(snapshot(null));
+    }),
+    set: vi.fn(async () => snapshot(take.id)),
+    status: vi.fn(async () => snapshot(take.id)),
+  };
+  const player = new TakeMixPlayer(main, vi.fn(), wet, vi.fn());
+  const ready = () =>
+    player.prepare(
+      mix,
+      [{ take, bytes: recordingWaveFixture() }],
+      new AbortController().signal,
+    );
+  await ready();
+  main.setRate(0.5);
+  const selecting = player.setWet(take.id);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  player.clear();
+  await ready();
+  finish();
+  await selecting;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(player.wetTakeId()).toBeNull();
+  expect(calls).toEqual([take.id, null]);
+  player.clear();
+});

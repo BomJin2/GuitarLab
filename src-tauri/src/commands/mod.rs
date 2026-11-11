@@ -208,5 +208,8 @@ pub async fn get_audio_clock(
 pub mod backing_api;
 pub mod imported_stem_api;
 pub mod monitor_api;
+pub mod native_playback_api;
+pub mod plugin_api;
+pub mod render_api;
 pub mod storage_api;
 pub mod youtube_sync_api;

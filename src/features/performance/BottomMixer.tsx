@@ -5,6 +5,7 @@ import type { MixLayer } from './mixing';
 import { layerLevels, mixLayerName } from './mixLabels';
 import { LiveLevel } from './liveLevel';
 import type { ProjectMixController } from './useProjectMix';
+import { FxRack, type MonitorFx } from './FxRack';
 
 // docs/12 "하단 믹서 v1": 믹스 패널과 같은 컨트롤러로 M·S·음량·마스터만 다룹니다.
 export function BottomMixer({
@@ -13,6 +14,7 @@ export function BottomMixer({
   locked,
   backing = null,
   playing = false,
+  fx = null,
 }: {
   controller: ProjectMixController;
   enabled: boolean;
@@ -21,8 +23,12 @@ export function BottomMixer({
   backing?: Blob | null;
   /** 주 재생기가 재생 중일 때만 실시간 레벨을 잽니다. */
   playing?: boolean;
+  /** docs/12 "AmpliTube FX 랙·실시간 Bypass v1": 있으면 입력 줄·테이크 줄에 FX 버튼을 둡니다. */
+  fx?: MonitorFx | null;
 }) {
   const [open, setOpen] = useState(() => !isSmallWindow());
+  // 펼친 FX 랙: '' = 입력 줄, 그 밖에는 테이크 ID.
+  const [rack, setRack] = useState<string | null>(null);
   const [backingPeak, setBackingPeak] = useState<{
     source: Blob;
     peak: number | null;
@@ -84,6 +90,14 @@ export function BottomMixer({
       : c.busy
         ? '믹스 작업 중입니다.'
         : null;
+  // 펼친 줄이 사라졌으면(레이어 제외) 랙을 닫은 것으로 봅니다.
+  const rackLayer = mix?.layers.find((l) => l.id === rack && l.kind === 'TAKE');
+  const rackTarget =
+    rack === ''
+      ? null
+      : rackLayer
+        ? { takeId: rackLayer.id, name: mixLayerName(rackLayer, c) }
+        : undefined;
   const patch = (index: number, change: Partial<MixLayer>) => {
     if (mix)
       c.update({
@@ -107,12 +121,32 @@ export function BottomMixer({
           <p className="empty-note">프로젝트를 열면 믹스 트랙이 표시됩니다.</p>
         ) : (
           <fieldset className="bottom-mixer-strips" disabled={!!reason}>
+            {fx && (
+              <div className="mixer-strip">
+                <span className="mixer-name">🎸 입력</span>
+                <button
+                  aria-label="입력 FX"
+                  aria-expanded={rack === ''}
+                  aria-pressed={
+                    (fx.monitor.state.state === 'RUNNING'
+                      ? fx.monitor.state.insert
+                      : fx.monitor.insert) === 'AMPLITUBE'
+                  }
+                  onClick={() => setRack(rack === '' ? null : '')}
+                >
+                  FX
+                </button>
+              </div>
+            )}
             {mix.layers.map((layer, index) => {
               const name = mixLayerName(layer, c);
               const level = meter?.levels[index] ?? null;
               return (
                 <div className="mixer-strip" key={layer.id}>
                   <span className="mixer-name" title={name}>
+                    {c.freezes.some((f) => f.takeId === layer.id) && (
+                      <span title="Freeze됨(처리된 캐시로 재생)">❄ </span>
+                    )}
                     {name}
                   </span>
                   <button
@@ -129,6 +163,18 @@ export function BottomMixer({
                   >
                     S
                   </button>
+                  {fx && layer.kind === 'TAKE' && (
+                    <button
+                      aria-label={`${name} FX`}
+                      aria-expanded={rack === layer.id}
+                      aria-pressed={c.wetTakeId === layer.id}
+                      onClick={() =>
+                        setRack(rack === layer.id ? null : layer.id)
+                      }
+                    >
+                      FX
+                    </button>
+                  )}
                   <meter
                     aria-label={`${name} 최대 레벨 추정`}
                     min={0}
@@ -202,6 +248,31 @@ export function BottomMixer({
             )}
             {meter?.unknown && (
               <small className="mixer-note">일부 음원 레벨 미확인</small>
+            )}
+            {fx && rackTarget !== undefined && (
+              <FxRack
+                fx={fx}
+                target={rackTarget}
+                wetTakeId={c.wetTakeId}
+                setWetTake={(takeId) => void c.setWetTake(takeId)}
+                freeze={
+                  rackTarget
+                    ? {
+                        info: c.freezes.find(
+                          (f) => f.takeId === rackTarget.takeId,
+                        ),
+                        busy: c.busy,
+                        freeze: () => void c.freezeTake(rackTarget.takeId),
+                        unfreeze: () => void c.unfreezeTake(rackTarget.takeId),
+                        restoreTone: () =>
+                          void c.restoreFreezeTone(rackTarget.takeId),
+                        exportProcessed: () =>
+                          void c.exportFreeze(rackTarget.takeId),
+                        bounce: () => void c.bounceTake(rackTarget.takeId),
+                      }
+                    : null
+                }
+              />
             )}
           </fieldset>
         ))}

@@ -756,26 +756,47 @@ impl ProjectStore {
         let relative = format!("projects/{project_id}/scores/{id}.json");
         let final_path = checked_file(&self.root, Path::new(&relative))?;
         let temporary = final_path.with_extension("json.part");
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temporary)
-            .map_err(|_| storage_error())?;
-        file.write_all(&bytes).map_err(|_| storage_error())?;
-        file.sync_all().map_err(|_| storage_error())?;
-        drop(file);
-        canceled(cancel)?;
-        fs::rename(&temporary, &final_path).map_err(|_| storage_error())?;
-        let tx = db
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| storage_error())?;
-        let changed=tx.execute("UPDATE projects SET revision=?1,revision_id=?2,updated_at_ms=?3 WHERE id=?4 AND revision=?5",params![revision,id,now_ms()?,project_id,expected_revision]).map_err(|_|storage_error())?;
-        if changed != 1 {
-            return Err(conflict());
+        // DB 확정 전에 실패·취소하면 이번 호출이 만든 파일만 지웁니다(참조 없는 파일이 쌓이지 않게).
+        let (mut wrote_temporary, mut renamed) = (false, false);
+        let result = (|| {
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)
+                .map_err(|_| storage_error())?;
+            wrote_temporary = true;
+            file.write_all(&bytes).map_err(|_| storage_error())?;
+            file.sync_all().map_err(|_| storage_error())?;
+            drop(file);
+            canceled(cancel)?;
+            fs::rename(&temporary, &final_path).map_err(|_| storage_error())?;
+            renamed = true;
+            let tx = db
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(|_| storage_error())?;
+            let changed=tx.execute("UPDATE projects SET revision=?1,revision_id=?2,updated_at_ms=?3 WHERE id=?4 AND revision=?5",params![revision,id,now_ms()?,project_id,expected_revision]).map_err(|_|storage_error())?;
+            if changed != 1 {
+                return Err(conflict());
+            }
+            tx.execute("INSERT INTO score_revisions(id,project_id,revision,relative_path,sha256,score_asset_id,created_at_ms) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,project_id,revision,relative,hash(&bytes),score_asset_id,now_ms()?]).map_err(|_|storage_error())?;
+            canceled(cancel)?;
+            tx.commit().map_err(|_| storage_error())
+        })();
+        if let Err(error) = result {
+            let leftover = if renamed {
+                Some(&final_path)
+            } else if wrote_temporary {
+                Some(&temporary)
+            } else {
+                None
+            };
+            if let Some(path) = leftover {
+                if fs::remove_file(path).is_err() {
+                    eprintln!("GuitarLab 악보 저장 정리 실패: SCORE_CLEANUP_FAILED");
+                }
+            }
+            return Err(error);
         }
-        tx.execute("INSERT INTO score_revisions(id,project_id,revision,relative_path,sha256,score_asset_id,created_at_ms) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,project_id,revision,relative,hash(&bytes),score_asset_id,now_ms()?]).map_err(|_|storage_error())?;
-        canceled(cancel)?;
-        tx.commit().map_err(|_| storage_error())?;
         Ok(document)
     }
     pub fn revision(

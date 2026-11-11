@@ -32,6 +32,20 @@ it('권한 확인 전 파일 출력을 막고 REC 중 소스/출력은 잠그되
     importedStems: [],
     stemPeaks: {},
     levelSources: () => [],
+    wetTakeId: null,
+    setWetTake: vi.fn(),
+    freezes: [],
+    freezeTake: vi.fn(),
+    bounces: [],
+    bounceTake: vi.fn(),
+    addBounceToMix: vi.fn(),
+    deleteBounce: vi.fn(),
+    nativePlayback: true,
+    nativeActive: false,
+    setNativePlayback: vi.fn(),
+    exportFreeze: vi.fn(),
+    unfreezeTake: vi.fn(),
+    restoreFreezeTone: vi.fn(),
     refreshImported: vi.fn(),
     addImported: vi.fn(),
     configureStems: vi.fn(),
@@ -56,6 +70,11 @@ it('권한 확인 전 파일 출력을 막고 REC 중 소스/출력은 잠그되
     revisionId: undefined,
   };
   const { rerender } = render(<MixPanel controller={c} locked={false} />);
+  // docs/12 "모니터 테이크 재생 v1": TAKE 레이어 하나를 AmpliTube 모니터로 보냅니다.
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: '레이어 1 AmpliTube로 재생' }),
+  );
+  expect(c.setWetTake).toHaveBeenCalledWith(take.id);
   const exportButton = screen.getByRole('button', {
     name: '새 WAV로 내보내기',
   });

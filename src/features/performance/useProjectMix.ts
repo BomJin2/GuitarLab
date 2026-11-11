@@ -9,11 +9,24 @@ import {
 } from 'react';
 import { usePlayerEngine } from '../player/usePlayer';
 import { PlayerEngine } from '../player/PlayerEngine';
+import { NativeTransport, nativePlaybackApi } from '../player/nativeTransport';
+import { logDiagnostic } from '../../shared/logger';
 import { recordingApi, type RecordedTake } from '../recordings/recordings';
 import type { JobSnapshot } from '../library/projects';
 import { LatestTask } from '../../shared/latestTask';
 import { TakeMixPlayer, type MixPlaybackEntry } from './TakeMixPlayer';
+import {
+  monitorPlaybackApi,
+  monitorPlaybackMessage,
+  playbackErrorCode,
+} from './monitorPlayback';
 import { wavPeak } from './mixLabels';
+import {
+  freezeApi,
+  freezeErrorCode,
+  freezeMessage,
+  type TakeRender,
+} from './freeze';
 import { importedStemsApi, type ImportedGuitarStem } from './importedStems';
 import {
   separationApi,
@@ -21,6 +34,7 @@ import {
 } from '../transcription/separation';
 import {
   decodeMix,
+  layerNeedsPreparation,
   layerVolume,
   mixApi,
   mixError,
@@ -70,7 +84,38 @@ function withBacking(mix: MixDocument, backingId: string | null): MixDocument {
       };
   return { ...mix, layers: [backing, ...rest] };
 }
-export type MixAuto = { take: RecordedTake | null; locked: boolean };
+export type MixAuto = {
+  take: RecordedTake | null;
+  locked: boolean;
+};
+const NATIVE_KEY = 'guitarlab.nativePlayback';
+function readNativePreference() {
+  try {
+    return window.localStorage.getItem(NATIVE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+const nativeReasons: Record<string, string> = {
+  MIX_FORMAT_UNSUPPORTED: 'MP3 등 WAV가 아닌 음원',
+  MIX_RATE_UNSUPPORTED: '배속 녹음 테이크',
+  MIX_LIMIT_EXCEEDED: '용량 한도 초과',
+  MONITOR_OUTPUT_UNAVAILABLE: '출력 장치를 열 수 없음',
+  MONITOR_RATE_UNSUPPORTED: '출력 장치 샘플레이트',
+  NATIVE_RATE_UNSUPPORTED: '1배속이 아님',
+  NATIVE_NOT_PREPARED: '출력 샘플레이트가 바뀜',
+};
+export function nativeReason(code: string) {
+  return nativeReasons[code] ?? '알 수 없는 오류';
+}
+const codeOf = (cause: unknown) =>
+  typeof cause === 'object' &&
+  cause !== null &&
+  typeof (cause as { code?: unknown }).code === 'string'
+    ? (cause as { code: string }).code
+    : cause instanceof Error
+      ? cause.message
+      : 'UNKNOWN';
 
 export function useProjectMix(
   projectId: string | undefined,
@@ -78,11 +123,17 @@ export function useProjectMix(
   revisionId: string | undefined,
   enabled: boolean,
   auto: MixAuto | null = null,
+  /** docs/12 "네이티브 재생 v1": 모니터에서 고른 출력 장치. 있으면 1배속 믹스를 Rust로 재생합니다. */
+  outputDeviceId?: string,
 ) {
   const autoOn = auto !== null;
   const main = usePlayerEngine();
   const [mix, setMix] = useState<MixDocument | null>(null);
   const [takes, setTakes] = useState<RecordedTake[]>([]);
+  // docs/12 "테이크 Freeze v1": Freeze된 테이크(재생·내보내기는 캐시)
+  const [freezes, setFreezes] = useState<TakeRender[]>([]);
+  // docs/12 "Bounce to New Track v1": 영구 처리 결과(RENDER 레이어 원본)
+  const [bounces, setBounces] = useState<TakeRender[]>([]);
   const [stems, setStems] = useState<SeparationInfo['stems']>([]);
   const [importedStems, setImportedStems] = useState<ImportedGuitarStem[]>([]);
   // docs/12 "하단 믹서 최대 레벨 추정": 믹스 준비 때 이미 읽은 분리 음원 바이트의 최대값입니다.
@@ -94,12 +145,30 @@ export function useProjectMix(
   const [job, setJobState] = useState<JobSnapshot | null>(null);
   const [stats, setStats] = useState<MixStats | null>(null);
   const [preview] = useState(() => new PlayerEngine());
+  // docs/12 "모니터 테이크 재생 v1": AmpliTube 모니터로 재생하는 테이크(화면 세션에만 둠)
+  const [wetTakeId, setWetTakeId] = useState<string | null>(null);
+  // docs/12 "네이티브 재생 v1": 지금 메인 재생기에 붙인 Rust transport와 사용자 설정
+  const native = useRef<NativeTransport | null>(null);
+  const [nativeOn, setNativeOn] = useState(readNativePreference);
+  const [nativeActive, setNativeActive] = useState(false);
+  // AmpliTube 테이크 재생(2B)을 고르면 그 준비만 기존 재생 경로로 합니다.
+  const skipNative = useRef(false);
+  // Freeze 목록을 못 읽었을 때의 안내(준비 완료 안내에도 남깁니다).
+  const freezeWarning = useRef<string | null>(null);
   const [player] = useState(
     () =>
-      new TakeMixPlayer(main, (message) => {
-        setPrepared(false);
-        setError(message);
-      }),
+      new TakeMixPlayer(
+        main,
+        (message) => {
+          setPrepared(false);
+          setError(message);
+        },
+        monitorPlaybackApi,
+        (takeId, message) => {
+          setWetTakeId(takeId);
+          if (message) setNotice(message);
+        },
+      ),
   );
   // docs/12 "실시간 레벨 미터": 재생 요소 목록(안정된 함수라 미터가 다시 시작되지 않음)
   const levelSources = useCallback(() => player.mediaElements(), [player]);
@@ -147,8 +216,13 @@ export function useProjectMix(
   }
   const clear = useCallback(() => {
     player.clear();
+    if (native.current) {
+      native.current = null;
+      main.detachNative();
+    }
+    setNativeActive(false);
     setPrepared(false);
-  }, [player]);
+  }, [player, main]);
   const refresh = useCallback(async () => {
     if (!mounted.current || owner.current !== context || !projectId) return;
     const current = ++epoch.current;
@@ -160,9 +234,16 @@ export function useProjectMix(
     setError(null);
     setNotice(null);
     try {
-      const [saved, list] = await Promise.all([
+      let freezeFailure: unknown = null;
+      const [saved, list, frozen, bounced] = await Promise.all([
         mixApi.load(projectId),
         recordingApi.list(projectId),
+        // Freeze 목록을 못 읽으면 원본으로 재생하되, 조용히 바꾸지 않고 아래에서 알립니다.
+        freezeApi.list(projectId).catch((cause: unknown) => {
+          freezeFailure = cause;
+          return [] as TakeRender[];
+        }),
+        freezeApi.listBounces(projectId).catch(() => [] as TakeRender[]),
       ]);
       if (
         !mounted.current ||
@@ -203,6 +284,13 @@ export function useProjectMix(
         },
       );
       setTakes(list);
+      setFreezes(frozen);
+      setBounces(bounced);
+      freezeWarning.current =
+        freezeFailure === null
+          ? null
+          : `Freeze 목록을 읽지 못했습니다(${freezeMessage(freezeFailure)}). 이번에는 Freeze된 테이크도 원본 DI로 재생합니다.`;
+      if (freezeWarning.current) setNotice(freezeWarning.current);
     } catch (cause) {
       if (
         mounted.current &&
@@ -261,7 +349,16 @@ export function useProjectMix(
         throw new Error('MIX_SOURCE_UNAVAILABLE');
       decodeMix(next);
       if (structural) clear();
-      else if (prepared) player.update(next);
+      else if (prepared && native.current) {
+        const current = native.current;
+        void nativePlaybackApi.update(next).catch((cause: unknown) => {
+          if (native.current !== current) return;
+          clear();
+          setNotice(
+            `Rust 재생 설정을 바꾸지 못했습니다(${nativeReason(codeOf(cause))}). 믹스를 다시 준비하세요.`,
+          );
+        });
+      } else if (prepared) player.update(next);
       setMix(next);
       setStats(null);
       setNotice(null);
@@ -306,10 +403,100 @@ export function useProjectMix(
       const backing = mix.layers.find((l) => l.kind === 'LOCAL_ASSET');
       if (backing && (backing.id !== backingId || backing.offsetMs !== 0))
         throw new Error('MIX_SOURCE_UNAVAILABLE');
-      let budget = 64 * 1024 * 1024;
+      // docs/12 "믹스 입력 한도 v2": Rust 믹스 출력 예산과 같은 512MiB입니다.
+      let fallbackNotice: string | null = freezeWarning.current;
+      // 테이크 READY·반주 참조 검사는 Rust·기존 재생 두 경로가 같이 따릅니다(docs/12 믹스 준비).
+      for (const layer of mix.layers) {
+        if (layer.kind !== 'TAKE') continue;
+        const take = takes.find((t) => t.id === layer.id);
+        if (
+          !take ||
+          take.state !== 'READY' ||
+          (take.transport && take.transport.backingAssetId !== backingId)
+        )
+          throw new Error('RECORDING_REFERENCE_INVALID');
+      }
+      const device = outputDeviceId;
+      if (
+        nativeOn &&
+        !skipNative.current &&
+        device &&
+        main.getSnapshot().rate === 1 &&
+        wetTakeId === null
+      ) {
+        try {
+          const ready = await nativePlaybackApi.prepare(device, mix, backingId);
+          if (signal.aborted) {
+            void nativePlaybackApi.release().catch(() => undefined);
+            return;
+          }
+          // 준비를 기다리는 동안 배속을 바꿨으면 Rust 쪽을 놓고 기존 재생으로 넘깁니다.
+          if (main.getSnapshot().rate !== 1) {
+            await nativePlaybackApi.release().catch(() => undefined);
+            throw { code: 'NATIVE_RATE_UNSUPPORTED' };
+          }
+          const transport = new NativeTransport(
+            nativePlaybackApi,
+            ready.durationMs,
+          );
+          transport.onLost = (code) => {
+            if (native.current !== transport) return;
+            native.current = null;
+            main.detachNative();
+            setNativeActive(false);
+            setPrepared(false);
+            setNotice(
+              `Rust 재생이 풀렸습니다(${nativeReason(code)}). 믹스를 다시 준비하면 기존 재생으로도 들을 수 있습니다.`,
+            );
+          };
+          main.attachNative(transport);
+          native.current = transport;
+          setNativeActive(true);
+          setStemPeaks({});
+          setPrepared(true);
+          setNotice(
+            freezeWarning.current ??
+              '믹스 준비 완료 · Rust 엔진이 반주와 모든 레이어를 샘플 단위로 맞춰 재생합니다(1배속). 정지 상태에서 REC를 누르면3초 준비 후 녹음을 시작합니다.',
+          );
+          return;
+        } catch (cause) {
+          if (signal.aborted) return;
+          logDiagnostic('warn', 'NATIVE_PLAYBACK_FALLBACK');
+          const reason = `Rust 재생을 쓰지 못해 기존 재생으로 준비했습니다(${nativeReason(codeOf(cause))}).`;
+          // Freeze 목록 실패 안내(DI 대체)는 덮지 않고 함께 남깁니다.
+          fallbackNotice = freezeWarning.current
+            ? `${freezeWarning.current} ${reason}`
+            : reason;
+        }
+      }
+      let budget = 512 * 1024 * 1024;
       const entries: MixPlaybackEntry[] = [];
       const peaks: Record<string, number> = {};
       for (const layer of mix.layers.filter((l) => l.kind !== 'LOCAL_ASSET')) {
+        if (layer.kind === 'RENDER') {
+          const bounce = bounces.find((b) => b.id === layer.id);
+          const source = takes.find((t) => t.id === bounce?.takeId);
+          if (!bounce || !source) throw new Error('MIX_SOURCE_UNAVAILABLE');
+          if (bounce.bytes > budget) throw new Error('MIX_LIMIT_EXCEEDED');
+          const bytes = await freezeApi.readBounce(
+            mix.projectId,
+            layer.id,
+            signal,
+            setJob,
+          );
+          if (signal.aborted) return;
+          budget -= bytes.byteLength;
+          const peak = wavPeak(bytes);
+          if (peak !== null) peaks[layer.id] = peak;
+          entries.push({
+            kind: 'RENDER',
+            stemId: layer.id,
+            projectId: mix.projectId,
+            bytes,
+            source,
+          });
+          continue;
+        }
         if (layer.kind === 'STEM' || layer.kind === 'IMPORTED_STEM') {
           const bytes =
             layer.kind === 'STEM'
@@ -349,9 +536,31 @@ export function useProjectMix(
           (take.transport && take.transport.backingAssetId !== backingId)
         )
           throw new Error('RECORDING_REFERENCE_INVALID');
-        if (take.frames * 4 + 58 > budget)
+        const frozen = freezes.find((f) => f.takeId === take.id);
+        if ((frozen ? frozen.bytes : take.frames * 4 + 58) > budget)
           throw new Error('MIX_LIMIT_EXCEEDED');
-        const bytes = await recordingApi.read(
+        let bytes: ArrayBuffer | null = null;
+        if (frozen) {
+          try {
+            bytes = await freezeApi.read(
+              mix.projectId,
+              take.id,
+              signal,
+              setJob,
+            );
+          } catch (cause) {
+            if (signal.aborted) return;
+            // 캐시가 바뀌었거나 손상됐으면 그 레이어만 원본으로 재생하고 알립니다.
+            if (
+              !['FREEZE_STALE', 'FREEZE_INVALID'].includes(
+                freezeErrorCode(cause),
+              )
+            )
+              throw cause;
+            fallbackNotice = freezeMessage(cause);
+          }
+        }
+        bytes ??= await recordingApi.read(
           mix.projectId,
           take.id,
           signal,
@@ -367,7 +576,33 @@ export function useProjectMix(
       setStemPeaks(peaks);
       setPrepared(true);
       setNotice(
-        '믹스 준비 완료 · 정지 상태에서 REC를 누르면3초 준비 후 반주와 새 입력 녹음을 시작합니다.',
+        fallbackNotice ??
+          '믹스 준비 완료 · 정지 상태에서 REC를 누르면3초 준비 후 반주와 새 입력 녹음을 시작합니다.',
+      );
+    });
+  // Freeze/Unfreeze 뒤에는 재생 준비를 다시 해야 캐시·원본이 바뀝니다.
+  const freezeWork = (takeId: string, freeze: boolean) =>
+    run(async (signal) => {
+      if (!projectId) return;
+      clear();
+      main.pause();
+      try {
+        if (freeze) await freezeApi.freeze(projectId, takeId, signal, setJob);
+        else await freezeApi.unfreeze(projectId, takeId);
+      } catch (cause) {
+        if (signal.aborted) return;
+        setError(freezeMessage(cause));
+        return;
+      }
+      if (signal.aborted) return;
+      const nextFreezes = await freezeApi.list(projectId);
+      // 기다리는 사이 작업이 취소됐으면(프로젝트 전환 등) 이전 프로젝트 목록으로 덮지 않습니다.
+      if (signal.aborted) return;
+      setFreezes(nextFreezes);
+      setNotice(
+        freeze
+          ? 'Freeze 완료 · 이 테이크는 처리된 소리로 재생됩니다(모니터 불필요). 믹스를 다시 준비하세요.'
+          : 'Unfreeze 완료 · 캐시를 지우고 원본 DI로 돌아갔습니다. 믹스를 다시 준비하세요.',
       );
     });
   const render = () =>
@@ -483,12 +718,8 @@ export function useProjectMix(
     );
   }
   const needsPreparation =
-    !!visibleMix?.layers.some(
-      (l) =>
-        l.kind === 'STEM' ||
-        l.kind === 'IMPORTED_STEM' ||
-        (l.kind === 'TAKE' && layerVolume(visibleMix, l) > 0),
-    ) && !visiblePrepared;
+    !!visibleMix?.layers.some((l) => layerNeedsPreparation(visibleMix, l)) &&
+    !visiblePrepared;
   const commands = useRef({ update, prepare });
   useLayoutEffect(() => {
     commands.current = { update, prepare };
@@ -572,6 +803,156 @@ export function useProjectMix(
     importedStems: visible ? importedStems : [],
     stemPeaks: visible ? stemPeaks : {},
     levelSources,
+    wetTakeId: visible ? wetTakeId : null,
+    setWetTake: async (takeId: string | null) => {
+      if (!ownsContext()) return;
+      if (takeId && freezes.some((f) => f.takeId === takeId)) {
+        setNotice(freezeMessage({ code: 'FREEZE_ACTIVE' }));
+        return;
+      }
+      try {
+        // Rust 재생 중이면 AmpliTube 테이크 재생을 위해 기존 재생 경로로 다시 준비합니다.
+        if (takeId && native.current) {
+          skipNative.current = true;
+          try {
+            clear();
+            await prepare();
+          } finally {
+            skipNative.current = false;
+          }
+          if (native.current) return;
+        }
+        await player.setWet(takeId);
+      } catch (cause) {
+        setNotice(monitorPlaybackMessage(playbackErrorCode(cause)));
+      }
+    },
+    freezes: visible ? freezes : [],
+    freezeTake: (takeId: string) => freezeWork(takeId, true),
+    bounces: visible ? bounces : [],
+    // docs/12 "Bounce 삭제·관리 v1"
+    addBounceToMix: (renderId: string) => {
+      // 준비·작업 중에는 구성을 바꾸지 않습니다(준비 중인 믹스와 화면 믹스가 달라지지 않게).
+      if (
+        operation.current ||
+        !mix ||
+        mix.layers.some((l) => l.id === renderId)
+      )
+        return;
+      if (mix.layers.length >= 8) {
+        setError(freezeMessage({ code: 'MIX_LIMIT_EXCEEDED' }));
+        return;
+      }
+      update(
+        {
+          ...mix,
+          layers: [
+            ...mix.layers,
+            {
+              kind: 'RENDER',
+              id: renderId,
+              gain: 0.7,
+              mute: false,
+              solo: false,
+              offsetMs: 0,
+            },
+          ],
+        },
+        true,
+      );
+    },
+    deleteBounce: (renderId: string) =>
+      run(async (signal) => {
+        if (!projectId) return;
+        try {
+          await freezeApi.deleteBounce(projectId, renderId);
+        } catch (cause) {
+          if (!signal.aborted) setError(freezeMessage(cause));
+          return;
+        }
+        if (signal.aborted) return;
+        const nextBounces = await freezeApi.listBounces(projectId);
+        // 기다리는 사이 작업이 취소됐으면(프로젝트 전환 등) 이전 프로젝트 목록으로 덮지 않습니다.
+        if (signal.aborted) return;
+        setBounces(nextBounces);
+        // 저장 전 화면 믹스에만 있던 줄은 함께 뺍니다.
+        if (mix?.layers.some((l) => l.id === renderId))
+          update(
+            { ...mix, layers: mix.layers.filter((l) => l.id !== renderId) },
+            true,
+          );
+        setNotice('Bounce 파일을 지웠습니다. 원본 테이크·DI는 그대로입니다.');
+      }),
+    // 새 RENDER 레이어를 원본 테이크 다음에 넣고 원본 줄은 음소거합니다(같은 소리 겹침 방지).
+    bounceTake: (takeId: string) =>
+      run(async (signal) => {
+        if (!projectId || !mix) return;
+        main.pause();
+        let made: TakeRender;
+        try {
+          made = await freezeApi.bounce(projectId, takeId, signal, setJob);
+        } catch (cause) {
+          if (!signal.aborted) setError(freezeMessage(cause));
+          return;
+        }
+        if (signal.aborted) return;
+        const nextBounces = await freezeApi.listBounces(projectId);
+        // 기다리는 사이 작업이 취소됐으면(프로젝트 전환 등) 이전 프로젝트 목록으로 덮지 않습니다.
+        if (signal.aborted) return;
+        setBounces(nextBounces);
+        const at = mix.layers.findIndex((l) => l.id === takeId);
+        if (mix.layers.length >= 8 || at < 0) {
+          setError(freezeMessage({ code: 'MIX_LIMIT_EXCEEDED' }));
+          return;
+        }
+        // 원본의 Solo는 Bounce 줄로 옮깁니다(원본만 음소거하면 Solo 때문에 둘 다 무음).
+        const layers = mix.layers.map((l) =>
+          l.id === takeId ? { ...l, mute: true, solo: false } : l,
+        );
+        const source = mix.layers[at];
+        layers.splice(at + 1, 0, {
+          kind: 'RENDER',
+          id: made.id,
+          gain: source?.gain ?? 0.7,
+          mute: false,
+          solo: source?.solo ?? false,
+          offsetMs: source?.offsetMs ?? 0,
+        });
+        update({ ...mix, layers }, true);
+        setNotice(
+          'Bounce 완료 · 처리된 소리를 새 트랙으로 넣고 원본 테이크 줄은 음소거했습니다. 믹스를 다시 준비하고, 남기려면 믹스 설정을 저장하세요.',
+        );
+      }),
+    exportFreeze: (takeId: string) =>
+      run(async (signal) => {
+        if (!projectId) return;
+        try {
+          const bytes = await freezeApi.export(
+            projectId,
+            takeId,
+            signal,
+            setJob,
+          );
+          if (!signal.aborted)
+            setNotice(
+              `처리된 소리를 새 WAV로 내보냈습니다(${(bytes / 1048576).toFixed(1)}MB, stereo float32). 원본 DI와 캐시는 그대로입니다.`,
+            );
+        } catch (cause) {
+          if (!signal.aborted) setError(freezeMessage(cause));
+        }
+      }),
+    unfreezeTake: (takeId: string) => freezeWork(takeId, false),
+    restoreFreezeTone: async (takeId: string) => {
+      if (!ownsContext() || !projectId) return;
+      try {
+        await freezeApi.restoreTone(projectId, takeId);
+        setNotice(
+          'Freeze 때 톤을 AmpliTube에 불러왔습니다. 편집 창·모니터에 바로 적용됩니다.',
+        );
+      } catch (cause) {
+        setNotice(freezeMessage(cause));
+      }
+    },
     refreshImported,
     addImported,
     configureStems,
@@ -595,6 +976,18 @@ export function useProjectMix(
     cancel: () => {
       if (!ownsContext()) return;
       task.current.cancel();
+      clear();
+    },
+    // docs/12 "네이티브 재생 v1"
+    nativePlayback: nativeOn,
+    nativeActive: visiblePrepared && nativeActive,
+    setNativePlayback: (value: boolean) => {
+      setNativeOn(value);
+      try {
+        window.localStorage.setItem(NATIVE_KEY, value ? '1' : '0');
+      } catch {
+        // 저장하지 못해도 이번 실행에는 적용합니다.
+      }
       clear();
     },
     referenceTakeIds:

@@ -147,17 +147,29 @@ def readonly_database(path, *, immutable=False):
     return sqlite3.connect(path.as_uri() + ("?mode=ro&immutable=1" if immutable else "?mode=ro"), uri=True, timeout=5)
 
 
+# 앱 DB 8~12(11: 프로젝트 AmpliTube 톤, 12: 테이크 Freeze·Bounce)를 지원합니다.
+SUPPORTED_DATABASE_VERSIONS = (8, 9, 10, 11, 12)
+
+
 def check_database(db):
     version = db.execute("PRAGMA user_version").fetchone()[0]
-    if version not in (8, 9, 10):
+    if version not in SUPPORTED_DATABASE_VERSIONS:
         raise BackupError("BACKUP_DATABASE_VERSION")
     if db.execute("PRAGMA quick_check").fetchall() != [("ok",)] or db.execute("PRAGMA foreign_key_check").fetchone() is not None:
         raise BackupError("BACKUP_DATABASE_INVALID")
     if db.execute("SELECT COUNT(*) FROM recorded_takes WHERE state IN ('ARMING','RECORDING','FINALIZING')").fetchone()[0]:
         raise BackupError("BACKUP_RECORDING_ACTIVE")
-    if version >= 9:
-        db.execute("SELECT project_id,trash_id,trashed_at_ms,project_revision FROM project_trash LIMIT 0")
-    if version == 10 and db.execute("SELECT COUNT(*) FROM project_purge_intents").fetchone()[0]:
+    # 버전마다 더해진 표의 열을 확인합니다(손상·다른 구조면 백업하지 않음).
+    try:
+        if version >= 9:
+            db.execute("SELECT project_id,trash_id,trashed_at_ms,project_revision FROM project_trash LIMIT 0")
+        if version >= 11:
+            db.execute("SELECT project_id,class_id,plugin_version,state_format,state,state_sha256 FROM project_plugin_states LIMIT 0")
+        if version >= 12:
+            db.execute("SELECT id,project_id,take_id,kind,metadata_json,metadata_sha256,state,state_sha256 FROM take_renders LIMIT 0")
+    except sqlite3.Error:
+        raise BackupError("BACKUP_DATABASE_INVALID") from None
+    if version >= 10 and db.execute("SELECT COUNT(*) FROM project_purge_intents").fetchone()[0]:
         raise BackupError("BACKUP_PROJECT_PURGE_IN_PROGRESS")
     return version
 
@@ -253,7 +265,7 @@ def verify(path, *, extract_to=None, progress=lambda *_: None):
             raise BackupError("BACKUP_LIMIT_EXCEEDED")
         receipt = json.loads(archive.read(manifest))
         if (not isinstance(receipt, dict) or len(receipt) != 7 or type(receipt.get("schemaVersion")) is not int or receipt.get("schemaVersion") != 1 or receipt.get("kind") != "GUITARLAB_LOCAL_BACKUP" or
-                type(receipt.get("databaseVersion")) is not int or receipt["databaseVersion"] not in (8, 9, 10) or receipt.get("modelsIncluded") is not False or
+                type(receipt.get("databaseVersion")) is not int or receipt["databaseVersion"] not in SUPPORTED_DATABASE_VERSIONS or receipt.get("modelsIncluded") is not False or
                 receipt.get("includesLocalMedia") is not True or type(receipt.get("externalReferencesNotCopied")) is not int or not 0 <= receipt["externalReferencesNotCopied"] <= 100000 or not isinstance(receipt.get("files"), list) or
                 any(not isinstance(item, dict) or set(item) != {"path", "bytes", "sha256"} or not isinstance(item["path"], str) or type(item["bytes"]) is not int or not 0 <= item["bytes"] <= MAX_BYTES or not isinstance(item["sha256"], str) or len(item["sha256"]) != 64 or any(c not in "0123456789abcdef" for c in item["sha256"]) for item in receipt["files"]) or
                 len(receipt["files"]) + 1 != len(entries) or

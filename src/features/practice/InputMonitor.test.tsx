@@ -93,7 +93,7 @@ it('목록·PC 기본 출력은 바로 준비하되 입력 시작만으로 소�
     fireEvent.click(screen.getByRole('button', { name: '🎧 모니터 켜기' }));
   });
   await waitFor(() =>
-    expect(inputMonitorApi.start).toHaveBeenCalledWith(7, 'out', 0.25),
+    expect(inputMonitorApi.start).toHaveBeenCalledWith(7, 'out', 0.25, 'DRY'),
   );
   await screen.findByText(/모니터 켜짐 · SSL Output/);
   view.rerender(

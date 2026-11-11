@@ -358,7 +358,7 @@ fn version_two_migration_preserves_existing_takes_and_wave_bytes() {
     let (f, mix, a, b) = setup();
     let db = connect(&f.store.root).expect("fixture DB");
     db.execute_batch(
-        "DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; DROP TABLE project_mixes; PRAGMA user_version=2;",
+        "DROP TABLE take_renders; DROP TABLE project_plugin_states; DROP TABLE project_purge_intents; DROP TABLE project_trash; DROP TABLE imported_guitar_stems; DROP TABLE project_youtube_syncs; DROP TABLE project_backings; DROP TABLE audio_stems; DROP TABLE audio_stem_sets; DROP TABLE ai_transcription_drafts; DROP TABLE project_mixes; PRAGMA user_version=2;",
     )
     .expect("기존 v2 구조 재현");
     let before: Vec<(String, String)> = db
@@ -373,7 +373,7 @@ fn version_two_migration_preserves_existing_takes_and_wave_bytes() {
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        10
+        12
     );
     let after: Vec<(String, String)> = db
         .prepare("SELECT id,metadata_json FROM recorded_takes ORDER BY id")
@@ -460,6 +460,40 @@ fn pcm16_stereo_downmix_rate_conversion_and_invalid_data_are_bounded() {
 }
 
 #[test]
+fn render_cache_with_tail_past_ten_minutes_decodes_up_to_the_cache_limit() {
+    // 리뷰 R11-3: 원본 10분 근처 + tail 캐시(최대 611초)는 디코딩되고, 그보다 길면 거부합니다.
+    let wav = |seconds: u32| {
+        let data = 8000 * seconds * 2;
+        let mut b = Vec::with_capacity(44 + data as usize);
+        b.extend_from_slice(b"RIFF");
+        b.extend_from_slice(&(36 + data).to_le_bytes());
+        b.extend_from_slice(b"WAVEfmt ");
+        b.extend_from_slice(&16u32.to_le_bytes());
+        for v in [1u16, 1] {
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        b.extend_from_slice(&8000u32.to_le_bytes());
+        b.extend_from_slice(&16000u32.to_le_bytes());
+        b.extend_from_slice(&2u16.to_le_bytes());
+        b.extend_from_slice(&16u16.to_le_bytes());
+        b.extend_from_slice(b"data");
+        b.extend_from_slice(&data.to_le_bytes());
+        b.resize(44 + data as usize, 0);
+        b
+    };
+    let flag = AtomicBool::new(false);
+    let mut budget = usize::MAX / 2;
+    let pcm = pcm::decode(&wav(611), &mut budget, &flag).expect("tail 포함 캐시");
+    assert_eq!(pcm.samples.len(), 8000 * 611);
+    assert_eq!(
+        pcm::decode(&wav(612), &mut budget, &flag)
+            .map(|_| ())
+            .map_err(|e| e.code),
+        Err("MIX_LIMIT_EXCEEDED")
+    );
+}
+
+#[test]
 fn local_wav_and_two_takes_mix_to_four_seconds_and_resample_without_touching_sources() {
     let (f, mut mix, a, b) = setup();
     let path = f.store.root.join("자체 합성 로컬 반주.wav");
@@ -510,4 +544,218 @@ fn local_wav_and_two_takes_mix_to_four_seconds_and_resample_without_touching_sou
             .expect("B 보존"),
         b
     );
+}
+
+#[test]
+fn frozen_take_layer_renders_from_cache_with_tail_and_counts_it() {
+    // docs/12 "테이크 Freeze v1": Freeze된 TAKE 레이어는 DI 대신 캐시(tail 포함)를 씁니다.
+    let (f, mut mix, _, _) = setup();
+    mix.layers[1].mute = true;
+    let no = AtomicBool::new(false);
+    let (_, plain) = super::render::render(&f.store, &mix, &no, |_, _| Ok(())).expect("원본 렌더");
+    assert_eq!(plain.frozen_layers, 0);
+    let take = &mix.layers[0].id;
+    let frames = 9600usize;
+    let wav = crate::plugins::render::stereo_wav(&vec![0.25; frames], &vec![0.25; frames], 48000);
+    let meta = crate::storage::take_renders::TakeRender {
+        schema_version: 1,
+        id: Uuid::new_v4().to_string(),
+        project_id: mix.project_id.clone(),
+        take_id: take.clone(),
+        kind: "FREEZE".into(),
+        sample_rate: 48000,
+        channels: 2,
+        frames: frames as u64,
+        duration_ms: 200.0,
+        bytes: wav.len(),
+        sha256: crate::storage::projects::hash(&wav),
+        take_sha256: f.store.ready_take_sha(&mix.project_id, take).expect("SHA"),
+        plugin_class_id: "56535441746235616D706C6974756265".into(),
+        plugin_version: "5.10.4".into(),
+        latency_frames: 7,
+        tail_frames: 4800,
+        created_at_ms: 1,
+    };
+    f.store
+        .save_take_freeze(&meta, &wav, &[1], &no)
+        .expect("Freeze");
+    let (bytes, stats) =
+        super::render::render(&f.store, &mix, &no, |_, _| Ok(())).expect("Freeze 렌더");
+    assert_eq!(stats.frozen_layers, 1);
+    // DI(4800프레임)보다 긴 캐시 길이(tail 포함)만큼 이어지고 값은 캐시(0.25)입니다.
+    assert_eq!(stats.frames, 9600);
+    let mut budget = 1 << 24;
+    let pcm = crate::mixer::pcm::decode(&bytes, &mut budget, &no).expect("출력");
+    assert!((pcm.samples[7000] - 0.25).abs() < 1e-6);
+}
+
+#[test]
+fn render_layer_plays_bounce_at_source_take_start_and_rejects_unknown_id() {
+    // docs/12 "Bounce to New Track v1": RENDER 레이어는 Bounce 파일을 원본 테이크 시작 시각에 둡니다.
+    let (f, mut mix, _, _) = setup();
+    let take = mix.layers[0].id.clone();
+    let frames = 7200usize;
+    let wav = crate::plugins::render::stereo_wav(&vec![0.5; frames], &vec![0.5; frames], 48000);
+    let meta = crate::storage::take_renders::TakeRender {
+        schema_version: 1,
+        id: Uuid::new_v4().to_string(),
+        project_id: mix.project_id.clone(),
+        take_id: take.clone(),
+        kind: "BOUNCE".into(),
+        sample_rate: 48000,
+        channels: 2,
+        frames: frames as u64,
+        duration_ms: 150.0,
+        bytes: wav.len(),
+        sha256: crate::storage::projects::hash(&wav),
+        take_sha256: f.store.ready_take_sha(&mix.project_id, &take).expect("SHA"),
+        plugin_class_id: "56535441746235616D706C6974756265".into(),
+        plugin_version: "5.10.4".into(),
+        latency_frames: 7,
+        tail_frames: 2400,
+        created_at_ms: 1,
+    };
+    let no = AtomicBool::new(false);
+    f.store
+        .save_take_bounce(&meta, &wav, &[1], &no)
+        .expect("Bounce");
+    // 원본 테이크 두 줄은 음소거하고 Bounce 줄만 듣습니다.
+    for layer in &mut mix.layers {
+        layer.mute = true;
+    }
+    mix.layers.push(MixLayer {
+        kind: LayerKind::Render,
+        id: meta.id.clone(),
+        gain: 1.0,
+        mute: false,
+        solo: false,
+        offset_ms: 0.0,
+    });
+    let (bytes, stats) = super::render::render(&f.store, &mix, &no, |_, _| Ok(())).expect("렌더");
+    assert_eq!((stats.frames, stats.frozen_layers), (7200, 0));
+    let mut budget = 1 << 24;
+    let pcm = crate::mixer::pcm::decode(&bytes, &mut budget, &no).expect("출력");
+    assert!((pcm.samples[100] - 0.5).abs() < 1e-6);
+    let mut missing = mix.clone();
+    if let Some(last) = missing.layers.last_mut() {
+        last.id = Uuid::new_v4().to_string();
+    }
+    assert_eq!(
+        super::render::render(&f.store, &missing, &no, |_, _| Ok(()))
+            .err()
+            .expect("없음")
+            .code,
+        "BOUNCE_NOT_FOUND"
+    );
+    // JSON 계약: 종류 이름은 RENDER입니다.
+    assert_eq!(
+        serde_json::to_value(LayerKind::Render).expect("직렬화"),
+        "RENDER"
+    );
+}
+
+#[test]
+fn native_load_keeps_stereo_backing_resamples_and_rebuilds_gains_without_decoding() {
+    // docs/12 "네이티브 재생 v1"
+    let (f, mut mix, _, _) = setup();
+    let path = f.store.root.join("자체 합성 stereo 반주.wav");
+    // 24kHz stereo PCM16, 좌 0.5·우 -0.25, 2400프레임(0.1초)
+    let frames = 2400u32;
+    let mut wav = Vec::new();
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + frames * 4).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&24000u32.to_le_bytes());
+    wav.extend_from_slice(&(24000u32 * 4).to_le_bytes());
+    wav.extend_from_slice(&4u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&(frames * 4).to_le_bytes());
+    for _ in 0..frames {
+        wav.extend_from_slice(&16384i16.to_le_bytes());
+        wav.extend_from_slice(&(-8192i16).to_le_bytes());
+    }
+    fs::write(&path, &wav).expect("자체 반주");
+    let asset = f
+        .store
+        .import_asset(
+            &mix.project_id,
+            &path,
+            crate::storage::project_model::AssetKind::Original,
+            crate::storage::project_model::AssetStorage::Managed,
+            &AtomicBool::new(false),
+            |_, _| Ok(()),
+        )
+        .expect("권리 보유 fixture import");
+    mix.layers.push(MixLayer {
+        kind: LayerKind::LocalAsset,
+        id: asset.asset.id,
+        gain: 0.5,
+        mute: false,
+        solo: false,
+        offset_ms: 0.0,
+    });
+    mix.layers[1].mute = true;
+    let flag = AtomicBool::new(false);
+    let native =
+        super::native::load(&f.store, &mix, 48000, None, &flag).expect("네이티브 불러오기");
+    let set = native.voices(&mix).expect("보이스");
+    assert_eq!(set.sample_rate, 48000);
+    assert_eq!(set.voices.len(), 3);
+    let backing = &set.voices[2];
+    assert_eq!(backing.left.len(), 4800, "24k → 48k");
+    assert!(
+        (backing.left[100] - 0.5).abs() < 1e-4 && (backing.right[100] + 0.25).abs() < 1e-4,
+        "stereo 유지"
+    );
+    assert!(
+        std::sync::Arc::ptr_eq(&set.voices[0].left, &set.voices[0].right),
+        "mono 테이크는 좌우 공유"
+    );
+    assert_eq!(set.voices[1].gain, 0.0, "음소거 레이어도 불러 두되 음량 0");
+    assert!((backing.gain - 0.5 * mix.master_gain as f32).abs() < 1e-6);
+    // offset·solo만 바뀌면 다시 풀지 않고 보이스만 새로 만듭니다.
+    let start = set.voices[0].start_frame;
+    mix.layers[0].offset_ms += 10.0;
+    mix.layers[2].solo = true;
+    let set = native.voices(&mix).expect("설정만 변경");
+    assert_eq!(set.voices[0].start_frame, start + 480);
+    assert_eq!(set.voices[0].gain, 0.0, "다른 레이어 solo");
+    assert!(native.duration_ms(&mix) >= 100.0);
+    let backing_layer = mix.layers.pop().expect("반주");
+    assert_eq!(
+        native.voices(&mix).map(|_| ()).map_err(|e| e.code),
+        Err("NATIVE_MIX_CHANGED")
+    );
+    // 다른 반주로 녹음한 테이크는 네이티브 준비에서도 거부합니다(리뷰 R4-1).
+    mix.layers.push(backing_layer);
+    let mut take = f
+        .store
+        .take(&mix.project_id, &mix.layers[0].id)
+        .expect("테이크");
+    take.transport = Some(crate::recording::model::RecordingTransport {
+        playback_epoch: 1,
+        rate: 1.0,
+        backing_asset_id: Uuid::new_v4().to_string(),
+    });
+    f.store.save_take(&take).expect("다른 반주 기록");
+    assert_eq!(
+        super::native::load(&f.store, &mix, 48000, None, &flag)
+            .map(|_| ())
+            .map_err(|e| e.code),
+        Err("RECORDING_REFERENCE_INVALID")
+    );
+    let backing = mix.layers.last().expect("반주").id.clone();
+    take.transport = Some(crate::recording::model::RecordingTransport {
+        playback_epoch: 1,
+        rate: 1.0,
+        backing_asset_id: backing,
+    });
+    f.store.save_take(&take).expect("같은 반주 기록");
+    mix.layers[1].mute = false;
+    assert!(super::native::load(&f.store, &mix, 48000, None, &flag).is_ok());
+    assert_eq!(fs::read(&path).expect("원본 보존"), wav);
 }

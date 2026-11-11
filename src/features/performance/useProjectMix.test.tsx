@@ -1,3 +1,4 @@
+import { nativePlaybackApi } from '../player/nativeTransport';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -17,6 +18,7 @@ import {
 } from '../transcription/separation';
 import { separationFixture } from '../../test/separationFixture';
 import { importedStemsApi, type ImportedGuitarStem } from './importedStems';
+import { freezeApi, type TakeRender } from './freeze';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -60,6 +62,9 @@ function setup() {
   vi.spyOn(mixApi, 'load').mockResolvedValue(mix);
   vi.spyOn(recordingApi, 'list').mockResolvedValue([take]);
   vi.spyOn(recordingApi, 'read').mockResolvedValue(recordingWaveFixture());
+  // Freeze 목록 실패는 이제 안내되므로 기본은 빈 목록으로 둡니다.
+  vi.spyOn(freezeApi, 'list').mockResolvedValue([]);
+  vi.spyOn(freezeApi, 'listBounces').mockResolvedValue([]);
   const prepare = vi
     .spyOn(TakeMixPlayer.prototype, 'prepare')
     .mockResolvedValue();
@@ -306,6 +311,7 @@ it('사용자 파일은 명시적으로 추가·출력·저장하고 준비 뒤 
       channels: 1,
       peak: 0.5,
       limitedFrames: 0,
+      frozenLayers: 0,
       bytes: 192058,
     },
   });
@@ -429,7 +435,8 @@ it.each(['실패', '합계 제한'] as const)(
     else
       read.mockResolvedValue({
         stem,
-        bytes: new ArrayBuffer(64 * 1024 * 1024),
+        // 512MiB를 실제로 할당하지 않고 합계 검사(읽은 직후)만 넘깁니다.
+        bytes: { byteLength: 512 * 1024 * 1024 + 1 } as ArrayBuffer,
       });
     const hook = renderHook(
       (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
@@ -618,6 +625,7 @@ it('저장 분리 UUID로 재생을 준비하고 명시적 저장·렌더만 실
       channels: 1,
       peak: 0.5,
       limitedFrames: 0,
+      frozenLayers: 0,
       bytes: 768058,
     },
   });
@@ -940,5 +948,545 @@ it('반주 줄이 없는 저장 믹스는 음소거 반주를 맨 앞에 넣고,
     ]),
   );
   second.unmount();
+  main.dispose();
+});
+function frozenFixture(projectId: string, takeId: string): TakeRender {
+  return {
+    schemaVersion: 1,
+    id: '00000000-0000-4000-8000-000000000088',
+    projectId,
+    takeId,
+    kind: 'FREEZE',
+    sampleRate: 48000,
+    channels: 2,
+    frames: 10,
+    durationMs: 10 / 48,
+    bytes: 124,
+    sha256: 'b'.repeat(64),
+    takeSha256: 'c'.repeat(64),
+    pluginClassId: '56535441746235616D706C6974756265',
+    pluginVersion: '5.10.4',
+    latencyFrames: 7,
+    tailFrames: 0,
+    createdAtMs: 1,
+  };
+}
+it('Freeze된 테이크는 캐시로 재생을 준비하고, 캐시가 바뀌었으면 원본으로 재생하며 실시간 AmpliTube 재생을 거부한다(docs/12 Freeze v1)', async () => {
+  const { main, take, prepare, wrapper, props } = setup();
+  const frozen = frozenFixture(take.projectId, take.id);
+  vi.spyOn(freezeApi, 'list').mockResolvedValue([frozen]);
+  const cache = new ArrayBuffer(124);
+  const read = vi.spyOn(freezeApi, 'read').mockResolvedValue(cache);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.freezes).toEqual([frozen]));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  const entries = prepare.mock.calls[0]?.[1] ?? [];
+  expect(entries.find((e) => 'take' in e)?.bytes).toBe(cache);
+  expect(recordingApi.read).not.toHaveBeenCalled();
+  // 테이크가 바뀐 캐시는 그 레이어만 원본으로 재생하고 알립니다.
+  read.mockRejectedValue({ code: 'FREEZE_STALE' });
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(recordingApi.read).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.notice).toContain('원본(DI)으로 재생');
+  await act(async () => {
+    await hook.result.current.setWetTake(take.id);
+  });
+  expect(hook.result.current.notice).toContain('이미 AmpliTube 톤');
+  // Freeze 해제 뒤에는 목록을 다시 읽습니다.
+  const unfreeze = vi.spyOn(freezeApi, 'unfreeze').mockResolvedValue(true);
+  vi.mocked(freezeApi.list).mockResolvedValue([]);
+  await act(async () => {
+    await hook.result.current.unfreezeTake(take.id);
+  });
+  expect(unfreeze).toHaveBeenCalledWith(take.projectId, take.id);
+  expect(hook.result.current.freezes).toEqual([]);
+  expect(hook.result.current.notice).toContain('Unfreeze 완료');
+  hook.unmount();
+  main.dispose();
+});
+it('Bounce는 RENDER 레이어를 원본 다음에 넣고 원본 줄을 음소거하며, 준비 때 원본 테이크 시간축으로 재생한다(docs/12 Bounce v1)', async () => {
+  const { main, take, mix, prepare, wrapper, props } = setup();
+  vi.spyOn(freezeApi, 'list').mockResolvedValue([]);
+  const made = {
+    ...frozenFixture(take.projectId, take.id),
+    id: '00000000-0000-4000-8000-000000000099',
+    kind: 'BOUNCE' as const,
+  };
+  vi.spyOn(freezeApi, 'listBounces').mockResolvedValue([]);
+  const bounce = vi.spyOn(freezeApi, 'bounce').mockResolvedValue(made);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  vi.mocked(freezeApi.listBounces).mockResolvedValue([made]);
+  await act(async () => {
+    await hook.result.current.bounceTake(take.id);
+  });
+  expect(bounce).toHaveBeenCalledWith(
+    take.projectId,
+    take.id,
+    expect.anything(),
+    expect.anything(),
+  );
+  const layers = hook.result.current.mix?.layers ?? [];
+  expect(layers.map((l) => [l.kind, l.mute])).toEqual([
+    ['LOCAL_ASSET', false],
+    ['TAKE', true],
+    ['RENDER', false],
+  ]);
+  expect(hook.result.current.notice).toContain('원본 테이크 줄은 음소거');
+  // 원본이 음소거여도 Bounce 줄 때문에 준비가 필요합니다(자동 준비·REC 판정).
+  expect(hook.result.current.needsPreparation).toBe(true);
+  const cache = new ArrayBuffer(124);
+  vi.spyOn(freezeApi, 'readBounce').mockResolvedValue(cache);
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  const entry = (prepare.mock.calls[0]?.[1] ?? []).find(
+    (e) => 'kind' in e && e.kind === 'RENDER',
+  );
+  expect(entry && 'source' in entry ? entry.source.id : null).toBe(take.id);
+  expect(entry?.bytes).toBe(cache);
+  // 저장한 뒤 다시 열어도(RENDER만 들리는 믹스) 준비가 필요합니다.
+  const saved = hook.result.current.mix;
+  hook.unmount();
+  if (!saved) throw new Error('믹스 필요');
+  vi.mocked(mixApi.load).mockResolvedValue(saved);
+  const reopened = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(reopened.result.current.mix).toEqual(saved));
+  expect(reopened.result.current.needsPreparation).toBe(true);
+  reopened.unmount();
+  main.dispose();
+});
+it('Bounce 삭제: 사용 중이면 안내만 하고, 성공하면 화면 믹스에서도 그 줄을 뺀다(docs/12 Bounce 삭제·관리 v1)', async () => {
+  const { main, take, mix, wrapper, props } = setup();
+  const made = {
+    ...frozenFixture(take.projectId, take.id),
+    id: '00000000-0000-4000-8000-000000000099',
+    kind: 'BOUNCE' as const,
+  };
+  vi.spyOn(freezeApi, 'list').mockResolvedValue([]);
+  vi.spyOn(freezeApi, 'listBounces').mockResolvedValue([made]);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.bounces).toEqual([made]));
+  act(() => hook.result.current.addBounceToMix(made.id));
+  expect(hook.result.current.mix?.layers.at(-1)).toMatchObject({
+    kind: 'RENDER',
+    id: made.id,
+  });
+  const remove = vi
+    .spyOn(freezeApi, 'deleteBounce')
+    .mockRejectedValueOnce({ code: 'BOUNCE_IN_USE' });
+  await act(async () => {
+    await hook.result.current.deleteBounce(made.id);
+  });
+  expect(hook.result.current.error).toContain('저장된 믹스 설정');
+  expect(hook.result.current.mix?.layers.some((l) => l.id === made.id)).toBe(
+    true,
+  );
+  remove.mockResolvedValueOnce(true);
+  vi.mocked(freezeApi.listBounces).mockResolvedValue([]);
+  await act(async () => {
+    await hook.result.current.deleteBounce(made.id);
+  });
+  expect(remove).toHaveBeenLastCalledWith(take.projectId, made.id);
+  expect(hook.result.current.bounces).toEqual([]);
+  expect(hook.result.current.mix?.layers).toEqual(mix.layers);
+  expect(hook.result.current.notice).toContain('Bounce 파일을 지웠습니다');
+  hook.unmount();
+  main.dispose();
+});
+it('10분 테이크도 믹스 준비하고, 합계 512MiB를 넘으면 거부한다(docs/12 믹스 입력 한도 v2)', async () => {
+  const { main, take, prepare, wrapper, props } = setup();
+  vi.mocked(recordingApi.list).mockResolvedValue([
+    { ...take, frames: 48000 * 600 },
+  ]);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.takes).toHaveLength(1));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(prepare).toHaveBeenCalledTimes(1);
+  hook.unmount();
+  main.dispose();
+});
+it('믹스 준비 입력 합계가 512MiB를 넘으면 읽기 전에 거부한다(docs/12 믹스 입력 한도 v2)', async () => {
+  const { main, take, prepare, wrapper, props } = setup();
+  vi.mocked(recordingApi.list).mockResolvedValue([
+    { ...take, frames: (512 * 1024 * 1024) / 4 },
+  ]);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.takes).toHaveLength(1));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(prepare).not.toHaveBeenCalled();
+  expect(recordingApi.read).not.toHaveBeenCalled();
+  expect(hook.result.current.error).toContain('512MiB');
+  hook.unmount();
+  main.dispose();
+});
+it('출력 장치가 있으면 Rust로 준비하고 파일을 화면으로 읽지 않으며, 실패하면 기존 재생으로 준비한다(docs/12 네이티브 재생 v1)', async () => {
+  const { main, mix, prepare, wrapper, props } = setup();
+  const nativePrepare = vi
+    .spyOn(nativePlaybackApi, 'prepare')
+    .mockResolvedValue({ sampleRate: 48000, durationMs: 1000 });
+  vi.spyOn(nativePlaybackApi, 'transport').mockResolvedValue({
+    prepared: true,
+    playing: false,
+    positionMs: 0,
+    loopCount: 0,
+    errorCode: null,
+  });
+  const release = vi
+    .spyOn(nativePlaybackApi, 'release')
+    .mockResolvedValue(undefined);
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(nativePrepare).toHaveBeenCalledWith(
+    'fixture-output',
+    mix,
+    props.backingId,
+  );
+  expect(recordingApi.read).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(main.nativeAttached).toBe(true);
+  expect(hook.result.current.prepared).toBe(true);
+  expect(hook.result.current.nativeActive).toBe(true);
+  // 끄면 떼고 Rust 쪽을 놓은 뒤, 다음 준비는 기존 재생으로 합니다.
+  act(() => hook.result.current.setNativePlayback(false));
+  expect(main.nativeAttached).toBe(false);
+  expect(release).toHaveBeenCalled();
+  expect(hook.result.current.prepared).toBe(false);
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(nativePrepare).toHaveBeenCalledTimes(1);
+  expect(prepare).toHaveBeenCalledTimes(1);
+  // 다시 켜고 Rust 준비가 실패(MP3 반주)하면 이유를 알리고 기존 재생으로 준비합니다.
+  act(() => hook.result.current.setNativePlayback(true));
+  nativePrepare.mockRejectedValueOnce({ code: 'MIX_FORMAT_UNSUPPORTED' });
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(prepare).toHaveBeenCalledTimes(2);
+  expect(main.nativeAttached).toBe(false);
+  expect(hook.result.current.notice).toContain('MP3');
+  hook.unmount();
+  main.dispose();
+  window.localStorage.removeItem('guitarlab.nativePlayback');
+});
+it('Rust 재생 중 AmpliTube 테이크를 고르면 기존 재생으로 다시 준비해 적용하고, Freeze 목록 실패는 숨기지 않는다(리뷰 R1-2·R1-7)', async () => {
+  const { main, take, mix, prepare, wrapper, props } = setup();
+  vi.spyOn(freezeApi, 'list').mockRejectedValue({ code: 'FREEZE_INVALID' });
+  vi.spyOn(freezeApi, 'listBounces').mockResolvedValue([]);
+  vi.spyOn(nativePlaybackApi, 'prepare').mockResolvedValue({
+    sampleRate: 48000,
+    durationMs: 1000,
+  });
+  vi.spyOn(nativePlaybackApi, 'transport').mockResolvedValue({
+    prepared: true,
+    playing: false,
+    positionMs: 0,
+    loopCount: 0,
+    errorCode: null,
+  });
+  vi.spyOn(nativePlaybackApi, 'release').mockResolvedValue(undefined);
+  const setWet = vi
+    .spyOn(TakeMixPlayer.prototype, 'setWet')
+    .mockResolvedValue(undefined);
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  expect(hook.result.current.notice).toContain('Freeze 목록을 읽지 못했습니다');
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(main.nativeAttached).toBe(true);
+  expect(hook.result.current.notice).toContain('Freeze 목록을 읽지 못했습니다');
+  await act(async () => {
+    await hook.result.current.setWetTake(take.id);
+  });
+  expect(main.nativeAttached).toBe(false);
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(setWet).toHaveBeenCalledWith(take.id);
+  hook.unmount();
+  main.dispose();
+});
+it('Solo한 테이크를 Bounce하면 Solo를 Bounce 줄로 옮겨 결과가 들린다(리뷰 R2-6)', async () => {
+  const { main, take, mix, wrapper, props } = setup();
+  const soloed: MixDocument = {
+    ...mix,
+    layers: mix.layers.map((l) =>
+      l.id === take.id ? { ...l, solo: true } : l,
+    ),
+  };
+  vi.mocked(mixApi.load).mockResolvedValue(soloed);
+  const made = {
+    ...frozenFixture(take.projectId, take.id),
+    id: '00000000-0000-4000-8000-000000000098',
+    kind: 'BOUNCE' as const,
+  };
+  vi.spyOn(freezeApi, 'bounce').mockResolvedValue(made);
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(soloed));
+  await act(async () => {
+    await hook.result.current.bounceTake(take.id);
+  });
+  const layers = hook.result.current.mix?.layers ?? [];
+  expect(layers.map((l) => [l.kind, l.mute, l.solo])).toEqual([
+    ['LOCAL_ASSET', false, false],
+    ['TAKE', true, false],
+    ['RENDER', false, true],
+  ]);
+  hook.unmount();
+  main.dispose();
+});
+it('Freeze 목록 실패와 Rust 준비 실패가 겹쳐도 DI 대체 안내를 남긴다(리뷰 R2-4)', async () => {
+  const { main, mix, prepare, wrapper, props } = setup();
+  vi.mocked(freezeApi.list).mockRejectedValue({ code: 'FREEZE_INVALID' });
+  vi.spyOn(nativePlaybackApi, 'prepare').mockRejectedValue({
+    code: 'FREEZE_INVALID',
+  });
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.notice).toContain('원본 DI로 재생');
+  expect(hook.result.current.notice).toContain('Rust 재생을 쓰지 못해');
+  hook.unmount();
+  main.dispose();
+});
+it('다른 반주로 녹음한 테이크는 Rust 준비도 하지 않고 거부한다(리뷰 R4-1)', async () => {
+  const { main, take, prepare, wrapper, props } = setup();
+  vi.mocked(recordingApi.list).mockResolvedValue([
+    {
+      ...take,
+      transport: take.transport && {
+        ...take.transport,
+        backingAssetId: '00000000-0000-4000-8000-0000000000ee',
+      },
+    },
+  ]);
+  const nativePrepare = vi.spyOn(nativePlaybackApi, 'prepare');
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.takes).toHaveLength(1));
+  await act(async () => {
+    await hook.result.current.prepare();
+  });
+  expect(nativePrepare).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(hook.result.current.prepared).toBe(false);
+  expect(hook.result.current.error).toBeTruthy();
+  hook.unmount();
+  main.dispose();
+});
+it('준비 중에는 Bounce를 믹스에 넣지 않아 준비한 구성과 화면이 어긋나지 않는다(리뷰 R5-2)', async () => {
+  const { main, take, mix, wrapper, props } = setup();
+  const made = {
+    ...frozenFixture(take.projectId, take.id),
+    id: '00000000-0000-4000-8000-000000000097',
+    kind: 'BOUNCE' as const,
+  };
+  vi.mocked(freezeApi.listBounces).mockResolvedValue([made]);
+  let finish: () => void = () => {};
+  vi.spyOn(nativePlaybackApi, 'prepare').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ sampleRate: 48000, durationMs: 1000 });
+      }),
+  );
+  vi.spyOn(nativePlaybackApi, 'transport').mockResolvedValue({
+    prepared: true,
+    playing: false,
+    positionMs: 0,
+    loopCount: 0,
+    errorCode: null,
+  });
+  vi.spyOn(nativePlaybackApi, 'release').mockResolvedValue(undefined);
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.bounces).toEqual([made]));
+  let preparing: Promise<void> | undefined;
+  act(() => {
+    preparing = hook.result.current.prepare();
+  });
+  act(() => hook.result.current.addBounceToMix(made.id));
+  expect(hook.result.current.mix?.layers).toEqual(mix.layers);
+  await act(async () => {
+    finish();
+    await preparing;
+  });
+  expect(hook.result.current.prepared).toBe(true);
+  expect(hook.result.current.mix?.layers).toEqual(mix.layers);
+  hook.unmount();
+  main.dispose();
+});
+it('Rust 준비를 기다리는 동안 배속을 바꾸면 Rust를 붙이지 않고 기존 재생으로 준비한다', async () => {
+  const { main, mix, prepare, wrapper, props } = setup();
+  let finish: () => void = () => {};
+  vi.spyOn(nativePlaybackApi, 'prepare').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ sampleRate: 48000, durationMs: 1000 });
+      }),
+  );
+  const release = vi
+    .spyOn(nativePlaybackApi, 'release')
+    .mockResolvedValue(undefined);
+  const hook = renderHook(
+    (p) =>
+      useProjectMix(
+        p.projectId,
+        p.backingId,
+        p.revisionId,
+        p.enabled,
+        null,
+        'fixture-output',
+      ),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  let preparing: Promise<void> | undefined;
+  act(() => {
+    preparing = hook.result.current.prepare();
+  });
+  main.setRate(0.75);
+  await act(async () => {
+    finish();
+    await preparing;
+  });
+  expect(main.nativeAttached).toBe(false);
+  expect(release).toHaveBeenCalled();
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.notice).toContain('1배속이 아님');
+  hook.unmount();
+  main.dispose();
+});
+it('Bounce 뒤 목록 재조회가 늦게 끝나도 바뀐 프로젝트의 목록을 덮지 않는다(리뷰 R7-2)', async () => {
+  const { main, take, mix, wrapper, props } = setup();
+  const made = {
+    ...frozenFixture(take.projectId, take.id),
+    id: '00000000-0000-4000-8000-000000000096',
+    kind: 'BOUNCE' as const,
+  };
+  vi.spyOn(freezeApi, 'bounce').mockResolvedValue(made);
+  let late: () => void = () => {};
+  let calls = 0;
+  vi.mocked(freezeApi.listBounces).mockImplementation(async (id) => {
+    // 처음 조회(열 때)는 빈 목록, Bounce 뒤 A 재조회는 늦게 끝납니다.
+    if (id === take.projectId && ++calls === 2)
+      return new Promise((resolve) => {
+        late = () => resolve([made]);
+      });
+    return [];
+  });
+  const hook = renderHook(
+    (p) => useProjectMix(p.projectId, p.backingId, p.revisionId, p.enabled),
+    { initialProps: props, wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.mix).toEqual(mix));
+  let bouncing: Promise<void> | undefined;
+  act(() => {
+    bouncing = hook.result.current.bounceTake(take.id);
+  });
+  await waitFor(() => expect(calls).toBe(2));
+  const other = '00000000-0000-4000-8000-0000000000bb';
+  vi.mocked(mixApi.load).mockResolvedValue({
+    ...mix,
+    projectId: other,
+    layers: [],
+  });
+  vi.mocked(recordingApi.list).mockResolvedValue([]);
+  hook.rerender({ ...props, projectId: other });
+  await waitFor(() => expect(hook.result.current.mix?.projectId).toBe(other));
+  await act(async () => {
+    late();
+    await bouncing;
+  });
+  expect(hook.result.current.bounces).toEqual([]);
+  expect(hook.result.current.mix?.projectId).toBe(other);
+  hook.unmount();
   main.dispose();
 });

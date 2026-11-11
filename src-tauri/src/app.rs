@@ -8,6 +8,8 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
         .plugin(tauri_plugin_dialog::init())
         .manage(crate::close_guard::CloseGuard::default())
         .manage(Arc::new(audio::AudioService::default()))
+        .manage(Arc::new(crate::plugins::MonitorPluginService::default()))
+        .manage(Arc::new(crate::commands::native_playback_api::NativePlayback::default()))
         .manage(Arc::new(
             judgement::calibration_measurement::MeasurementService::default(),
         ))
@@ -220,6 +222,36 @@ pub fn builder() -> tauri::Builder<tauri::Wry> {
             commands::monitor_api::stop_input_monitor,
             commands::monitor_api::get_input_monitor,
             commands::monitor_api::set_input_monitor_volume,
+            commands::monitor_api::set_input_monitor_bypass,
+            commands::monitor_api::load_monitor_playback,
+            commands::monitor_api::set_monitor_playback,
+            commands::monitor_api::get_monitor_playback,
+            commands::plugin_api::get_monitor_plugin,
+            commands::plugin_api::load_monitor_plugin,
+            commands::plugin_api::unload_monitor_plugin,
+            commands::plugin_api::open_monitor_plugin_editor,
+            commands::plugin_api::close_monitor_plugin_editor,
+            commands::plugin_api::get_project_plugin_state,
+            commands::plugin_api::save_project_plugin_state,
+            commands::plugin_api::restore_project_plugin_state,
+            commands::render_api::list_take_freezes,
+            commands::render_api::freeze_take,
+            commands::render_api::read_take_freeze,
+            commands::render_api::export_take_freeze,
+            commands::render_api::bounce_take,
+            commands::render_api::list_take_bounces,
+            commands::render_api::read_take_bounce,
+            commands::render_api::delete_take_bounce,
+            commands::native_playback_api::prepare_native_playback,
+            commands::native_playback_api::update_native_mix,
+            commands::native_playback_api::set_native_transport,
+            commands::native_playback_api::get_native_transport,
+            commands::native_playback_api::release_native_playback,
+            commands::native_playback_api::set_native_metronome,
+            commands::native_playback_api::native_count_in,
+            commands::native_playback_api::get_native_clock,
+            commands::render_api::unfreeze_take,
+            commands::render_api::restore_take_freeze_tone,
             commands::update_capture_clock,
             commands::list_input_calibrations,
             commands::save_input_calibration,

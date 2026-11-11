@@ -1,12 +1,20 @@
 import { layerVolume, type MixDocument, type MixLayer } from './mixing';
 import type { ProjectMixController } from './useProjectMix';
+import type { TakeRender } from './freeze';
 
 /** 믹스 패널과 하단 믹서가 같은 이름을 쓰도록 레이어 이름을 만듭니다. */
 export function mixLayerName(
   layer: MixLayer,
-  c: Pick<ProjectMixController, 'takes' | 'stems' | 'importedStems'>,
+  c: Pick<ProjectMixController, 'takes' | 'stems' | 'importedStems'> & {
+    bounces?: TakeRender[];
+  },
 ) {
   if (layer.kind === 'LOCAL_ASSET') return '로컬 반주';
+  if (layer.kind === 'RENDER') {
+    const takeId = c.bounces?.find((b) => b.id === layer.id)?.takeId;
+    const name = c.takes.find((t) => t.id === takeId)?.name;
+    return `Bounce · ${name ?? layer.id.slice(0, 8)}`;
+  }
   if (layer.kind === 'IMPORTED_STEM') {
     const name = c.importedStems.find((stem) => stem.id === layer.id)?.name;
     // 목록을 읽기 전에는 ID 대신 종류 이름을 보여 줍니다.

@@ -379,14 +379,16 @@ fn version_nine_migration_preserves_trash_and_never_starts_deletion() {
     let plan = prepare(&f, &id);
     let db = connect(&f.store.root).expect("DB");
     let rows = super::project_trash_tests::rows(&db);
-    db.execute_batch("DROP TABLE project_purge_intents; PRAGMA user_version=9")
-        .expect("자체 이전 DB");
+    db.execute_batch(
+        "DROP TABLE take_renders; DROP TABLE project_plugin_states; DROP TABLE project_purge_intents; PRAGMA user_version=9",
+    )
+    .expect("자체 이전 DB");
     drop(db);
     let db = connect(&f.store.root).expect("마이그레이션");
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        10
+        12
     );
     assert_eq!(super::project_trash_tests::rows(&db), rows);
     let current = f.store.trashed_projects().expect("보관 유지");

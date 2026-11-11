@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, fs, sync::atomic::AtomicBool};
 use uuid::Uuid;
 
 pub(crate) fn rows(db: &Connection) -> BTreeMap<String, Vec<Vec<Value>>> {
-    let names = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('project_trash','project_purge_intents') ORDER BY name").expect("테이블")
+    let names = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('project_trash','project_purge_intents','project_plugin_states','take_renders') ORDER BY name").expect("테이블")
         .query_map([], |row| row.get::<_, String>(0)).expect("목록").collect::<rusqlite::Result<Vec<_>>>().expect("이름");
     names
         .into_iter()
@@ -122,7 +122,7 @@ fn version_eight_migration_only_adds_empty_trash_and_keeps_all_previous_rows() {
     f.asset(&project, AssetStorage::Managed);
     let db = connect(&f.store.root).expect("DB");
     db.execute_batch(
-        "DROP TABLE project_purge_intents; DROP TABLE project_trash; PRAGMA user_version=8;",
+        "DROP TABLE take_renders; DROP TABLE project_plugin_states; DROP TABLE project_purge_intents; DROP TABLE project_trash; PRAGMA user_version=8;",
     )
     .expect("자체 v8");
     let before = rows(&db);
@@ -131,7 +131,7 @@ fn version_eight_migration_only_adds_empty_trash_and_keeps_all_previous_rows() {
     assert_eq!(
         db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .expect("버전"),
-        10
+        12
     );
     assert_eq!(rows(&db), before);
     assert!(f.store.trashed_projects().expect("빈 휴지통").is_empty());

@@ -184,6 +184,12 @@ export const audioInput = {
     );
   },
 };
+/** docs/12 "입력 오류 원인 구분 v1": 입력이 ERROR로 멈춘 원인별 안내. */
+export function inputFailureMessage(code: string): string {
+  if (code === 'AUDIO_INPUT_STALLED')
+    return '입력 장치가 2초 동안 소리 데이터를 보내지 않아 멈췄습니다. 다른 프로그램(DAW·SSL 360 등)이 이 장치를 단독으로 쓰고 있지 않은지, Windows 소리 설정의 "앱이 이 장치를 단독으로 제어하도록 허용"을 확인한 뒤 입력을 중단하고 다시 시작하세요.';
+  return '입력이 끊겼습니다. 장치 연결·전원을 확인하고 입력을 중단한 뒤 다시 연결하세요.';
+}
 export function inputError(error: unknown): string {
   const code = record(error)
     ? error.code

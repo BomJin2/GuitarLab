@@ -94,6 +94,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "com-scrape-types",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "const-oid",
       "version": "0.10.2",
       "license": "Apache-2.0 OR MIT"
@@ -116,6 +121,11 @@
     {
       "name": "crossbeam-channel",
       "version": "0.5.17",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "crossbeam-queue",
+      "version": "0.3.14",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -314,6 +324,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "libloading",
+      "version": "0.8.9",
+      "license": "ISC"
+    },
+    {
       "name": "libsqlite3-sys",
       "version": "0.38.2",
       "license": "MIT"
@@ -461,6 +476,11 @@
     {
       "name": "ringbuf",
       "version": "0.5.3",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "rtrb",
+      "version": "0.3.6",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -684,6 +704,16 @@
       "license": "Apache-2.0 OR MIT"
     },
     {
+      "name": "vst3",
+      "version": "0.3.0",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "vst3-host",
+      "version": "0.11.0",
+      "license": "MIT"
+    },
+    {
       "name": "walkdir",
       "version": "2.5.0",
       "license": "Unlicense/MIT"
@@ -702,6 +732,11 @@
       "name": "webview2-com-sys",
       "version": "0.39.1",
       "license": "MIT"
+    },
+    {
+      "name": "winapi",
+      "version": "0.3.9",
+      "license": "MIT/Apache-2.0"
     },
     {
       "name": "winapi-util",

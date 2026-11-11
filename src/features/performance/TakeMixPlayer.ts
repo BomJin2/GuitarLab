@@ -1,6 +1,11 @@
 import type { PlayerEngine, PlayerSnapshot } from '../player/PlayerEngine';
 import type { RecordedTake } from '../recordings/recordings';
 import { decodeMix, layerVolume, type MixDocument } from './mixing';
+import {
+  monitorPlaybackMessage,
+  playbackErrorCode,
+  type MonitorPlaybackApi,
+} from './monitorPlayback';
 type Voice = {
   take: RecordedTake | null;
   id: string;
@@ -18,6 +23,14 @@ export type MixPlaybackEntry =
       stemId: string;
       projectId: string;
       bytes: ArrayBuffer;
+    }
+  | {
+      /** docs/12 "Bounce to New Track v1": 원본 테이크(source)의 시간축을 따릅니다. */
+      kind: 'RENDER';
+      stemId: string;
+      projectId: string;
+      bytes: ArrayBuffer;
+      source: RecordedTake;
     };
 export function takeTimeMs(
   take: RecordedTake,
@@ -37,10 +50,141 @@ export class TakeMixPlayer {
   private originalVolume = 1;
   private disposed = false;
   private epoch = -1;
+  // docs/12 "모니터 테이크 재생 v1": AmpliTube 모니터로 보내는 TAKE 레이어 하나.
+  private wetId: string | null = null;
+  private wetSent: { playing: boolean; timeMs: number; at: number } | null =
+    null;
+  private wetCheckAt = 0;
+  private wetQueue: Promise<unknown> = Promise.resolve();
+  /** 마지막 AmpliTube 테이크 선택 번호. 늦게 끝난 이전 선택이 최신 선택을 덮지 않게 합니다. */
+  private wetSelect = 0;
+  /** 아직 끝나지 않은 AmpliTube 테이크 불러오기가 있는지(해제 때 같이 취소). */
+  private wetPending = false;
   constructor(
     private main: PlayerEngine,
     private onError: (message: string) => void,
+    private wet: MonitorPlaybackApi | null = null,
+    private onWet: (
+      takeId: string | null,
+      message: string | null,
+    ) => void = () => {},
   ) {}
+  wetTakeId() {
+    return this.wetId;
+  }
+  /** 실패하면 원음 재생을 유지하고 오류 코드를 던집니다. */
+  async setWet(takeId: string | null) {
+    const projectId = this.mix?.projectId;
+    if (!this.wet || !projectId) throw new Error('MIX_CONTRACT_INVALID');
+    if (takeId === null) {
+      this.dropWet(null);
+      return;
+    }
+    if (
+      !this.voices.some(
+        (voice) => voice.id === takeId && voice.take?.id === takeId,
+      )
+    )
+      throw new Error('MIX_CONTRACT_INVALID');
+    const select = ++this.wetSelect;
+    // 불러오기·해제를 같은 줄에 세워 Rust가 받는 순서를 선택 순서와 같게 합니다.
+    const wet = this.wet;
+    const job = this.wetQueue.then(() => wet.load(projectId, takeId));
+    this.wetQueue = job.catch(() => {});
+    this.wetPending = true;
+    try {
+      await job;
+    } finally {
+      if (select === this.wetSelect) this.wetPending = false;
+    }
+    if (select !== this.wetSelect) return;
+    if (this.mix?.projectId !== projectId) {
+      void wet.load(projectId, null).catch(() => {});
+      return;
+    }
+    this.wetId = takeId;
+    this.wetSent = null;
+    this.onWet(takeId, null);
+    this.sync();
+  }
+  private dropWet(message: string | null, resync = true) {
+    const projectId = this.mix?.projectId;
+    const had = this.wetId !== null;
+    this.wetSelect++;
+    this.wetPending = false;
+    this.wetId = null;
+    this.wetSent = null;
+    if (this.wet && projectId)
+      this.wetQueue = this.wetQueue
+        .then(() => this.wet?.load(projectId, null))
+        .catch(() => {});
+    if (had || message) this.onWet(null, message);
+    if (resync) this.sync();
+  }
+  private sendWet(playing: boolean, timeMs: number, now: number) {
+    const id = this.wetId;
+    this.wetSent = { playing, timeMs, at: now };
+    this.wetCheckAt = now;
+    this.wetQueue = this.wetQueue
+      .then(() => this.wet?.set(playing, Math.min(timeMs, 600000)))
+      .catch((cause: unknown) => {
+        if (this.wetId === id && !this.disposed)
+          this.dropWet(monitorPlaybackMessage(playbackErrorCode(cause)));
+      });
+  }
+  private syncWet(
+    voice: Voice,
+    timeMs: number,
+    rate: number,
+    volume: number,
+    state: PlayerSnapshot,
+    jumped: boolean,
+  ) {
+    if (!voice.media.paused) voice.media.pause();
+    if (Math.abs(rate - 1) > 0.000001) {
+      this.dropWet(
+        '재생 속도가 1배가 아니어서 이 레이어를 원음 재생으로 바꿨습니다(AmpliTube 재생은 1배만).',
+      );
+      return;
+    }
+    // 레이어 gain은 AmpliTube 앞 크기라 톤을 바꾸므로 적용하지 않고 0일 때만 멈춥니다.
+    const playing =
+      state.status === 'playing' &&
+      volume > 0 &&
+      timeMs >= 0 &&
+      timeMs < voice.media.duration * 1000;
+    const now = performance.now();
+    const sent = this.wetSent;
+    if (!sent || sent.playing !== playing || (playing && jumped)) {
+      this.sendWet(playing, Math.max(0, timeMs), now);
+      return;
+    }
+    if (!playing || now - this.wetCheckAt < 2000) return;
+    this.wetCheckAt = now;
+    const id = this.wetId;
+    this.wetQueue = this.wetQueue
+      .then(() => this.wet?.status())
+      .then((status) => {
+        // 응답을 기다리는 동안 일시정지·탐색 등 새 명령을 보냈다면 늦은 응답으로 다시 재생하지 않습니다.
+        if (
+          !status ||
+          this.wetId !== id ||
+          this.disposed ||
+          this.wetSent !== sent ||
+          !sent.playing ||
+          this.main.getSnapshot().status !== 'playing'
+        )
+          return;
+        const expected = timeMs + (performance.now() - now);
+        // 클립 위치가 반주보다 50ms 넘게 벌어졌을 때만 다시 맞춥니다(맞출 때 잠깐 튐).
+        if (
+          status.positionMs === null ||
+          Math.abs(status.positionMs - expected) > 50
+        )
+          this.sendWet(true, expected, performance.now());
+      })
+      .catch(() => {});
+  }
   async prepare(
     mix: MixDocument,
     entries: MixPlaybackEntry[],
@@ -68,6 +212,7 @@ export class TakeMixPlayer {
                 (l) => l.kind === 'TAKE' && l.id === entry.take.id,
               )
             : entry.projectId !== mix.projectId ||
+              ('source' in entry && entry.source.projectId !== mix.projectId) ||
               !mix.layers.some(
                 (l) => l.kind === entry.kind && l.id === entry.stemId,
               ),
@@ -82,7 +227,12 @@ export class TakeMixPlayer {
           new Blob([entry.bytes], { type: 'audio/wav' }),
         );
         const voice: Voice = {
-          take: 'take' in entry ? entry.take : null,
+          take:
+            'take' in entry
+              ? entry.take
+              : 'source' in entry
+                ? entry.source
+                : null,
           id: 'take' in entry ? entry.take.id : entry.stemId,
           media,
           url,
@@ -150,6 +300,8 @@ export class TakeMixPlayer {
     const backing = this.mix.layers.find((l) => l.kind === 'LOCAL_ASSET');
     const volume = backing ? layerVolume(this.mix, backing) : 0;
     if (Math.abs(state.volume - volume) > 0.000001) this.main.setVolume(volume);
+    if (this.wetId && !this.mix.layers.some((l) => l.id === this.wetId))
+      this.dropWet(null, false);
     const changed = state.playbackEpoch !== this.epoch;
     this.epoch = state.playbackEpoch;
     for (const voice of this.voices) this.syncVoice(voice, state, changed);
@@ -169,6 +321,10 @@ export class TakeMixPlayer {
     if (voice.media.playbackRate !== rate) voice.media.playbackRate = rate;
     const offsetChanged = voice.offsetMs !== layer.offsetMs;
     voice.offsetMs = layer.offsetMs;
+    if (voice.id === this.wetId) {
+      this.syncWet(voice, time, rate, volume, state, changed || offsetChanged);
+      return;
+    }
     const now = performance.now();
     if (
       time < 0 ||
@@ -227,6 +383,8 @@ export class TakeMixPlayer {
     voice.driftSinceMs = null;
   }
   clear() {
+    // 불러오는 중인 선택도 무효화하고 Rust 클립 해제를 같은 줄에 넣습니다.
+    if (this.wetId || this.wetPending) this.dropWet(null, false);
     this.disposed = true;
     this.unsubscribe?.();
     this.unsubscribe = null;

@@ -13,7 +13,10 @@ use crate::{
 use serde::Serialize;
 use std::{io::Cursor, sync::atomic::AtomicBool};
 
-pub const INPUT_BUDGET: usize = 64 * 1024 * 1024;
+/// docs/12 "믹스 입력 한도 v2": 디코딩한 mono f32 합계. 화면 믹스 준비(읽은 바이트 합계)와 같은 값입니다.
+pub const INPUT_BUDGET: usize = 512 * 1024 * 1024;
+// 10분 반주 + 10분 테이크(48kHz)가 들어가야 합니다.
+const _: () = assert!(INPUT_BUDGET >= 2 * 48_000 * 600 * 4);
 pub const OUTPUT_RATE: u32 = 48000;
 struct Input {
     pcm: Pcm,
@@ -30,6 +33,8 @@ pub struct MixStats {
     pub peak: f64,
     pub limited_frames: u64,
     pub bytes: usize,
+    /// Freeze 캐시를 쓴 TAKE 레이어 수.
+    pub frozen_layers: u32,
 }
 
 pub fn validate_sources(
@@ -63,6 +68,9 @@ pub fn validate_sources(
             LayerKind::ImportedStem => {
                 store.read_imported_guitar_stem(&mix.project_id, &layer.id, cancel)?;
             }
+            LayerKind::Render => {
+                store.read_take_bounce(&mix.project_id, &layer.id, cancel)?;
+            }
         }
     }
     Ok(())
@@ -77,54 +85,22 @@ pub fn render(
     validate_sources(store, mix, cancel)?;
     let mut budget = INPUT_BUDGET;
     let mut inputs = Vec::new();
+    let frozen: Vec<String> = store
+        .take_freezes(&mix.project_id)?
+        .into_iter()
+        .map(|f| f.take_id)
+        .collect();
+    let mut frozen_layers = 0u32;
     for layer in &mix.layers {
         canceled(cancel)?;
         if !mix.audible(layer) || layer.gain == 0.0 {
             continue;
         }
-        let (bytes, start_ms) = match layer.kind {
-            LayerKind::ImportedStem => (
-                store
-                    .read_imported_guitar_stem(&mix.project_id, &layer.id, cancel)?
-                    .1,
-                layer.offset_ms,
-            ),
-            LayerKind::Stem => (
-                crate::ai::stem_store::read_stem(store, &mix.project_id, &layer.id, None, cancel)?,
-                layer.offset_ms,
-            ),
-            LayerKind::Take => {
-                let take = store.take(&mix.project_id, &layer.id)?;
-                if take
-                    .transport
-                    .as_ref()
-                    .is_some_and(|t| (t.rate - 1.0).abs() > f64::EPSILON)
-                {
-                    return Err(mix_error("MIX_RATE_UNSUPPORTED"));
-                }
-                if take.frames as usize > budget / 4 {
-                    return Err(mix_error("MIX_LIMIT_EXCEEDED"));
-                }
-                (
-                    store.recording_bytes(&mix.project_id, &layer.id, cancel)?,
-                    take.song_start_ms.unwrap_or(0.0) + take.alignment_offset_ms + layer.offset_ms,
-                )
-            }
-            LayerKind::LocalAsset => {
-                let info = store
-                    .assets(&mix.project_id)?
-                    .into_iter()
-                    .find(|a| a.id == layer.id)
-                    .ok_or_else(|| mix_error("MIX_SOURCE_UNAVAILABLE"))?;
-                if info.bytes > INPUT_BUDGET as u64 {
-                    return Err(mix_error("MIX_LIMIT_EXCEEDED"));
-                }
-                (
-                    store.read_asset(&mix.project_id, &layer.id, cancel, |_, _| Ok(()))?,
-                    layer.offset_ms,
-                )
-            }
-        };
+        let (bytes, start_ms, used_freeze) =
+            layer_source(store, mix, layer, &frozen, budget, None, cancel)?;
+        if used_freeze {
+            frozen_layers += 1;
+        }
         inputs.push(Input {
             pcm: pcm::decode(&bytes, &mut budget, cancel)?,
             start_ms,
@@ -195,6 +171,102 @@ pub fn render(
         peak,
         limited_frames: limited,
         bytes: bytes.len(),
+        frozen_layers,
     };
     Ok((bytes, stats))
+}
+/// 레이어 하나의 원본 바이트와 곡 위 시작 시각(ms), Freeze 캐시 사용 여부. 출력 믹스와 네이티브 재생이 함께 씁니다.
+pub(crate) fn layer_source(
+    store: &ProjectStore,
+    mix: &MixDocument,
+    layer: &MixLayer,
+    frozen: &[String],
+    budget: usize,
+    // 분리 음원(STEM)은 이 반주에서 만든 것만 받습니다(None이면 확인하지 않음).
+    stem_asset: Option<&str>,
+    cancel: &AtomicBool,
+) -> Result<(Vec<u8>, f64, bool), AppError> {
+    Ok(match layer.kind {
+        LayerKind::ImportedStem => (
+            store
+                .read_imported_guitar_stem(&mix.project_id, &layer.id, cancel)?
+                .1,
+            layer.offset_ms,
+            false,
+        ),
+        LayerKind::Stem => (
+            crate::ai::stem_store::read_stem(
+                store,
+                &mix.project_id,
+                &layer.id,
+                stem_asset,
+                cancel,
+            )?,
+            layer.offset_ms,
+            false,
+        ),
+        LayerKind::Take => {
+            let take = store.take(&mix.project_id, &layer.id)?;
+            if take
+                .transport
+                .as_ref()
+                .is_some_and(|t| (t.rate - 1.0).abs() > f64::EPSILON)
+            {
+                return Err(mix_error("MIX_RATE_UNSUPPORTED"));
+            }
+            if take.frames as usize > budget / 4 {
+                return Err(mix_error("MIX_LIMIT_EXCEEDED"));
+            }
+            let start =
+                take.song_start_ms.unwrap_or(0.0) + take.alignment_offset_ms + layer.offset_ms;
+            // docs/12 "테이크 Freeze v1": Freeze된 테이크는 처리된 캐시(tail 포함)를 씁니다.
+            if frozen.contains(&layer.id) {
+                (
+                    store
+                        .read_take_freeze(&mix.project_id, &layer.id, cancel)?
+                        .1,
+                    start,
+                    true,
+                )
+            } else {
+                (
+                    store.recording_bytes(&mix.project_id, &layer.id, cancel)?,
+                    start,
+                    false,
+                )
+            }
+        }
+        LayerKind::Render => {
+            // 시작 시각은 원본 테이크와 같은 규칙입니다.
+            let (meta, bytes) = store.read_take_bounce(&mix.project_id, &layer.id, cancel)?;
+            let take = store.take(&mix.project_id, &meta.take_id)?;
+            if take
+                .transport
+                .as_ref()
+                .is_some_and(|t| (t.rate - 1.0).abs() > f64::EPSILON)
+            {
+                return Err(mix_error("MIX_RATE_UNSUPPORTED"));
+            }
+            (
+                bytes,
+                take.song_start_ms.unwrap_or(0.0) + take.alignment_offset_ms + layer.offset_ms,
+                false,
+            )
+        }
+        LayerKind::LocalAsset => {
+            let info = store
+                .assets(&mix.project_id)?
+                .into_iter()
+                .find(|a| a.id == layer.id)
+                .ok_or_else(|| mix_error("MIX_SOURCE_UNAVAILABLE"))?;
+            if info.bytes > INPUT_BUDGET as u64 {
+                return Err(mix_error("MIX_LIMIT_EXCEEDED"));
+            }
+            (
+                store.read_asset(&mix.project_id, &layer.id, cancel, |_, _| Ok(()))?,
+                layer.offset_ms,
+                false,
+            )
+        }
+    })
 }

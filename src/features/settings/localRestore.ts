@@ -23,7 +23,8 @@ export type LocalRestoreStatus =
       files: number;
       bytes: number;
       externalReferencesNotCopied: number;
-      databaseVersion: 8 | 9 | 10;
+      /** 앱 DB 8~12(11: AmpliTube 톤, 12: Freeze·Bounce) */
+      databaseVersion: 8 | 9 | 10 | 11 | 12;
       restartRequired: boolean;
       errorCode:
         | 'RESTORE_ABORTED'
@@ -57,9 +58,7 @@ export function decodeLocalRestore(value: unknown): LocalRestoreStatus {
     !isSafeUnsigned(value.bytes, localBackupByteLimit) ||
     value.bytes === 0 ||
     !isSafeUnsigned(value.externalReferencesNotCopied, 100000) ||
-    (value.databaseVersion !== 8 &&
-      value.databaseVersion !== 9 &&
-      value.databaseVersion !== 10) ||
+    ![8, 9, 10, 11, 12].includes(value.databaseVersion as number) ||
     value.restartRequired !== (value.state === 'SCHEDULED')
   )
     throw new Error('RESTORE_PROTOCOL_INVALID');
@@ -90,7 +89,7 @@ export function decodeLocalRestore(value: unknown): LocalRestoreStatus {
     files: value.files,
     bytes: value.bytes,
     externalReferencesNotCopied: value.externalReferencesNotCopied,
-    databaseVersion: value.databaseVersion,
+    databaseVersion: value.databaseVersion as 8 | 9 | 10 | 11 | 12,
     restartRequired: value.restartRequired,
     errorCode: code,
   };

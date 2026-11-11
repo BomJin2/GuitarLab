@@ -1,6 +1,7 @@
 import { expect, it, vi, afterEach } from 'vitest';
 import {
   decodeMix,
+  layerNeedsPreparation,
   decodeMixStats,
   layerVolume,
   mixApi,
@@ -146,7 +147,10 @@ it('출력 통계 길이를 검증하고 다른 프로젝트의 저장 응답을
     limitedFrames: 4,
     bytes: 192058,
   };
-  expect(decodeMixStats(stats)).toEqual(stats);
+  // 구버전 응답(frozenLayers 없음)은 0으로 받습니다(docs/12 "테이크 Freeze v1").
+  expect(decodeMixStats(stats)).toEqual({ ...stats, frozenLayers: 0 });
+  expect(decodeMixStats({ ...stats, frozenLayers: 2 }).frozenLayers).toBe(2);
+  expect(() => decodeMixStats({ ...stats, frozenLayers: 9 })).toThrow();
   expect(() => decodeMixStats({ ...stats, bytes: 10 })).toThrow();
   const mix = mixFixture();
   vi.mocked(invoke).mockResolvedValue({
@@ -171,4 +175,31 @@ it('불변 STEM ID를 설정 왕복에 보존하며 중복과 알 수 없는 종
   expect(() =>
     decodeMix({ ...mix, layers: [{ ...mix.layers[0], kind: 'LEAD_GUITAR' }] }),
   ).toThrow();
+});
+it('RENDER 레이어(Bounce)를 믹스 계약에 받는다', () => {
+  const mix = mixFixture();
+  const render = {
+    kind: 'RENDER',
+    id: '00000000-0000-4000-8000-000000000099',
+    gain: 0.5,
+    mute: false,
+    solo: false,
+    offsetMs: 0,
+  };
+  expect(
+    decodeMix({ ...mix, layers: [...mix.layers, render] }).layers.at(-1)?.kind,
+  ).toBe('RENDER');
+  expect(() =>
+    decodeMix({ ...mix, layers: [...mix.layers, { ...render, kind: 'X' }] }),
+  ).toThrow('MIX_CONTRACT_INVALID');
+});
+it('준비가 필요한 레이어 종류: 원본 테이크가 음소거여도 RENDER 줄은 준비가 필요하다', () => {
+  const mix = mixFixture();
+  const take = mix.layers.find((l) => l.kind === 'TAKE');
+  if (!take) throw new Error('테이크 레이어 필요');
+  const render = { ...take, kind: 'RENDER' as const, id: crypto.randomUUID() };
+  const muted = { ...take, mute: true };
+  const doc = { ...mix, layers: [muted, render] };
+  expect(layerNeedsPreparation(doc, muted)).toBe(false);
+  expect(layerNeedsPreparation(doc, render)).toBe(true);
 });

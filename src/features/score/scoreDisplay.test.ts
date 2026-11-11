@@ -164,3 +164,53 @@ it('TAB 보기에서도 팜뮤트(P.M.)·태핑(T)과 쉼표·박자표를 그�
   expect(svg).toContain('&#58597;');
   expect(svg).toContain('&#57476;');
 });
+
+const twoStaffXml = (tabFrets: number[]) => {
+  const tuning = [
+    ['E', 4],
+    ['B', 3],
+    ['G', 3],
+    ['D', 3],
+    ['A', 2],
+    ['E', 2],
+  ]
+    .map(
+      ([step, octave], i) =>
+        `<staff-tuning line="${6 - i}"><tuning-step>${step}</tuning-step><tuning-octave>${octave}</tuning-octave></staff-tuning>`,
+    )
+    .join('');
+  const steps = ['E', 'F', 'G', 'A'];
+  const notation = [0, 1, 3, 5]
+    .map(
+      (_, i) =>
+        `<note><pitch><step>${steps[i]}</step>${steps[i] === 'F' ? '' : ''}<octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>`,
+    )
+    .join('');
+  const tabSteps = ['E', 'F', 'G', 'A'];
+  const tab = tabFrets
+    .map(
+      (fret, i) =>
+        `<note><pitch><step>${tabSteps[i]}</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type><staff>2</staff><notations><technical><string>1</string><fret>${fret}</fret></technical></notations></note>`,
+    )
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Gtr</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>TAB</sign><line>5</line></clef><staff-details number="2"><staff-lines>6</staff-lines>${tuning}</staff-details></attributes>${notation}<backup><duration>4</duration></backup>${tab}</measure></part></score-partwise>`;
+};
+it('같은 선율의 오선보+TAB 악보는 오선보 보기에서 오선보를 한 번만 그리고, 다른 내용의 보표는 그대로 둔다(2026-11-08 리뷰)', () => {
+  const same = importScore(new TextEncoder().encode(twoStaffXml([0, 1, 3, 5])));
+  const staves = same.tracks[0]!.staves;
+  expect(staves.map((s) => s.tuning.length)).toEqual([0, 6]);
+  const score = createDisplayScore(same, 0, 'score').score.tracks[0]!.staves;
+  expect(score.filter((s) => s.showStandardNotation)).toHaveLength(1);
+  const tab = createDisplayScore(same, 0, 'tab').score.tracks[0]!.staves;
+  expect(tab.map((s) => [s.showStandardNotation, s.showTablature])).toEqual([
+    [false, false],
+    [false, true],
+  ]);
+  // TAB 쪽 음이 다르면(독립 보표) 두 보표 모두 오선보로 그립니다.
+  const different = importScore(
+    new TextEncoder().encode(twoStaffXml([0, 1, 3, 7])),
+  );
+  const both = createDisplayScore(different, 0, 'score').score.tracks[0]!
+    .staves;
+  expect(both.filter((s) => s.showStandardNotation)).toHaveLength(2);
+});

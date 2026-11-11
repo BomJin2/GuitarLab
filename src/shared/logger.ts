@@ -17,7 +17,10 @@ type DiagnosticCode =
   | 'SCORE_IMPORT_FAILED'
   | 'APP_RENDER_FAILED'
   | 'UNCAUGHT_ERROR'
-  | 'UNHANDLED_REJECTION';
+  | 'UNHANDLED_REJECTION'
+  | 'NATIVE_PLAYBACK_LOST'
+  | 'NATIVE_PLAYBACK_FALLBACK'
+  | 'NATIVE_RELEASE_FAILED';
 
 // 사용자 경로나 오류 원문을 수집하지 않고 고정된 진단 코드만 기록합니다.
 export function logDiagnostic(

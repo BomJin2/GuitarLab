@@ -71,6 +71,34 @@ function preparePlayback() {
   });
   return { main, originalMedia, replays };
 }
+it('듣기 버튼이 화면을 처음 띄우면 첫 요청을 재생하고, 그렇지 않은 첫 표시는 재생하지 않는다(2026-11-08 리뷰)', async () => {
+  const { main, replays } = preparePlayback();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(recordingApi, 'revision').mockRejectedValue(
+    new Error('REVISION_NOT_FOUND'),
+  );
+  const take = recordingFixture();
+  const first = render(
+    <Context.Provider value={main}>
+      <TakeReplay take={take} peer={null} playRequest={1} playOnMount />
+    </Context.Provider>,
+  );
+  await act(async () => {});
+  const engine = [...replays][0];
+  if (!engine) throw new Error('리플레이 엔진 필요');
+  expect(engine.getSnapshot().status).toBe('playing');
+  first.unmount();
+  replays.clear();
+  render(
+    <Context.Provider value={main}>
+      <TakeReplay take={take} peer={null} playRequest={1} />
+    </Context.Provider>,
+  );
+  await act(async () => {});
+  const quiet = [...replays][0];
+  if (!quiet) throw new Error('리플레이 엔진 필요');
+  expect(quiet.getSnapshot().status).toBe('paused');
+});
 it('이름·메모를 저장해도 WAV를 다시 읽거나 재생 위치·상태를 초기화하지 않는다', async () => {
   const { main, originalMedia, replays } = preparePlayback();
   vi.spyOn(console, 'warn').mockImplementation(() => {});

@@ -30,6 +30,8 @@ export function RecordingsPage({
   const [b, setB] = useState('');
   const [side, setSide] = useState<'A' | 'B'>('A');
   const [playRequest, setPlayRequest] = useState(0);
+  // 듣기 버튼을 눌렀을 때 아직 다시 듣기 화면이 없었다면, 새로 뜨는 화면이 그 요청을 재생합니다.
+  const [playOnMount, setPlayOnMount] = useState(false);
   useLayoutEffect(() => {
     setA('');
     setB('');
@@ -78,6 +80,7 @@ export function RecordingsPage({
                 aria-label="A 테이크"
                 value={a}
                 onChange={(e) => {
+                  setPlayOnMount(false);
                   setA(e.target.value);
                   if (e.target.value === b) setB('');
                   setSide('A');
@@ -98,7 +101,10 @@ export function RecordingsPage({
               <select
                 aria-label="B 테이크"
                 value={b}
-                onChange={(e) => setB(e.target.value)}
+                onChange={(e) => {
+                  setPlayOnMount(false);
+                  setB(e.target.value);
+                }}
               >
                 <option value="">선택하세요</option>
                 {takes
@@ -114,6 +120,7 @@ export function RecordingsPage({
               disabled={!takeA}
               aria-pressed={side === 'A'}
               onClick={() => {
+                setPlayOnMount(!selected);
                 setSide('A');
                 setPlayRequest((value) => value + 1);
               }}
@@ -124,6 +131,7 @@ export function RecordingsPage({
               disabled={!takeB}
               aria-pressed={side === 'B'}
               onClick={() => {
+                setPlayOnMount(!selected);
                 setSide('B');
                 setPlayRequest((value) => value + 1);
               }}
@@ -138,7 +146,12 @@ export function RecordingsPage({
             </p>
           )}
           {selected && (
-            <TakeReplay take={selected} peer={peer} playRequest={playRequest} />
+            <TakeReplay
+              take={selected}
+              peer={peer}
+              playRequest={playRequest}
+              playOnMount={playOnMount}
+            />
           )}
           {selected && (
             <TakeExportPanel

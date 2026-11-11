@@ -109,7 +109,7 @@ class RestoreTests(unittest.TestCase):
         self.assertEqual(restore._inventory(self.root), self.before)
         self.archive.write_bytes(self.archive_before)
         with closing(sqlite3.connect(self.root / "guitarlab.sqlite")) as db:
-            db.execute("PRAGMA user_version=11")
+            db.execute("PRAGMA user_version=13")
         before = restore._inventory(self.root)
         with self.assertRaisesRegex(backup.BackupError, "BACKUP_DATABASE_VERSION"):
             self.apply()

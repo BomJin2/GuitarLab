@@ -1,6 +1,7 @@
 import { validateLoop } from './sync';
 import { countInSeconds, validateTiming, type Timing } from './timing';
 import { logDiagnostic } from '../../shared/logger';
+import type { NativeTransport } from './nativeTransport';
 export type PlaybackLoop = { startMs: number; endMs: number };
 export type PlayerSnapshot = {
   schemaVersion: 1;
@@ -32,6 +33,10 @@ export class PlayerEngine {
   private disposed = false;
   private metronomeRequest = 0;
   private cancelCountIn: (() => void) | null = null;
+  /** docs/12 "네이티브 재생 v1": 붙어 있으면 소리·위치는 Rust 재생 버스가 맡고 HTMLAudio는 멈춰 둡니다. */
+  private native: NativeTransport | null = null;
+  /** 네이티브 구간 반복 회차. 바뀌면 새 재생 세대로 알립니다. */
+  private nativeLoop = 0;
   private snapshot: PlayerSnapshot = {
     schemaVersion: 1,
     audioTimeMs: 0,
@@ -90,6 +95,56 @@ export class PlayerEngine {
   activate() {
     this.disposed = false;
   }
+  private mediaTimeMs() {
+    return this.native ? this.native.timeMs() : this.audio.currentTime * 1000;
+  }
+  private mediaPaused() {
+    return this.native ? !this.native.playing : this.audio.paused;
+  }
+  get nativeAttached() {
+    return this.native !== null;
+  }
+  /** 1배속 Rust 재생으로 바꿉니다. 지금 위치·음량·구간을 넘기고 멈춘 상태로 시작합니다. */
+  attachNative(native: NativeTransport) {
+    this.pause();
+    this.detachNative();
+    this.native = native;
+    native.setVolume(this.snapshot.volume);
+    native.setLoop(this.snapshot.loop);
+    native.seek(this.snapshot.audioTimeMs);
+    this.nativeLoop = native.loopIteration();
+    this.syncNativeMetronome();
+  }
+  /** R3: 메트로놈 설정을 Rust 버스에 맞춥니다(네이티브 재생 중에는 WebAudio 클릭을 쓰지 않음). */
+  private syncNativeMetronome() {
+    if (!this.native) return;
+    const timing = this.snapshot.timing;
+    this.native.setMetronome(
+      this.snapshot.metronomeEnabled
+        ? {
+            originMs: timing.beatOriginMs ?? 0,
+            beatMs: this.beatDurationMs(),
+            numerator: timing.numerator,
+            volume: this.snapshot.metronomeVolume,
+          }
+        : null,
+    );
+  }
+  /** Rust 재생을 떼고 HTMLAudio로 돌아갑니다(멈춘 상태, 위치 유지). */
+  detachNative() {
+    const native = this.native;
+    if (!native) return;
+    const position = native.timeMs();
+    const playing = this.snapshot.status === 'playing';
+    this.native = null;
+    native.dispose();
+    if (playing) this.pause();
+    if (Number.isFinite(position) && this.snapshot.durationMs > 0) {
+      const ms = Math.min(position, this.snapshot.durationMs);
+      this.audio.currentTime = ms / 1000;
+      this.publish({ audioTimeMs: ms });
+    }
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -109,14 +164,15 @@ export class PlayerEngine {
   }
   readClock = () => ({
     performanceTimeMs: performance.now(),
-    songTimeMs: this.audio.currentTime * 1000,
-    rate: this.audio.playbackRate,
+    songTimeMs: this.mediaTimeMs(),
+    rate: this.native ? 1 : this.audio.playbackRate,
     playbackEpoch: this.snapshot.playbackEpoch,
-    playing:
-      this.snapshot.status === 'playing' &&
-      !this.audio.paused &&
-      !this.audio.seeking &&
-      !this.audio.ended,
+    playing: this.native
+      ? this.snapshot.status === 'playing' && this.native.playing
+      : this.snapshot.status === 'playing' &&
+        !this.audio.paused &&
+        !this.audio.seeking &&
+        !this.audio.ended,
   });
   private publish(values: Partial<PlayerSnapshot>) {
     this.snapshot = { ...this.snapshot, ...values };
@@ -128,16 +184,39 @@ export class PlayerEngine {
     this.publish({ status: 'error', error: message });
   }
   private update = () => {
-    const position = this.audio.currentTime * 1000;
+    const position = this.mediaTimeMs();
     const loop = this.snapshot.loop;
-    if (loop && !this.audio.paused && position >= loop.endMs) {
+    // 네이티브 구간 반복이 되감기면 기존 seek()처럼 새 재생 세대로 알립니다(판정·녹음 시계가 회차를 나눔).
+    // 화면 갱신이 늦어 경계를 건너뛰어도 Rust 되감기 횟수로 셉니다.
+    const iteration = this.native?.loopIteration() ?? 0;
+    if (this.native?.playing && loop && iteration !== this.nativeLoop) {
+      this.nativeLoop = iteration;
+      this.stopClicks();
+      this.nextBeatMs = this.alignedBeat(position);
+      this.publish({
+        audioTimeMs: position,
+        playbackEpoch: this.snapshot.playbackEpoch + 1,
+      });
+      return;
+    }
+    // 네이티브 재생은 Rust 버스가 구간 끝에서 샘플 단위로 되감습니다.
+    if (!this.native && loop && !this.audio.paused && position >= loop.endMs) {
       this.seek(loop.startMs);
+      return;
+    }
+    if (this.native?.playing && !loop && position >= this.snapshot.durationMs) {
+      this.native.pause();
+      this.native.seek(this.snapshot.durationMs);
+      this.stopClicks();
+      cancelAnimationFrame(this.frame);
+      this.publish({ status: 'paused', audioTimeMs: this.snapshot.durationMs });
       return;
     }
     this.publish({ audioTimeMs: position });
     if (
+      !this.native &&
       this.snapshot.metronomeEnabled &&
-      !this.audio.paused &&
+      !this.mediaPaused() &&
       this.context?.state === 'running'
     ) {
       const step = this.beatDurationMs();
@@ -155,7 +234,7 @@ export class PlayerEngine {
   };
   private animate = () => {
     this.update();
-    if (!this.audio.paused && !this.disposed)
+    if (!this.mediaPaused() && !this.disposed)
       this.frame = requestAnimationFrame(this.animate);
   };
   private stopClicks() {
@@ -198,6 +277,7 @@ export class PlayerEngine {
     if (!enabled) {
       this.stopClicks();
       this.publish({ metronomeEnabled: false });
+      this.syncNativeMetronome();
       return;
     }
     try {
@@ -207,6 +287,7 @@ export class PlayerEngine {
       if (job !== this.metronomeRequest || this.disposed) return;
       this.nextBeatMs = this.alignedBeat(this.snapshot.audioTimeMs);
       this.publish({ metronomeEnabled: true, error: null });
+      this.syncNativeMetronome();
     } catch {
       if (job === this.metronomeRequest)
         this.publish({
@@ -218,6 +299,7 @@ export class PlayerEngine {
   setMetronomeVolume(volume: number) {
     this.validateVolume(volume);
     this.publish({ metronomeVolume: volume });
+    this.syncNativeMetronome();
   }
   setTiming(timing: Timing) {
     validateTiming(timing);
@@ -230,12 +312,14 @@ export class PlayerEngine {
       return;
     this.publish({ timing });
     this.nextBeatMs = this.alignedBeat(this.snapshot.audioTimeMs);
+    this.syncNativeMetronome();
   }
   load(blob: Blob) {
     if (blob.size === 0 || blob.size > 256 * 1024 * 1024)
       throw new Error('음원은 256MiB 이하의 비어 있지 않은 파일이어야 합니다.');
     this.disposed = false;
     this.pause();
+    this.detachNative();
     window.clearTimeout(this.loadTimer);
     this.audio.removeAttribute('src');
     this.audio.load();
@@ -276,6 +360,7 @@ export class PlayerEngine {
   }
   clear() {
     this.pause();
+    this.detachNative();
     window.clearTimeout(this.loadTimer);
     this.audio.removeAttribute('src');
     this.audio.load();
@@ -296,9 +381,16 @@ export class PlayerEngine {
     this.cancelCountIn?.();
     this.stopClicks();
     const media = this.audio;
+    const native = this.native;
     try {
-      await media.play();
-      if (job !== this.generation || media !== this.audio || this.disposed)
+      if (native) await native.play(this.snapshot.audioTimeMs);
+      else await media.play();
+      if (
+        job !== this.generation ||
+        media !== this.audio ||
+        native !== this.native ||
+        this.disposed
+      )
         return;
       this.publish({ status: 'playing', error: null, countInRemainingMs: 0 });
       this.nextBeatMs = this.alignedBeat(this.snapshot.audioTimeMs);
@@ -317,6 +409,14 @@ export class PlayerEngine {
     this.generation++;
     this.cancelCountIn?.();
     this.audio.pause();
+    // 카운트인 중 정지는 Rust의 남은 클릭도 멈춥니다(정지 명령이 카운트인을 지움).
+    if (
+      this.native?.playing ||
+      (this.native && this.snapshot.status === 'countIn')
+    ) {
+      this.native.pause();
+      this.snapshot = { ...this.snapshot, audioTimeMs: this.native.timeMs() };
+    }
     this.stopClicks();
     cancelAnimationFrame(this.frame);
     this.publish({
@@ -330,6 +430,7 @@ export class PlayerEngine {
       throw new Error('유효한 재생 위치가 아닙니다.');
     if (this.snapshot.status === 'countIn') this.pause();
     this.audio.currentTime = ms / 1000;
+    this.native?.seek(ms);
     this.stopClicks();
     this.nextBeatMs = this.alignedBeat(ms);
     this.publish({
@@ -341,6 +442,12 @@ export class PlayerEngine {
     if (!Number.isFinite(rate) || rate < 0.5 || rate > 1.5)
       throw new Error('배속은 0.5~1.5 범위여야 합니다.');
     if (this.snapshot.status === 'countIn') this.pause();
+    // 네이티브 재생은 1배속만 지원합니다. 다른 배속이면 HTMLAudio로 돌아가고 알립니다.
+    if (this.native && rate !== 1) {
+      const lost = this.native.onLost;
+      this.detachNative();
+      lost?.('NATIVE_RATE_UNSUPPORTED');
+    }
     this.audio.playbackRate = rate;
     this.publish({ rate, playbackEpoch: this.snapshot.playbackEpoch + 1 });
   }
@@ -351,11 +458,13 @@ export class PlayerEngine {
   setVolume(volume: number) {
     this.validateVolume(volume);
     this.audio.volume = volume;
+    this.native?.setVolume(volume);
     this.publish({ volume });
   }
   setLoop(loop: PlaybackLoop | null) {
     if (loop) validateLoop(loop.startMs, loop.endMs, this.snapshot.durationMs);
     if (this.snapshot.status === 'countIn') this.pause();
+    this.native?.setLoop(loop);
     this.publish({
       loop: loop ? { ...loop } : null,
       playbackEpoch: this.snapshot.playbackEpoch + 1,
@@ -390,18 +499,28 @@ export class PlayerEngine {
       countInRemainingMs: seconds * 1000,
     });
     try {
-      if (this.context?.state === 'closed') this.context = null;
-      this.context ??= new AudioContext();
-      const context = this.context;
-      await context.resume();
-      if (job !== this.generation || this.disposed) return;
-      const start = context.currentTime + 0.05;
       const interval = seconds / count;
-      for (let beat = 0; beat < count; beat++)
-        this.click(
-          start + beat * interval,
-          beat % this.snapshot.timing.numerator === 0,
-        );
+      if (this.native) {
+        // R3: 카운트인 클릭도 반주와 같은 Rust 출력에서 냅니다.
+        this.native.countIn({
+          count,
+          intervalMs: interval * 1000,
+          numerator: this.snapshot.timing.numerator,
+          volume: this.snapshot.metronomeVolume,
+        });
+      } else {
+        if (this.context?.state === 'closed') this.context = null;
+        this.context ??= new AudioContext();
+        const context = this.context;
+        await context.resume();
+        if (job !== this.generation || this.disposed) return;
+        const start = context.currentTime + 0.05;
+        for (let beat = 0; beat < count; beat++)
+          this.click(
+            start + beat * interval,
+            beat % this.snapshot.timing.numerator === 0,
+          );
+      }
       const startedAt = performance.now();
       await new Promise<void>((resolve) => {
         const progress = window.setInterval(() => {
@@ -440,6 +559,7 @@ export class PlayerEngine {
   }
   dispose() {
     this.pause();
+    this.detachNative();
     this.disposed = true;
     this.metronomeRequest++;
     window.clearTimeout(this.loadTimer);

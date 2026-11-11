@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react';
 import type { ProjectMixController } from './useProjectMix';
 import { guitarRoleLabels } from '../../entities/guitarRoles';
 import { mixLayerName } from './mixLabels';
+import { BounceList } from './BounceList';
 export function MixPanel({
   controller: c,
   locked,
@@ -69,6 +70,17 @@ export function MixPanel({
           파일과 기존 저장 믹스는 유지하며, 설정 저장은 별도입니다.
         </p>
         <label>
+          <input
+            type="checkbox"
+            checked={c.nativePlayback}
+            disabled={c.busy}
+            onChange={(e) => c.setNativePlayback(e.target.checked)}
+          />{' '}
+          Rust 엔진으로 재생(1배속 WAV, 모니터 출력 장치)
+          {c.nativeActive ? ' · 사용 중' : ''}
+        </label>
+        <BounceList controller={c} mix={mix} />
+        <label>
           추가할 테이크
           <select
             aria-label="믹스에 추가할 테이크"
@@ -116,6 +128,20 @@ export function MixPanel({
       {mix.layers.map((layer, index) => (
         <div className="toolbar" key={layer.id}>
           <span>{mixLayerName(layer, c)}</span>
+          {layer.kind === 'TAKE' && c.prepared && (
+            <label>
+              <input
+                type="checkbox"
+                aria-label={`레이어 ${index + 1} AmpliTube로 재생`}
+                checked={c.wetTakeId === layer.id}
+                disabled={c.busy}
+                onChange={(e) =>
+                  void c.setWetTake(e.target.checked ? layer.id : null)
+                }
+              />
+              AmpliTube로 재생
+            </label>
+          )}
           <label>
             음량
             <input
@@ -279,6 +305,14 @@ export function MixPanel({
         </p>
       )}
       {c.notice && <p role="status">{c.notice}</p>}
+      {c.prepared && mix.layers.some((layer) => layer.kind === 'TAKE') && (
+        <p>
+          AmpliTube로 재생: 입력 모니터를 AmpliTube로 켠 상태에서 테이크 하나의
+          원음(DI)을 기타 입력과 같은 AmpliTube에 함께 보냅니다(녹음 파일은
+          그대로). 톤 음량은 모니터 음량을 따르며 레이어 음량은 적용하지
+          않습니다(음소거·Solo는 적용). 1배 속도에서만 됩니다.
+        </p>
+      )}
       {(c.error || preview.error) && (
         <p role="alert">{c.error ?? preview.error}</p>
       )}
@@ -287,13 +321,15 @@ export function MixPanel({
           출력 {(c.stats.frames / c.stats.sampleRate).toFixed(2)}초 · 48kHz mono
           float32 · 제한 전 peak {c.stats.peak.toFixed(3)} · 출력 제한{' '}
           {c.stats.limitedFrames}프레임
+          {c.stats.frozenLayers > 0 &&
+            ` · Freeze 캐시(AmpliTube 처리됨) ${c.stats.frozenLayers}개 레이어 포함`}
         </p>
       )}
       <small>
         서로 다른 악보 리비전·반주의 테이크는 자동 정렬을 보장하지 않습니다.
         오버더빙 준비는 현재 저장 리비전·반주와 일치하는 테이크만 허용합니다.
         청취용 다중 재생은 샘플 단위 동기를 보장하지 않습니다. WAV
-        출력은1×/무반주 테이크와 PCM16·float32 WAV 반주, 입력 합계64MiB까지
+        출력은1×/무반주 테이크와 PCM16·float32 WAV 반주, 입력 합계512MiB까지
         지원합니다. MP3·배속 녹음 출력/고품질 리샘플링은 미지원입니다. 반주
         오프셋은 현재0ms입니다. YouTube 출력은 포함하지 않습니다.
       </small>

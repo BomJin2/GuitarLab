@@ -397,6 +397,8 @@ fn remove_rows(db: &Connection, id: &str) -> Result<(), AppError> {
         "practice_sessions",
         "recorded_takes",
         "project_mixes",
+        "project_plugin_states",
+        "take_renders",
         "ai_transcription_drafts",
         "audio_stems",
         "audio_stem_sets",

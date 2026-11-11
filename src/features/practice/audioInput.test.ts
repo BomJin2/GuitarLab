@@ -4,6 +4,7 @@ import {
   decodeSnapshot,
   emptyAudioSnapshot,
   inputError,
+  inputFailureMessage,
 } from './audioInput';
 
 describe('네이티브 입력 계약', () => {
@@ -133,4 +134,11 @@ describe('네이티브 입력 계약', () => {
       'private',
     );
   });
+});
+it('입력 멈춤 원인별로 다른 안내를 보여 준다(docs/12 입력 오류 원인 구분 v1)', () => {
+  expect(inputFailureMessage('AUDIO_INPUT_STALLED')).toContain('단독으로');
+  expect(inputFailureMessage('AUDIO_DEVICE_UNAVAILABLE')).toContain(
+    '연결·전원',
+  );
+  expect(inputFailureMessage('UNKNOWN')).toContain('입력이 끊겼습니다');
 });

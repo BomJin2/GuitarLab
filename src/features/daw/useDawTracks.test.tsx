@@ -211,3 +211,40 @@ it('다른 파일 작업 중(STORAGE_BUSY)이면 기다렸다 다시 읽고, 끝
     vi.useRealTimers();
   }
 });
+it('Bounce(RENDER) 줄은 원본 테이크의 곡 시각에 파형을 둔다', () => {
+  const songTake = { ...take, songStartMs: 30000, alignmentOffsetMs: 20 };
+  const bounceId = '00000000-0000-4000-8000-000000000099';
+  const mix = {
+    ...mixOf([layer('RENDER', bounceId, { offsetMs: 5 })]),
+    takes: [songTake],
+    bounces: [
+      {
+        schemaVersion: 1 as const,
+        id: bounceId,
+        projectId: projectFixtureId,
+        takeId: songTake.id,
+        kind: 'BOUNCE' as const,
+        sampleRate: 48000,
+        channels: 2 as const,
+        frames: 48000,
+        durationMs: 1000,
+        bytes: 384044,
+        sha256: 'a'.repeat(64),
+        takeSha256: 'b'.repeat(64),
+        pluginClassId: '56535441746235616D706C6974756265',
+        pluginVersion: '5.10.4',
+        latencyFrames: 7,
+        tailFrames: 0,
+        createdAtMs: 1,
+      },
+    ],
+  };
+  const { result } = renderHook(() =>
+    useDawTracks(mix, projectFixtureId, projectAssetId, false),
+  );
+  expect(result.current[0]?.startMs).toBe(30025);
+  expect(result.current[0]?.name).toBe(`Bounce · ${songTake.name}`);
+  expect(result.current[0]?.lengthMs).toBe(
+    1000 * (songTake.transport?.rate ?? 1),
+  );
+});

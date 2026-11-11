@@ -9,6 +9,8 @@ pub enum LayerKind {
     LocalAsset,
     Stem,
     ImportedStem,
+    /// docs/12 "Bounce to New Track v1": 테이크를 AmpliTube로 처리한 영구 결과.
+    Render,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

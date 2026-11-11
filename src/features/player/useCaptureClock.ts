@@ -6,6 +6,7 @@ import {
   type CaptureAnchor,
 } from './captureClock';
 import { usePlayerEngine } from './usePlayer';
+import { nativePlaybackApi } from './nativeTransport';
 import type { AudioSnapshot } from '../practice/audioInput';
 
 export type ClockState = {
@@ -90,10 +91,17 @@ export function useCaptureClock(
       busy = true;
       const current = revision;
       const before = engine.readClock();
+      // R3: Rust 재생 중이면 입력 시계와 같은 순간에 장치에서 들리는 곡 위치를 Rust가 직접 줍니다.
+      const nativeMode = engine.nativeAttached;
       try {
-        const nativeClock = decodeInputClock(
-          await invoke<unknown>('get_audio_clock'),
-        );
+        let nativeSongMs: number | null = null;
+        let rawClock: unknown;
+        if (nativeMode) {
+          const result = await nativePlaybackApi.clock();
+          rawClock = result.clock;
+          nativeSongMs = result.songTimeMs;
+        } else rawClock = await invoke<unknown>('get_audio_clock');
+        const nativeClock = decodeInputClock(rawClock);
         if (canceled || current !== revision) return;
         if (nativeClock.streamGeneration !== streamGeneration)
           throw new Error('AUDIO_CONTRACT_INVALID');
@@ -114,7 +122,22 @@ export function useCaptureClock(
         const after = engine.readClock();
         if (canceled || current !== revision) return;
         const roundTripMs = after.performanceTimeMs - before.performanceTimeMs;
-        const anchor = captureAnchor(before, after, nativeClock);
+        const anchor: CaptureAnchor | null = nativeMode
+          ? nativeSongMs !== null &&
+            after.playing &&
+            after.playbackEpoch === before.playbackEpoch
+            ? {
+                schemaVersion: 1,
+                streamGeneration: nativeClock.streamGeneration,
+                playbackEpoch: before.playbackEpoch,
+                monotonicNs: nativeClock.monotonicNs,
+                songTimeMs: nativeSongMs,
+                rate: 1,
+                // 장치가 알려 준 재생 시각 기준이라 왕복 시간과 무관합니다(100ns 단위 시계).
+                uncertaintyRealMs: 0.5,
+              }
+            : null
+          : captureAnchor(before, after, nativeClock);
         const result = await update(after.playbackEpoch, anchor);
         if (!canceled && current === revision)
           setDiagnostic({
