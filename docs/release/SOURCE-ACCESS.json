@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "state": "SOURCE_ACCESS_REVIEW",
   "legalReviewCompleted": false,
-  "scope": "현재 Windows 의존성 목록의 정확한 MPL-2.0 선언 6개",
+  "scope": "현재 Windows 의존성 목록의 정확한 MPL-2.0 선언 10개",
   "components": [
     {
       "ecosystem": "cargo",
@@ -78,6 +78,66 @@
         "sha256": "8adfa1c298912827b8a28b223b3b874357397ae706e6190acd9bf28cee99114d"
       },
       "sourceUrl": "https://crates.io/crates/selectors/0.38.0"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/symphonia/symphonia-0.5.5.crate",
+      "sourceArchiveSha256": "5773a4c030a19d9bfaa090f49746ff35c75dfddfa700df7a5939d5e076a57039",
+      "localSourceFilesVerified": 9,
+      "bundledSource": {
+        "file": "sources/symphonia-0.5.5.crate",
+        "bytes": 12085,
+        "sha256": "5773a4c030a19d9bfaa090f49746ff35c75dfddfa700df7a5939d5e076a57039"
+      },
+      "sourceUrl": "https://crates.io/crates/symphonia/0.5.5"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-bundle-mp3",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/symphonia-bundle-mp3/symphonia-bundle-mp3-0.5.5.crate",
+      "sourceArchiveSha256": "4872dd6bb56bf5eac799e3e957aa1981086c3e613b27e0ac23b176054f7c57ed",
+      "localSourceFilesVerified": 21,
+      "bundledSource": {
+        "file": "sources/symphonia-bundle-mp3-0.5.5.crate",
+        "bytes": 61019,
+        "sha256": "4872dd6bb56bf5eac799e3e957aa1981086c3e613b27e0ac23b176054f7c57ed"
+      },
+      "sourceUrl": "https://crates.io/crates/symphonia-bundle-mp3/0.5.5"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-core",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/symphonia-core/symphonia-core-0.5.5.crate",
+      "sourceArchiveSha256": "ea00cc4f79b7f6bb7ff87eddc065a1066f3a43fe1875979056672c9ef948c2af",
+      "localSourceFilesVerified": 33,
+      "bundledSource": {
+        "file": "sources/symphonia-core-0.5.5.crate",
+        "bytes": 99682,
+        "sha256": "ea00cc4f79b7f6bb7ff87eddc065a1066f3a43fe1875979056672c9ef948c2af"
+      },
+      "sourceUrl": "https://crates.io/crates/symphonia-core/0.5.5"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-metadata",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "sourceArchiveUrl": "https://static.crates.io/crates/symphonia-metadata/symphonia-metadata-0.5.5.crate",
+      "sourceArchiveSha256": "36306ff42b9ffe6e5afc99d49e121e0bd62fe79b9db7b9681d48e29fa19e6b16",
+      "localSourceFilesVerified": 14,
+      "bundledSource": {
+        "file": "sources/symphonia-metadata-0.5.5.crate",
+        "bytes": 24184,
+        "sha256": "36306ff42b9ffe6e5afc99d49e121e0bd62fe79b9db7b9681d48e29fa19e6b16"
+      },
+      "sourceUrl": "https://crates.io/crates/symphonia-metadata/0.5.5"
     },
     {
       "ecosystem": "npm",

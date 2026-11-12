@@ -11,6 +11,7 @@
 | cargo | alloc-no-stdlib | 3.0.0 | BSD-3-Clause | [LICENSE](notices/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae.txt) |
 | cargo | alloc-stdlib | 0.3.0 | BSD-3-Clause | [LICENSE](notices/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae.txt) |
 | cargo | anyhow | 1.0.104 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
+| cargo | arrayvec | 0.7.8 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/4da95ec4ecb65b738d470b7d762894ad9c97da93e6cbfb18b570fc2c96f4b871.txt) |
 | cargo | autocfg | 1.5.1 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/27995d58ad5c1145c1a8cd86244ce844886958a35eb2b78c6b772748669999ac.txt) |
 | cargo | base64 | 0.23.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/ab499c75a0f0da8e0fe83bf9ba3a27e5c39705310f07107c6c66b69958d2401c.txt) |
 | cargo | bit-set | 0.8.0 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90.txt), [LICENSE-MIT](notices/f51ac2c59a222f7476ce507ca879960e2b64ea64bb2786eefdbeb7b0b538d1b7.txt) |
@@ -22,6 +23,7 @@
 | cargo | brotli | 9.0.0 | BSD-3-Clause AND MIT | [LICENSE.BSD-3-Clause](notices/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae.txt), [LICENSE.MIT](notices/3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94.txt) |
 | cargo | brotli-decompressor | 6.0.1 | BSD-3-Clause/MIT | [LICENSE](notices/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae.txt) |
 | cargo | bs58 | 0.5.1 | MIT/Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969.txt) |
+| cargo | bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT | [LICENSE-APACHE](notices/e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb.txt), [LICENSE-MIT](notices/9df9ba60a11af705f2e451b53762686e615d86f76b169cf075c3237730dbd7e2.txt), [LICENSE-ZLIB](notices/84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151.txt) |
 | cargo | byteorder | 1.5.0 | Unlicense OR MIT | [COPYING](notices/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt), [LICENSE-MIT](notices/0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f.txt) |
 | cargo | bytes | 1.12.1 | MIT | [LICENSE](notices/45f522cacecb1023856e46df79ca625dfc550c94910078bd8aec6e02880b3d42.txt) |
 | cargo | camino | 1.2.6 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
@@ -35,6 +37,7 @@
 | cargo | com-scrape-types | 0.1.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | const-oid | 0.10.2 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5.txt), [LICENSE-MIT](notices/73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa.txt) |
 | cargo | cookie | 0.18.2 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad.txt), [LICENSE-MIT](notices/f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea.txt) |
+| cargo | core_detect | 1.0.0 | MIT/Apache-2.0 | [LICENSE-APACHE](notices/769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb.txt), [LICENSE-MIT](notices/8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1.txt) |
 | cargo | cpal | 0.18.2 | Apache-2.0 | [LICENSE](notices/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt) |
 | cargo | cpufeatures | 0.2.17 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5.txt), [LICENSE-MIT](notices/ae9baa7beea910273c2f384c2a6b721fb7bd02bda3436074a1072e4ee689f985.txt) |
 | cargo | cpufeatures | 0.3.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5.txt), [LICENSE-MIT](notices/73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa.txt) |
@@ -69,6 +72,7 @@
 | cargo | dunce | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 | [LICENSE](notices/a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499.txt) |
 | cargo | dyn-clone | 1.0.20 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | embed-resource | 3.0.12 | MIT | [LICENSE](notices/1abdbbd4e3f95e56c79d4a8af190254c23ddb14db34aadadfafef9c3af041113.txt) |
+| cargo | encoding_rs | 0.8.44 | (Apache-2.0 OR MIT) AND BSD-3-Clause | [COPYRIGHT](notices/11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190.txt), [LICENSE-APACHE](notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt), [LICENSE-MIT](notices/3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c.txt), [LICENSE-WHATWG](notices/838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50.txt) |
 | cargo | equivalent | 1.0.2 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/7365cc8878a1d7ce155a58c4ca09c3d7a6be413efa5334a80ea842912b669349.txt) |
 | cargo | erased-serde | 0.4.10 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | fallible-iterator | 0.3.0 | MIT/Apache-2.0 | [LICENSE-APACHE](notices/c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08.txt), [LICENSE-MIT](notices/0816e154b159ba255c563f7c8c7df5bbb8cc5fc96f5ab8cf9f4743b4f41fe7eb.txt) |
@@ -113,6 +117,7 @@
 | cargo | json-patch | 4.2.0 | MIT/Apache-2.0 | [LICENSE-APACHE](notices/b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1.txt), [LICENSE-MIT](notices/87f7527b1066337751f7f4d717089bf514ff8f7ee7d66c4c5b891b09e744ec11.txt) |
 | cargo | jsonptr | 0.7.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/2cf31f2ae7f3feba667d50fc1d4d21ecf217703c04c3068b83c9a73b6dde723a.txt), [LICENSE-MIT](notices/2bc107bdc18a74263d20bdefdb8073e17bc1a01b6b374dc5835683a33ee5ba7d.txt) |
 | cargo | keyboard-types | 0.8.3 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb.txt), [LICENSE-MIT](notices/31dbbab009f1b2e59a1622d5955dfafc38ebe834000215b49d954c6f85fe927c.txt) |
+| cargo | lazy_static | 1.5.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | libc | 0.2.190 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e.txt) |
 | cargo | libloading | 0.8.9 | ISC | [LICENSE](notices/b29f8b01452350c20dd1af16ef83b598fea3053578ccc1c7a0ef40e57be2620f.txt) |
 | cargo | libsqlite3-sys | 0.38.2 | MIT | [LICENSE](notices/c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f.txt) |
@@ -126,6 +131,7 @@
 | cargo | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | [LICENSE](notices/4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b.txt), [LICENSE-APACHE.md](notices/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt), [LICENSE-MIT.md](notices/799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d.txt), [LICENSE-ZLIB.md](notices/0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39.txt) |
 | cargo | mio | 1.2.4 | MIT | [LICENSE](notices/07919255c7e04793d8ea760d6c2ce32d19f9ff02bdbdde3ce90b1e1880929a9b.txt) |
 | cargo | muda | 0.20.0 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a.txt), [LICENSE.spdx](notices/b99f9d43803f2ac979c50949df630bd8eeaf2fcd1b9fdb9093710d70f5dfb63d.txt) |
+| cargo | multiversion_no_op | 1.0.0 | Apache-2.0 OR MIT | [COPYRIGHT](notices/d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe.txt), [LICENSE-APACHE](notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt), [LICENSE-MIT](notices/3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c.txt) |
 | cargo | new_debug_unreachable | 1.0.6 | MIT | [LICENSE-MIT](notices/f7715d38a3fa1b4ac97c5729740752505a39cb92ee83ab5b102aeb5eaa7cdea4.txt) |
 | cargo | num-complex | 0.4.6 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb.txt) |
 | cargo | num-conv | 0.2.2 | MIT OR Apache-2.0 | [LICENSE-Apache](notices/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt), [LICENSE-MIT](notices/e2e245f2b566d0bfafb0f6a04c16b82d710c4e6e7d799e39bb4ef6e541b85b98.txt) |
@@ -168,6 +174,7 @@
 | cargo | rustc-hash | 2.1.3 | Apache-2.0 OR MIT | [LICENSE-APACHE](notices/95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc.txt), [LICENSE-MIT](notices/30fefc3a7d6a0041541858293bcbea2dde4caa4c0a5802f996a7f7e8c0085652.txt) |
 | cargo | rustc_version | 0.4.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5.txt) |
 | cargo | rustfft | 6.4.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/2e54cd84a645bea25943c75dd8ae67cb291e66a47a11578333c9b4b3b6b86c85.txt), [LICENSE-MIT](notices/8f5442dfa8e9169045697e386bc91d19f393c939635741fa2a665ec36ca6f0ad.txt) |
+| cargo | rustversion | 1.0.23 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | same-file | 1.0.6 | Unlicense/MIT | [COPYING](notices/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt), [LICENSE-MIT](notices/cb3c929a05e6cbc9de9ab06a4c57eeb60ca8c724bef6c138c87d3a577e27aa14.txt) |
 | cargo | schemars | 0.8.22 | MIT | [LICENSE](notices/1954992a2b32e8a2af24a4c11b726902e344c1934b947a77f04d404908f8db30.txt) |
 | cargo | schemars | 0.9.0 | MIT | [LICENSE](notices/1954992a2b32e8a2af24a4c11b726902e344c1934b947a77f04d404908f8db30.txt) |
@@ -193,6 +200,7 @@
 | cargo | sha2 | 0.11.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5.txt), [LICENSE-MIT](notices/831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25.txt) |
 | cargo | shlex | 2.0.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583.txt), [LICENSE-MIT](notices/4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1.txt) |
 | cargo | simd-adler32 | 0.3.10 | MIT | [LICENSE.md](notices/42a35170233e83e18856792e748de4c1ce4a63b2afce9a370c89ef3fe23f9f2d.txt) |
+| cargo | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | [LICENSE-Apache](notices/0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9.txt), [LICENSE-MIT](notices/1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f.txt) |
 | cargo | siphasher | 1.0.4 | MIT OR Apache-2.0 | [COPYING](notices/c962ee4d1d05ddc138b202b2540219ebc57893fcf97b364852094a9a94ce1365.txt), [LICENSE-APACHE](notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt), [LICENSE-MIT](notices/f9c4c77baa3828004ee54b8a4f2db2e88ed44a6237a493965bf551fac0fcb62d.txt) |
 | cargo | smallvec | 1.16.3 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9.txt) |
 | cargo | socket2 | 0.6.5 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397.txt) |
@@ -202,6 +210,10 @@
 | cargo | string_cache | 0.9.0 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3.txt) |
 | cargo | string_cache_codegen | 0.6.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt), [LICENSE-MIT](notices/62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3.txt) |
 | cargo | strsim | 0.11.1 | MIT | [LICENSE](notices/1e697ce8d21401fbf1bddd9b5c3fd4c4c79ae1e3bdf51f81761c85e11d5a89cd.txt) |
+| cargo | symphonia | 0.5.5 | MPL-2.0 | [LICENSE](notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt) |
+| cargo | symphonia-bundle-mp3 | 0.5.5 | MPL-2.0 | [LICENSE](notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt) |
+| cargo | symphonia-core | 0.5.5 | MPL-2.0 | [LICENSE](notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt) |
+| cargo | symphonia-metadata | 0.5.5 | MPL-2.0 | [LICENSE](notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt) |
 | cargo | syn | 2.0.119 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | syn | 3.0.9 | MIT OR Apache-2.0 | [LICENSE-APACHE](notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt), [LICENSE-MIT](notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt) |
 | cargo | synstructure | 0.14.0 | MIT | [LICENSE](notices/219920e865eee70b7dcfc948a86b099e7f4fe2de01bcca2ca9a20c0a033f2b59.txt) |
@@ -293,6 +305,8 @@
 | npm | react-dom | 19.3.0 | MIT | [LICENSE](notices/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93.txt) |
 | npm | scheduler | 0.28.0 | MIT | [LICENSE](notices/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93.txt) |
 | runtime | CPython 및 동봉 라이브러리 고지 | 3.12.15 | PSF-2.0 및 파일별 별도 조건 | [LICENSE.bzip2.txt](notices/bd5628cc76fb0ebf9c657d1dd4d1a240a1a7b216c31663e7bbf1131c0b70a910.txt), [LICENSE.cpython.txt](notices/8fe98bf9822926d854f56ffd8d97877d8b942617aa44eb7ea77fd99e22f2537e.txt), [LICENSE.expat.txt](notices/8a9cfe4b5924f4b25881aa0c9f5e4561c5f31065d0c4a13cdcdbcf917edf39aa.txt), [LICENSE.libffi.txt](notices/9afb8970cd29fc1031fa647278e4bef613399e2e3468a1e3a397f4d158c6101c.txt), [LICENSE.liblzma.txt](notices/d87d218dd908b3243ec4cbc72af400e5b7437513ea9d9229291d0812b8464fec.txt), [LICENSE.libuuid.txt](notices/cbccaa3efe07a9a602751375085be572d4410a250b996716fbe8c5255c7ec6f2.txt), [LICENSE.mpdecimal.txt](notices/f094277cd46e1f6e4d87916cc4b51e22f613d45eb81f48231c3cb7caf8fc8a6a.txt), [LICENSE.openssl-3.txt](notices/ed72ce2b51ee58f117e5a021e2e04af158857f40269fbc03491f0b2a99dbcc96.txt), [LICENSE.sqlite.txt](notices/d8eb9aba7ef6b5ed06cb3ec19a7242316af2e5933c638eb67fb781c13884e01d.txt), [LICENSE.tcl.txt](notices/41613eabfc08921a7da9c4bfd7f3ce5d5406f55214b253d89f392ed86eebeb8f.txt), [LICENSE.tix.txt](notices/8cdff3addb9e9eb108c78e2cf5e05f26b216c098304945733bbec382b2eaef66.txt), [LICENSE.tk.txt](notices/0d1e4405f6273f091732764ed89b57066be63ce64869be6c71ea337dc4f2f9b5.txt), [LICENSE.zlib.txt](notices/365e36720db366054863235aea5d6f440142ab968834bfaf81fa9d187c99b9b8.txt), [README.md](notices/a96e3c34cf94e763a35ed5a817dead089d61297ea1ed6c880f6480b4a3326196.txt) |
+| vendored | Signalsmith Stretch | 1.4.0 | MIT | [LICENSE.txt](notices/ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f.txt) |
+| vendored | Signalsmith Linear | 0.6.4 | MIT | [LICENSE.txt](notices/072b5e9eb5b22880bdf6256324654cf3ce53dba828edb911921121e1be09d9c3.txt) |
 
 ## 남은 검토
 

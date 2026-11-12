@@ -1,5 +1,6 @@
 //! docs/plugin/PLAYBACK-RUST-DESIGN.md R1: 출력 callback 안에서 여러 stereo 보이스를 곡 위치에 맞춰 섞는 재생 버스.
 //! callback 쪽(`Bus`)은 할당·잠금·해제를 하지 않습니다. 보이스 묶음 해제는 제어 쪽(`BusControl`)만 합니다.
+use super::stretch_feed::{self, Chunk, FeedHandle, CHUNK};
 use crate::ipc::AppError;
 use ringbuf::{
     traits::{Consumer, Producer, Split},
@@ -17,10 +18,18 @@ pub struct BusVoice {
     /// 곡 시작 기준 이 보이스의 첫 프레임(음수면 앞부분이 곡 시작 전).
     pub start_frame: i64,
     pub gain: f32,
+    /// R6: 이 소리를 녹음한 배속(배속 녹음 테이크면 1이 아님). 보이스 i번째 프레임의 곡 위치 = 시작 + i × 이 값.
+    pub recorded_rate: f64,
 }
 pub struct VoiceSet {
     pub sample_rate: u32,
     pub voices: Vec<BusVoice>,
+}
+impl VoiceSet {
+    /// R6: 배속 녹음 보이스가 있으면 1배속에서도 작업 스레드가 그 보이스를 따로 늘여야 합니다.
+    pub fn has_varispeed(&self) -> bool {
+        self.voices.iter().any(|v| v.recorded_rate != 1.0)
+    }
 }
 /// R3: 곡 박자에 맞춘 메트로놈(재생 중에만 울림).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -49,9 +58,22 @@ struct Click {
 
 enum Command {
     Voices(Arc<VoiceSet>),
-    Play { seq: u64, frame: u64 },
+    Play {
+        seq: u64,
+        frame: u64,
+        generation: u64,
+    },
     Pause,
-    Seek { seq: u64, frame: u64 },
+    Seek {
+        seq: u64,
+        frame: u64,
+        generation: u64,
+    },
+    /// R5: 재생 속도. 1이 아니면 작업 스레드가 늘인 조각(`generation` 세대)을 재생합니다.
+    Rate {
+        rate: f64,
+        generation: u64,
+    },
     Loop(Option<(u64, u64)>),
     Metronome(Option<MetronomeSpec>),
     CountIn(CountInSpec),
@@ -70,6 +92,40 @@ struct Shared {
     loops: AtomicU64,
     /// 기준점(프레임·시각) 쓰기 세대. 홀수면 쓰는 중입니다(잠금 없이 두 값을 함께 읽기 위함).
     anchor_seq: AtomicU64,
+    /// R5: callback이 쓰는 재생 속도(f64 비트).
+    rate: AtomicU64,
+}
+
+/// 곡 프레임 `position`부터 블록 길이만큼 보이스를 섞어 더합니다(할당 없음). 배속 작업 스레드도 씁니다.
+/// 배속 녹음 보이스는 건너뜁니다(작업 스레드가 따로 늘임, R6).
+pub(crate) fn mix_voices(
+    set: &VoiceSet,
+    position: u64,
+    left: &mut [f32],
+    right: &mut [f32],
+    master: f32,
+) {
+    let count = left.len().min(right.len());
+    for voice in set.voices.iter().filter(|v| v.recorded_rate == 1.0) {
+        let gain = voice.gain * master;
+        // 이 구간에서 보이스와 겹치는 범위만 더합니다.
+        let from = position as i64 - voice.start_frame;
+        let len = voice.left.len() as i64;
+        let skip = (-from).clamp(0, count as i64);
+        let first = from + skip;
+        if first >= len {
+            continue;
+        }
+        let n = (count as i64 - skip).min(len - first).max(0) as usize;
+        let (a, b) = (first as usize, skip as usize);
+        for i in 0..n {
+            let (l, r) = (voice.left[a + i], voice.right[a + i]);
+            if l.is_finite() && r.is_finite() {
+                left[b + i] += l * gain;
+                right[b + i] += r * gain;
+            }
+        }
+    }
 }
 
 /// 출력 callback 쪽.
@@ -86,6 +142,12 @@ pub struct Bus {
     count_in: Option<(f64, u32, u32, CountInSpec)>,
     click: Click,
     starts: [(usize, bool, f32); MAX_STARTS],
+    /// R5: 배속 재생 상태. 조각은 힙을 쓰지 않아 꺼내고 버려도 할당·해제가 없습니다.
+    rate: f64,
+    stretch_generation: u64,
+    chunks: HeapCons<Chunk>,
+    chunk: Box<Chunk>,
+    chunk_at: usize,
 }
 
 /// 제어 쪽(서비스 잠금 안에서만 씀).
@@ -102,6 +164,14 @@ pub struct BusControl {
     /// 마지막 위치 명령(번호, 프레임). stream을 다시 만들 때 아직 적용되지 않았으면 이 값을 씁니다.
     requested: Option<(u64, u64)>,
     metronome: Option<MetronomeSpec>,
+    /// R5: 재생 속도와 배속 세대(이동·속도·구간 변경마다 올림), 늘이기 작업 스레드.
+    rate: f64,
+    generation: u64,
+    feed: Option<FeedHandle>,
+    /// 지금 callback 쪽 조각 링의 쓰기 쪽(작업 스레드에 아직 넘기지 않았으면 여기).
+    chunk_output: Option<HeapProd<Chunk>>,
+    #[cfg(test)]
+    manual_feed: bool,
 }
 
 const COMMANDS: usize = 64;
@@ -124,8 +194,10 @@ pub fn pair(sample_rate: u32) -> (BusControl, Bus) {
         anchor_ns: AtomicU64::new(0),
         loops: AtomicU64::new(0),
         anchor_seq: AtomicU64::new(0),
+        rate: AtomicU64::new(1.0f64.to_bits()),
     });
     let (commands, consumer) = HeapRb::<Command>::new(COMMANDS).split();
+    let (chunk_output, chunks) = stretch_feed::ring();
     (
         BusControl {
             commands,
@@ -138,13 +210,24 @@ pub fn pair(sample_rate: u32) -> (BusControl, Bus) {
             seq: 0,
             requested: None,
             metronome: None,
+            rate: 1.0,
+            generation: 0,
+            feed: None,
+            chunk_output: Some(chunk_output),
+            #[cfg(test)]
+            manual_feed: false,
         },
-        Bus::new(consumer, shared, sample_rate),
+        Bus::new(consumer, shared, sample_rate, chunks),
     )
 }
 
 impl Bus {
-    fn new(commands: HeapCons<Command>, shared: Arc<Shared>, sample_rate: u32) -> Self {
+    fn new(
+        commands: HeapCons<Command>,
+        shared: Arc<Shared>,
+        sample_rate: u32,
+        chunks: HeapCons<Chunk>,
+    ) -> Self {
         Self {
             commands,
             shared,
@@ -157,6 +240,17 @@ impl Bus {
             count_in: None,
             click: Click::default(),
             starts: [(0, false, 0.0); MAX_STARTS],
+            rate: 1.0,
+            stretch_generation: 0,
+            chunks,
+            chunk: Box::new(Chunk {
+                generation: u64::MAX,
+                song_frame: 0.0,
+                wrapped: false,
+                left: [0.0; CHUNK],
+                right: [0.0; CHUNK],
+            }),
+            chunk_at: CHUNK,
         }
     }
     fn push_start(
@@ -181,9 +275,15 @@ impl Bus {
             match command {
                 // 바뀐 이전 묶음은 제어 쪽이 사본을 들고 있어 여기서 해제되지 않습니다.
                 Command::Voices(set) => self.voices = Some(set),
-                Command::Play { seq, frame } => {
+                Command::Play {
+                    seq,
+                    frame,
+                    generation,
+                } => {
                     self.position = frame;
                     self.playing = true;
+                    self.stretch_generation = generation;
+                    self.chunk_at = CHUNK;
                     self.shared.applied.store(seq, Ordering::Release);
                 }
                 // 정지는 남은 카운트인 클릭도 지웁니다(준비 취소).
@@ -191,9 +291,21 @@ impl Bus {
                     self.playing = false;
                     self.count_in = None;
                 }
-                Command::Seek { seq, frame } => {
+                Command::Seek {
+                    seq,
+                    frame,
+                    generation,
+                } => {
                     self.position = frame;
+                    self.stretch_generation = generation;
+                    self.chunk_at = CHUNK;
                     self.shared.applied.store(seq, Ordering::Release);
+                }
+                Command::Rate { rate, generation } => {
+                    self.rate = rate;
+                    self.stretch_generation = generation;
+                    self.chunk_at = CHUNK;
+                    self.shared.rate.store(rate.to_bits(), Ordering::Release);
                 }
                 Command::Loop(range) => self.looped = range,
                 Command::Metronome(spec) => self.metronome = spec,
@@ -220,6 +332,10 @@ impl Bus {
         let master = f32::from_bits(self.shared.master.load(Ordering::Relaxed));
         let total = left.len().min(right.len());
         let mut done = 0;
+        if self.rate != 1.0 || self.voices.as_ref().is_some_and(|v| v.has_varispeed()) {
+            self.render_stretched(left, right, total, master, &mut starts);
+            done = total;
+        }
         while self.playing && done < total {
             if let Some((start, end)) = self.looped {
                 if self.position >= end {
@@ -234,26 +350,13 @@ impl Bus {
                 }
             }
             if let Some(set) = &self.voices {
-                for voice in &set.voices {
-                    let gain = voice.gain * master;
-                    // 이 구간에서 보이스와 겹치는 범위만 더합니다.
-                    let from = self.position as i64 - voice.start_frame;
-                    let len = voice.left.len() as i64;
-                    let skip = (-from).clamp(0, count as i64);
-                    let first = from + skip;
-                    if first >= len {
-                        continue;
-                    }
-                    let n = (count as i64 - skip).min(len - first).max(0) as usize;
-                    let (a, b) = (first as usize, done + skip as usize);
-                    for i in 0..n {
-                        let (l, r) = (voice.left[a + i], voice.right[a + i]);
-                        if l.is_finite() && r.is_finite() {
-                            left[b + i] += l * gain;
-                            right[b + i] += r * gain;
-                        }
-                    }
-                }
+                mix_voices(
+                    set,
+                    self.position,
+                    &mut left[done..done + count],
+                    &mut right[done..done + count],
+                    master,
+                );
             }
             if let Some(m) = self.metronome {
                 // 이 구간 [position, position+count)에 드는 박마다 클릭을 시작합니다.
@@ -299,6 +402,92 @@ impl Bus {
         self.synthesize_clicks(left, right, total, starts);
         self.shared.position.store(self.position, Ordering::Release);
         self.shared.playing.store(self.playing, Ordering::Release);
+    }
+    /// R5: 작업 스레드가 늘인 조각을 재생합니다. 이번 세대 조각이 아직 없으면 무음이고 위치는 그대로입니다.
+    fn render_stretched(
+        &mut self,
+        left: &mut [f32],
+        right: &mut [f32],
+        total: usize,
+        master: f32,
+        starts: &mut usize,
+    ) {
+        let mut done = 0;
+        while self.playing && done < total {
+            if self.chunk_at >= CHUNK || self.chunk.generation != self.stretch_generation {
+                let mut found = false;
+                // 이전 세대 조각은 버립니다(힙이 없어 해제 없음).
+                while let Some(chunk) = self.chunks.try_pop() {
+                    if chunk.generation == self.stretch_generation {
+                        *self.chunk = chunk;
+                        self.chunk_at = 0;
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    break;
+                }
+                if self.chunk.wrapped {
+                    self.shared.loops.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            let n = (CHUNK - self.chunk_at).min(total - done);
+            let mut from = self.chunk.song_frame + self.chunk_at as f64 * self.rate;
+            // 조각 중간부터 읽을 때 이미 구간 끝을 지났으면 작업 스레드처럼 되감은 위치로 봅니다(리뷰 R2-1).
+            if let Some((start, end)) = self.looped {
+                if from >= end as f64 {
+                    from = start as f64 + (from - end as f64);
+                }
+            }
+            for i in 0..n {
+                left[done + i] += self.chunk.left[self.chunk_at + i] * master;
+                right[done + i] += self.chunk.right[self.chunk_at + i] * master;
+            }
+            if let Some(m) = self.metronome {
+                // 곡 구간 [from, from + n×rate)에 드는 박을 출력 위치로 바꿔 클릭을 시작합니다(클릭은 늘이지 않음).
+                // 조각이 반복 구간 끝을 넘으면 작업 스레드처럼 구간 시작으로 되감아 나머지 박을 찾습니다.
+                let mut seg_from = from;
+                let mut song_left = n as f64 * self.rate;
+                let mut out_at = 0.0;
+                while song_left > 0.0 {
+                    let seg_to = match self.looped {
+                        Some((_, end)) if seg_from < end as f64 => {
+                            (seg_from + song_left).min(end as f64)
+                        }
+                        _ => seg_from + song_left,
+                    };
+                    let mut k = ((seg_from - m.origin_frame) / m.beat_frames).ceil();
+                    loop {
+                        let at = m.origin_frame + k * m.beat_frames;
+                        if at >= seg_to {
+                            break;
+                        }
+                        let accent = (k as i64).rem_euclid(i64::from(m.numerator)) == 0;
+                        let offset =
+                            ((out_at + (at - seg_from) / self.rate).max(0.0) as usize).min(n - 1);
+                        Self::push_start(starts, &mut self.starts, done + offset, accent, m.volume);
+                        k += 1.0;
+                    }
+                    let len = seg_to - seg_from;
+                    if len <= 0.0 {
+                        break;
+                    }
+                    song_left -= len;
+                    out_at += len / self.rate;
+                    seg_from = self.looped.map_or(seg_to, |(start, _)| start as f64);
+                }
+            }
+            self.chunk_at += n;
+            done += n;
+            let mut position = from + n as f64 * self.rate;
+            if let Some((start, end)) = self.looped {
+                if position >= end as f64 {
+                    position = start as f64 + (position - end as f64);
+                }
+            }
+            self.position = position.max(0.0) as u64;
+        }
     }
     /// 40ms 사인 클릭(강박 1200Hz·약박 800Hz, 끝 2ms 페이드). WebAudio 메트로놈과 같은 소리입니다.
     fn synthesize_clicks(
@@ -354,37 +543,87 @@ impl BusControl {
                 v.left.len() != v.right.len()
                     || !v.gain.is_finite()
                     || !(0.0..=2.0).contains(&v.gain)
+                    || !v.recorded_rate.is_finite()
+                    || !(0.5..=1.5).contains(&v.recorded_rate)
             })
         {
             return Err(AppError::invalid());
         }
+        let varispeed = set.has_varispeed();
+        if varispeed {
+            self.ensure_feed()?;
+        }
         self.release();
+        let was_fed = self.fed();
         let set = Arc::new(set);
         self.send(Command::Voices(set.clone()))?;
         self.sets.push(set.clone());
-        self.current = Some(set);
+        self.current = Some(set.clone());
+        if let Some(feed) = &self.feed {
+            feed.update(|r| r.voices = Some(set));
+        }
+        // R6: 배속 녹음 보이스가 생기거나 없어지면 callback 경로가 바뀌므로 지금 위치에서 새 세대로 맞춥니다.
+        if was_fed != self.fed() {
+            let at = self.current_frame();
+            if self.fed() {
+                self.restart_feed(at);
+            } else if let Some(feed) = &self.feed {
+                feed.update(|r| r.active = false);
+            }
+            self.send(Command::Rate {
+                rate: self.rate,
+                generation: self.generation,
+            })?;
+        }
+        Ok(())
+    }
+    /// R5·R6: callback이 작업 스레드의 조각을 재생하는지(배속이거나 배속 녹음 보이스가 있음).
+    fn fed(&self) -> bool {
+        self.rate != 1.0 || self.current.as_ref().is_some_and(|s| s.has_varispeed())
+    }
+    fn ensure_feed(&mut self) -> Result<(), AppError> {
+        #[cfg(test)]
+        if self.feed.is_none() && self.manual_feed {
+            self.feed = Some(FeedHandle::manual());
+        }
+        if self.feed.is_none() {
+            self.feed = Some(FeedHandle::spawn().ok_or_else(|| {
+                AppError::new(
+                    "NATIVE_STRETCH_UNAVAILABLE",
+                    "배속 재생을 시작하지 못했습니다.",
+                    true,
+                )
+            })?);
+        }
         Ok(())
     }
     pub fn play(&mut self, frame: u64) -> Result<(), AppError> {
         self.seq += 1;
+        self.playing = true;
+        self.restart_feed(frame);
         self.send(Command::Play {
             seq: self.seq,
             frame,
+            generation: self.generation,
         })?;
         self.requested = Some((self.seq, frame));
-        self.playing = true;
         Ok(())
     }
     pub fn pause(&mut self) -> Result<(), AppError> {
         self.send(Command::Pause)?;
         self.playing = false;
+        if let Some(feed) = &self.feed {
+            feed.update(|r| r.active = false);
+        }
         Ok(())
     }
     pub fn seek(&mut self, frame: u64) -> Result<(), AppError> {
         self.seq += 1;
+        self.restart_feed(frame);
         self.send(Command::Seek {
             seq: self.seq,
             frame,
+            generation: self.generation,
         })?;
         self.requested = Some((self.seq, frame));
         Ok(())
@@ -393,9 +632,85 @@ impl BusControl {
         if range.is_some_and(|(a, b)| a >= b) {
             return Err(AppError::invalid());
         }
+        // 전송 요청마다 같은 구간이 다시 오므로, 바뀌지 않았으면 배속 늘이기를 다시 시작하지 않습니다.
+        if range == self.looped {
+            return Ok(());
+        }
         self.send(Command::Loop(range))?;
         self.looped = range;
+        // 늘이기 경로면 입력이 구간을 따라가도록 지금 위치에서 다시 시작합니다.
+        if self.fed() {
+            let at = self.current_frame();
+            self.restart_feed(at);
+            self.send(Command::Rate {
+                rate: self.rate,
+                generation: self.generation,
+            })?;
+        }
         Ok(())
+    }
+    /// 아직 적용되지 않은 위치 명령이 있으면 그 값, 아니면 callback이 공개한 위치.
+    fn current_frame(&self) -> u64 {
+        match self.requested {
+            Some((seq, frame)) if self.shared.applied.load(Ordering::Acquire) < seq => frame,
+            _ => self.shared.position.load(Ordering::Acquire),
+        }
+    }
+    /// R5: 늘이기 경로면 작업 스레드를 `frame`부터 새 세대로 다시 시작합니다(아니면 아무것도 안 함).
+    fn restart_feed(&mut self, frame: u64) {
+        if !self.fed() {
+            return;
+        }
+        self.generation += 1;
+        let Some(feed) = &self.feed else {
+            return;
+        };
+        let (generation, rate, active) = (self.generation, self.rate, self.playing);
+        let (voices, looped, sample_rate) = (self.current.clone(), self.looped, self.sample_rate);
+        let output = self.chunk_output.take();
+        feed.update(move |r| {
+            r.generation = generation;
+            r.start = frame;
+            r.rate = rate;
+            r.active = active;
+            r.voices = voices;
+            r.looped = looped;
+            r.sample_rate = sample_rate;
+            if output.is_some() {
+                r.output = output;
+            }
+        });
+    }
+    /// R5: 재생 속도(0.5~1.5, 피치 유지). 1이면 늘이기를 거치지 않는 기존 경로입니다.
+    pub fn set_rate(&mut self, rate: f64) -> Result<(), AppError> {
+        if !rate.is_finite() || !(0.5..=1.5).contains(&rate) {
+            return Err(AppError::invalid());
+        }
+        if rate == self.rate {
+            return Ok(());
+        }
+        if rate != 1.0 {
+            self.ensure_feed()?;
+        }
+        let at = self.current_frame();
+        self.rate = rate;
+        if self.fed() {
+            self.restart_feed(at);
+        } else if let Some(feed) = &self.feed {
+            feed.update(|r| r.active = false);
+        }
+        self.send(Command::Rate {
+            rate,
+            generation: self.generation,
+        })
+    }
+    pub fn rate(&self) -> f64 {
+        self.rate
+    }
+    /// 검사용: 작업 스레드 대신 늘이기를 한 번 돌립니다.
+    #[cfg(test)]
+    pub fn pump(&mut self) -> usize {
+        self.feed.as_mut().map_or(0, FeedHandle::pump)
     }
     pub fn set_metronome(&mut self, spec: Option<MetronomeSpec>) -> Result<(), AppError> {
         if spec.is_some_and(|m| {
@@ -440,8 +755,9 @@ impl BusControl {
             return None;
         }
         let rate = f64::from(self.sample_rate);
+        let speed = f64::from_bits(self.shared.rate.load(Ordering::Acquire));
         let anchor = anchor as f64;
-        let mut frame = anchor + (now_ns as f64 - anchor_ns as f64) * rate / 1e9;
+        let mut frame = anchor + (now_ns as f64 - anchor_ns as f64) * rate * speed / 1e9;
         if let Some((start, end)) = self.looped {
             let (start, end) = (start as f64, end as f64);
             if anchor < end && frame >= end {
@@ -477,13 +793,12 @@ impl BusControl {
     /// 이전 stream을 버린 뒤 같은 상태로 새 callback 쪽을 만듭니다.
     /// 샘플레이트가 바뀌면 보이스를 비우고 정지합니다(`has_voices()`가 false가 되어 다시 불러와야 함).
     pub fn respawn(&mut self, sample_rate: u32) -> Bus {
-        let mut position = match self.requested {
-            Some((seq, frame)) if self.shared.applied.load(Ordering::Acquire) < seq => frame,
-            _ => self.shared.position.load(Ordering::Acquire),
-        };
+        let mut position = self.current_frame();
         self.requested = None;
         let (commands, consumer) = HeapRb::<Command>::new(COMMANDS).split();
         self.commands = commands;
+        let (chunk_output, chunks) = stretch_feed::ring();
+        self.chunk_output = Some(chunk_output);
         if sample_rate != self.sample_rate {
             self.sample_rate = sample_rate;
             self.current = None;
@@ -494,12 +809,16 @@ impl BusControl {
         self.sets = self.current.iter().cloned().collect();
         self.shared.position.store(position, Ordering::Release);
         self.shared.playing.store(self.playing, Ordering::Release);
-        let mut bus = Bus::new(consumer, self.shared.clone(), sample_rate);
+        let mut bus = Bus::new(consumer, self.shared.clone(), sample_rate, chunks);
         bus.voices = self.current.clone();
         bus.position = position;
         bus.playing = self.playing;
         bus.looped = self.looped;
         bus.metronome = self.metronome;
+        // 배속이면 새 링으로 작업 스레드를 같은 위치에서 다시 시작합니다.
+        self.restart_feed(position);
+        bus.rate = self.rate;
+        bus.stretch_generation = self.generation;
         bus
     }
     /// 보이스를 비우고 멈춥니다. stream이 이미 버려졌어도 공개 상태가 멈춤이 되게 합니다.
@@ -515,11 +834,21 @@ impl BusControl {
         self.current = None;
         self.playing = false;
         self.requested = None;
+        if let Some(feed) = &self.feed {
+            feed.update(|r| {
+                r.active = false;
+                r.voices = None;
+            });
+        }
         self.shared.playing.store(false, Ordering::Release);
         Ok(())
     }
     pub fn has_voices(&self) -> bool {
         self.current.is_some()
+    }
+    /// 작업 스레드 경로로 재생 중인데 늘이기가 실패해 무음에 머무는지(화면이 기존 재생으로 복구하도록 알림).
+    pub fn stretch_failed(&self) -> bool {
+        self.fed() && self.feed.as_ref().is_some_and(FeedHandle::failed)
     }
 }
 
@@ -532,6 +861,7 @@ mod tests {
             right: r.into(),
             start_frame: start,
             gain,
+            recorded_rate: 1.0,
         }
     }
     fn block(bus: &mut Bus, n: usize) -> (Vec<f32>, Vec<f32>) {
@@ -774,5 +1104,301 @@ mod tests {
         c.release();
         assert!(weak.upgrade().is_none(), "해제 뒤 PCM이 남지 않음");
         assert!(c.sets.is_empty());
+    }
+    /// 48kHz 2초 반주, 곡 `click`프레임에 짧은 클릭.
+    fn click_set(click: usize) -> VoiceSet {
+        let mut l = vec![0.0f32; 96000];
+        for v in &mut l[click..click + 32] {
+            *v = 0.8;
+        }
+        VoiceSet {
+            sample_rate: 48000,
+            voices: vec![voice(&l, &l, 0, 1.0)],
+        }
+    }
+    /// 작업 스레드 대신 늘이기를 돌리며 `frames`만큼 출력합니다.
+    fn stretched(c: &mut BusControl, bus: &mut Bus, frames: usize) -> Vec<f32> {
+        stretched_in(c, bus, frames, 480)
+    }
+    fn stretched_in(c: &mut BusControl, bus: &mut Bus, frames: usize, size: usize) -> Vec<f32> {
+        let mut out = Vec::new();
+        while out.len() < frames {
+            c.pump();
+            out.extend(block(bus, size).0);
+        }
+        out
+    }
+    fn peak(s: &[f32]) -> usize {
+        (0..s.len())
+            .max_by(|a, b| s[*a].abs().total_cmp(&s[*b].abs()))
+            .unwrap_or(0)
+    }
+    #[test]
+    fn stretched_playback_keeps_song_time_seek_metronome_and_returns_to_direct() {
+        // docs/12 "네이티브 배속 재생 v1"(R5)
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(click_set(24000)).expect("voices");
+        assert!(c.set_rate(0.4).is_err() && c.set_rate(1.6).is_err());
+        c.set_rate(0.75).expect("0.75배");
+        c.play(0).expect("play");
+        let out = stretched(&mut c, &mut bus, 48000);
+        // 곡 0.5초의 클릭은 출력 0.5/0.75 ≈ 0.667초(1.5ms 안)
+        let at = peak(&out) as f64;
+        assert!((at - 32000.0).abs() < 72.0, "클릭 출력 {at}");
+        // 공개 위치 = 출력 × 0.75(조각 단위)
+        let (position, playing) = c.position();
+        assert!(playing && (position as f64 - out.len() as f64 * 0.75).abs() < 256.0);
+        // 이동하면 이전 세대 조각을 버리고 새 위치부터: 곡 1.0초로 옮기면 클릭은 지나감
+        c.set_voices(click_set(60000)).expect("voices");
+        c.seek(48000).expect("seek");
+        let out = stretched(&mut c, &mut bus, 24000);
+        let at = peak(&out) as f64;
+        assert!((at - 16000.0).abs() < 72.0, "이동 뒤 클릭 출력 {at}");
+        // 메트로놈: 곡 박 간격 12000프레임 → 출력 16000프레임마다(클릭은 늘이지 않음)
+        c.set_voices(VoiceSet {
+            sample_rate: 48000,
+            voices: vec![],
+        })
+        .expect("빈 반주");
+        c.set_metronome(Some(MetronomeSpec {
+            origin_frame: 0.0,
+            beat_frames: 12000.0,
+            numerator: 4,
+            volume: 1.0,
+        }))
+        .expect("metronome");
+        c.seek(0).expect("seek");
+        let out = stretched(&mut c, &mut bus, 40000);
+        let onsets: Vec<usize> = (1..out.len())
+            .filter(|i| out[*i] != 0.0 && out[i - 1] == 0.0 && (i < &3 || out[i - 2] == 0.0))
+            .collect();
+        assert!(onsets.len() >= 3, "{onsets:?}");
+        let gap = (onsets[1] - onsets[0]) as f64;
+        assert!((gap - 16000.0).abs() < 300.0, "박 간격 {gap}");
+        // 1배속으로 돌아오면 늘이기 없이 지금 위치에서 그대로 섞습니다.
+        c.set_metronome(None).expect("metronome off");
+        let before = c.position().0;
+        c.set_rate(1.0).expect("1배");
+        block(&mut bus, 480);
+        assert_eq!(c.position().0, before + 480);
+    }
+    #[test]
+    fn stretched_song_clock_extrapolates_with_rate() {
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(click_set(1000)).expect("voices");
+        c.set_rate(1.5).expect("1.5배");
+        c.play(0).expect("play");
+        c.pump();
+        let (mut l, mut r) = (vec![0.0; 480], vec![0.0; 480]);
+        bus.render_at(&mut l, &mut r, Some(1_000_000_000));
+        // 기준점(곡 0) 뒤 10ms가 지나면 곡은 15ms 진행
+        let song = c.song_ms_at(1_010_000_000).expect("곡 위치");
+        assert!((song - 15.0).abs() < 0.01, "{song}");
+    }
+
+    /// R6: 녹음 배속 `recorded`로 녹음한 보이스. 곡 위치 = start + i × recorded.
+    fn recorded_voice(l: &[f32], start: i64, gain: f32, recorded: f64) -> BusVoice {
+        BusVoice {
+            recorded_rate: recorded,
+            ..voice(l, l, start, gain)
+        }
+    }
+    fn click_at(len: usize, at: usize) -> Vec<f32> {
+        let mut l = vec![0.0f32; len];
+        for v in &mut l[at..at + 32] {
+            *v = 0.8;
+        }
+        l
+    }
+    #[test]
+    fn varispeed_take_lands_on_song_time_at_every_playback_rate() {
+        // docs/12 "배속 녹음 테이크 네이티브 재생 v1"(R6): 곡 30000프레임의 클릭은 출력 30000 / 재생 배속.
+        for recorded in [0.5, 1.25, 1.5] {
+            let index = (24000.0 / recorded) as usize;
+            for speed in [0.5, 0.75, 1.0, 1.25, 1.5] {
+                let (mut c, mut bus) = pair(48000);
+                c.manual_feed = true;
+                c.set_voices(VoiceSet {
+                    sample_rate: 48000,
+                    voices: vec![recorded_voice(&click_at(96000, index), 6000, 1.0, recorded)],
+                })
+                .expect("voices");
+                c.set_rate(speed).expect("rate");
+                c.play(0).expect("play");
+                let expected = 30000.0 / speed;
+                let out = stretched(&mut c, &mut bus, expected as usize + 8000);
+                let at = peak(&out) as f64;
+                // 늘이기 비율(재생/녹음)이 엔진의 깨끗한 범위(2배)를 크게 넘는 3배(0.5배 녹음 → 1.5배 재생)만
+                // 클릭이 약 4.3ms 일찍 나옵니다(2026-11-11 실측, 2.75배까지는 1.1ms 안).
+                let tolerance = if speed / recorded > 2.9 { 240.0 } else { 72.0 };
+                assert!(
+                    (at - expected).abs() < tolerance,
+                    "녹음 {recorded}배·재생 {speed}배: 클릭 출력 {at}, 기대 {expected:.0}"
+                );
+            }
+        }
+    }
+    #[test]
+    fn varispeed_take_played_at_its_recorded_rate_is_the_original_samples() {
+        let mut seed = 7u32;
+        let noise: Vec<f32> = (0..48000)
+            .map(|_| {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                (seed >> 8) as f32 / (1u32 << 24) as f32 - 0.5
+            })
+            .collect();
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(VoiceSet {
+            sample_rate: 48000,
+            voices: vec![recorded_voice(&noise, 1000, 0.5, 0.75)],
+        })
+        .expect("voices");
+        c.set_rate(0.75).expect("rate");
+        c.play(0).expect("play");
+        let out = stretched(&mut c, &mut bus, 30000);
+        // 출력 j = 곡 0.75j → 보이스 (0.75j − 1000) / 0.75 = j − 1333번째(늘이기 없이 그대로).
+        for j in 2000..30000 {
+            assert!((out[j] - noise[j - 1333] * 0.5).abs() < 1e-6, "{j}");
+        }
+    }
+    #[test]
+    fn varispeed_take_and_normal_take_stay_together() {
+        // 1배속 녹음 클릭은 곡 30000, 0.5배 녹음 클릭은 곡 36000. 0.75배 재생이면 출력 40000·48000.
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        let normal = click_at(96000, 30000);
+        c.set_voices(VoiceSet {
+            sample_rate: 48000,
+            voices: vec![
+                voice(&normal, &normal, 0, 1.0),
+                recorded_voice(&click_at(96000, 72000), 0, 1.0, 0.5),
+            ],
+        })
+        .expect("voices");
+        c.set_rate(0.75).expect("rate");
+        c.play(0).expect("play");
+        let out = stretched(&mut c, &mut bus, 56000);
+        let first = peak(&out[..44000]) as f64;
+        let second = 44000.0 + peak(&out[44000..56000]) as f64;
+        assert!((first - 40000.0).abs() < 72.0, "1배속 녹음 클릭 {first}");
+        assert!((second - 48000.0).abs() < 72.0, "배속 녹음 클릭 {second}");
+    }
+    #[test]
+    fn varispeed_take_follows_loop_wrap() {
+        // 구간 [0, 24000)에서 곡 12000의 클릭(0.5배 녹음)은 1배속 출력 12000과 다음 회차 36000에 들립니다.
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(VoiceSet {
+            sample_rate: 48000,
+            voices: vec![recorded_voice(&click_at(96000, 24000), 0, 1.0, 0.5)],
+        })
+        .expect("voices");
+        c.set_loop(Some((0, 24000))).expect("loop");
+        c.play(0).expect("play");
+        let out = stretched(&mut c, &mut bus, 48000);
+        let first = peak(&out[..24000]) as f64;
+        let second = 24000.0 + peak(&out[24000..48000]) as f64;
+        assert!((first - 12000.0).abs() < 72.0, "첫 회차 {first}");
+        assert!((second - 36000.0).abs() < 72.0, "다음 회차 {second}");
+        assert_eq!(c.loop_count(), 1);
+    }
+    #[test]
+    fn stretch_failure_is_reported_until_a_new_generation_or_the_direct_path() {
+        // 리뷰 R1-3: 실패를 알리지 않으면 화면은 재생 중 표시로 무음에 머뭅니다.
+        let (mut c, _bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(click_set(1000)).expect("voices");
+        c.set_rate(0.75).expect("0.75배");
+        c.play(0).expect("play");
+        c.pump();
+        assert!(!c.stretch_failed());
+        if let Some(feed) = c.feed.as_mut() {
+            feed.fail_for_test();
+        }
+        c.pump();
+        assert!(c.stretch_failed());
+        // 새 세대(배속 변경)는 다시 시도하고, 1배속 직접 경로는 늘이기와 무관합니다.
+        c.set_rate(1.25).expect("1.25배");
+        c.pump();
+        assert!(!c.stretch_failed());
+        if let Some(feed) = c.feed.as_mut() {
+            feed.fail_for_test();
+        }
+        c.pump();
+        c.set_rate(1.0).expect("1배");
+        assert!(!c.stretch_failed());
+    }
+    #[test]
+    fn stretched_metronome_clicks_again_after_loop_wrap_inside_a_chunk() {
+        // 리뷰 R1-1·R2-1: 구간 길이 23000은 조각(256×0.75=192 곡 프레임)으로 나누어떨어지지 않아 되감기가
+        // 조각 안에서 일어나고, callback 크기에 따라 그 조각을 나눠 읽습니다. 회차마다 23000/0.75 출력 프레임.
+        for (looped, first) in [((0u64, 23000u64), 0.0), ((23900, 46900), 100.0 / 0.75)] {
+            for size in [128, 480] {
+                let (mut c, mut bus) = pair(48000);
+                c.manual_feed = true;
+                c.set_voices(VoiceSet {
+                    sample_rate: 48000,
+                    voices: vec![],
+                })
+                .expect("빈 반주");
+                c.set_metronome(Some(MetronomeSpec {
+                    origin_frame: 0.0,
+                    beat_frames: 24000.0,
+                    numerator: 4,
+                    volume: 1.0,
+                }))
+                .expect("metronome");
+                c.set_loop(Some(looped)).expect("loop");
+                c.set_rate(0.75).expect("0.75배");
+                c.play(looped.0).expect("play");
+                let out = stretched_in(&mut c, &mut bus, 95000, size);
+                let onsets: Vec<usize> = (0..95000)
+                    .filter(|i| {
+                        out[*i] != 0.0 && (*i < 2 || (out[i - 1] == 0.0 && out[i - 2] == 0.0))
+                    })
+                    .collect();
+                assert_eq!(onsets.len(), 4, "{looped:?} {size} {onsets:?}");
+                for (lap, onset) in onsets.iter().enumerate() {
+                    let want = first + lap as f64 * 23000.0 / 0.75;
+                    assert!(
+                        (*onset as f64 - want).abs() < 2.0,
+                        "{looped:?} {size} {onsets:?}"
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn varispeed_voices_switch_the_one_x_path_without_losing_position() {
+        let (mut c, mut bus) = pair(48000);
+        c.manual_feed = true;
+        c.set_voices(click_set(90000)).expect("voices");
+        c.play(0).expect("play");
+        block(&mut bus, 4800);
+        assert_eq!(c.position().0, 4800);
+        // 1배속에서 배속 녹음 보이스가 생기면 작업 스레드 경로로 지금 위치부터 이어 갑니다.
+        c.set_voices(VoiceSet {
+            sample_rate: 48000,
+            voices: vec![recorded_voice(&click_at(96000, 90000), 0, 1.0, 0.5)],
+        })
+        .expect("voices");
+        stretched(&mut c, &mut bus, 4800);
+        let position = c.position().0 as f64;
+        assert!((position - 9600.0).abs() < 512.0, "{position}");
+        // 다시 없어지면 늘이기 없이 직접 섞습니다.
+        c.set_voices(click_set(90000)).expect("voices");
+        let before = c.position().0;
+        block(&mut bus, 480);
+        assert_eq!(c.position().0, before + 480);
+        // 녹음 배속 범위 밖은 거부합니다.
+        assert!(c
+            .set_voices(VoiceSet {
+                sample_rate: 48000,
+                voices: vec![recorded_voice(&[0.0], 0, 1.0, 2.0)],
+            })
+            .is_err());
     }
 }

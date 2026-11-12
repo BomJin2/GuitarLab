@@ -125,14 +125,16 @@ export function useCaptureClock(
         const anchor: CaptureAnchor | null = nativeMode
           ? nativeSongMs !== null &&
             after.playing &&
-            after.playbackEpoch === before.playbackEpoch
+            after.playbackEpoch === before.playbackEpoch &&
+            after.rate === before.rate
             ? {
                 schemaVersion: 1,
                 streamGeneration: nativeClock.streamGeneration,
                 playbackEpoch: before.playbackEpoch,
                 monotonicNs: nativeClock.monotonicNs,
                 songTimeMs: nativeSongMs,
-                rate: 1,
+                // R5부터 Rust도 배속으로 재생하므로 실제 재생 배속을 보냅니다(리뷰 R4-1).
+                rate: after.rate,
                 // 장치가 알려 준 재생 시각 기준이라 왕복 시간과 무관합니다(100ns 단위 시계).
                 uncertaintyRealMs: 0.5,
               }

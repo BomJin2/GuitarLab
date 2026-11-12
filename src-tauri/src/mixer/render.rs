@@ -96,8 +96,12 @@ pub fn render(
         if !mix.audible(layer) || layer.gain == 0.0 {
             continue;
         }
-        let (bytes, start_ms, used_freeze) =
+        let (bytes, start_ms, used_freeze, recorded_rate) =
             layer_source(store, mix, layer, &frozen, budget, None, cancel)?;
+        // 배속 녹음 테이크의 WAV 내보내기는 지원하지 않습니다(R6 결정 2, 재생만 Rust가 늘임).
+        if recorded_rate != 1.0 {
+            return Err(mix_error("MIX_RATE_UNSUPPORTED"));
+        }
         if used_freeze {
             frozen_layers += 1;
         }
@@ -175,7 +179,8 @@ pub fn render(
     };
     Ok((bytes, stats))
 }
-/// 레이어 하나의 원본 바이트와 곡 위 시작 시각(ms), Freeze 캐시 사용 여부. 출력 믹스와 네이티브 재생이 함께 씁니다.
+/// 레이어 하나의 원본 바이트와 곡 위 시작 시각(ms), Freeze 캐시 사용 여부, 녹음 배속(테이크·Bounce가 아니면 1).
+/// 출력 믹스와 네이티브 재생이 함께 씁니다.
 pub(crate) fn layer_source(
     store: &ProjectStore,
     mix: &MixDocument,
@@ -185,7 +190,7 @@ pub(crate) fn layer_source(
     // 분리 음원(STEM)은 이 반주에서 만든 것만 받습니다(None이면 확인하지 않음).
     stem_asset: Option<&str>,
     cancel: &AtomicBool,
-) -> Result<(Vec<u8>, f64, bool), AppError> {
+) -> Result<(Vec<u8>, f64, bool, f64), AppError> {
     Ok(match layer.kind {
         LayerKind::ImportedStem => (
             store
@@ -193,6 +198,7 @@ pub(crate) fn layer_source(
                 .1,
             layer.offset_ms,
             false,
+            1.0,
         ),
         LayerKind::Stem => (
             crate::ai::stem_store::read_stem(
@@ -204,16 +210,11 @@ pub(crate) fn layer_source(
             )?,
             layer.offset_ms,
             false,
+            1.0,
         ),
         LayerKind::Take => {
             let take = store.take(&mix.project_id, &layer.id)?;
-            if take
-                .transport
-                .as_ref()
-                .is_some_and(|t| (t.rate - 1.0).abs() > f64::EPSILON)
-            {
-                return Err(mix_error("MIX_RATE_UNSUPPORTED"));
-            }
+            let recorded = take.transport.as_ref().map_or(1.0, |t| t.rate);
             if take.frames as usize > budget / 4 {
                 return Err(mix_error("MIX_LIMIT_EXCEEDED"));
             }
@@ -227,12 +228,14 @@ pub(crate) fn layer_source(
                         .1,
                     start,
                     true,
+                    recorded,
                 )
             } else {
                 (
                     store.recording_bytes(&mix.project_id, &layer.id, cancel)?,
                     start,
                     false,
+                    recorded,
                 )
             }
         }
@@ -240,17 +243,11 @@ pub(crate) fn layer_source(
             // 시작 시각은 원본 테이크와 같은 규칙입니다.
             let (meta, bytes) = store.read_take_bounce(&mix.project_id, &layer.id, cancel)?;
             let take = store.take(&mix.project_id, &meta.take_id)?;
-            if take
-                .transport
-                .as_ref()
-                .is_some_and(|t| (t.rate - 1.0).abs() > f64::EPSILON)
-            {
-                return Err(mix_error("MIX_RATE_UNSUPPORTED"));
-            }
             (
                 bytes,
                 take.song_start_ms.unwrap_or(0.0) + take.alignment_offset_ms + layer.offset_ms,
                 false,
+                take.transport.as_ref().map_or(1.0, |t| t.rate),
             )
         }
         LayerKind::LocalAsset => {
@@ -266,6 +263,7 @@ pub(crate) fn layer_source(
                 store.read_asset(&mix.project_id, &layer.id, cancel, |_, _| Ok(()))?,
                 layer.offset_ms,
                 false,
+                1.0,
             )
         }
     })

@@ -1156,6 +1156,7 @@ it('출력 장치가 있으면 Rust로 준비하고 파일을 화면으로 읽�
     playing: false,
     positionMs: 0,
     loopCount: 0,
+    rate: 1,
     errorCode: null,
   });
   const release = vi
@@ -1205,7 +1206,9 @@ it('출력 장치가 있으면 Rust로 준비하고 파일을 화면으로 읽�
   });
   expect(prepare).toHaveBeenCalledTimes(2);
   expect(main.nativeAttached).toBe(false);
-  expect(hook.result.current.notice).toContain('MP3');
+  expect(hook.result.current.notice).toContain(
+    '지원하지 않거나 손상된 음원 형식',
+  );
   hook.unmount();
   main.dispose();
   window.localStorage.removeItem('guitarlab.nativePlayback');
@@ -1223,6 +1226,7 @@ it('Rust 재생 중 AmpliTube 테이크를 고르면 기존 재생으로 다시 
     playing: false,
     positionMs: 0,
     loopCount: 0,
+    rate: 1,
     errorCode: null,
   });
   vi.spyOn(nativePlaybackApi, 'release').mockResolvedValue(undefined);
@@ -1372,6 +1376,7 @@ it('준비 중에는 Bounce를 믹스에 넣지 않아 준비한 구성과 화�
     playing: false,
     positionMs: 0,
     loopCount: 0,
+    rate: 1,
     errorCode: null,
   });
   vi.spyOn(nativePlaybackApi, 'release').mockResolvedValue(undefined);
@@ -1403,7 +1408,7 @@ it('준비 중에는 Bounce를 믹스에 넣지 않아 준비한 구성과 화�
   hook.unmount();
   main.dispose();
 });
-it('Rust 준비를 기다리는 동안 배속을 바꾸면 Rust를 붙이지 않고 기존 재생으로 준비한다', async () => {
+it('Rust 준비를 기다리는 동안 배속을 바꿔도 Rust를 붙이고 그 배속을 넘긴다(R5)', async () => {
   const { main, mix, prepare, wrapper, props } = setup();
   let finish: () => void = () => {};
   vi.spyOn(nativePlaybackApi, 'prepare').mockImplementation(
@@ -1415,6 +1420,14 @@ it('Rust 준비를 기다리는 동안 배속을 바꾸면 Rust를 붙이지 않
   const release = vi
     .spyOn(nativePlaybackApi, 'release')
     .mockResolvedValue(undefined);
+  const transport = vi.spyOn(nativePlaybackApi, 'transport').mockResolvedValue({
+    prepared: true,
+    playing: false,
+    positionMs: 0,
+    loopCount: 0,
+    rate: 0.75,
+    errorCode: null,
+  });
   const hook = renderHook(
     (p) =>
       useProjectMix(
@@ -1437,10 +1450,12 @@ it('Rust 준비를 기다리는 동안 배속을 바꾸면 Rust를 붙이지 않
     finish();
     await preparing;
   });
-  expect(main.nativeAttached).toBe(false);
-  expect(release).toHaveBeenCalled();
-  expect(prepare).toHaveBeenCalledTimes(1);
-  expect(hook.result.current.notice).toContain('1배속이 아님');
+  expect(main.nativeAttached).toBe(true);
+  expect(release).not.toHaveBeenCalled();
+  expect(prepare).not.toHaveBeenCalled();
+  expect(transport).toHaveBeenCalledWith(
+    expect.objectContaining({ rate: 0.75 }),
+  );
   hook.unmount();
   main.dispose();
 });

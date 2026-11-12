@@ -655,6 +655,56 @@ fn render_layer_plays_bounce_at_source_take_start_and_rejects_unknown_id() {
 }
 
 #[test]
+fn mp3_backing_renders_to_wav_and_loads_natively_at_the_same_click_time() {
+    // docs/12 "MP3 반주 디코딩 v1"(R4): MP3 반주도 WAV 믹스 출력과 네이티브 재생에 씁니다.
+    let (f, mut mix, _, _) = setup();
+    let path = f.store.root.join("자체 합성 클릭 반주.mp3");
+    fs::write(&path, include_bytes!("testdata/click-mono-lame.mp3")).expect("자체 MP3");
+    let asset = f
+        .store
+        .import_asset(
+            &mix.project_id,
+            &path,
+            crate::storage::project_model::AssetKind::Original,
+            crate::storage::project_model::AssetStorage::Managed,
+            &AtomicBool::new(false),
+            |_, _| Ok(()),
+        )
+        .expect("권리 보유 fixture import");
+    for layer in &mut mix.layers {
+        layer.mute = true;
+    }
+    mix.layers.push(MixLayer {
+        kind: LayerKind::LocalAsset,
+        id: asset.asset.id,
+        gain: 1.0,
+        mute: false,
+        solo: false,
+        offset_ms: 0.0,
+    });
+    let flag = AtomicBool::new(false);
+    let (bytes, _) = render::render(&f.store, &mix, &flag, |_, _| Ok(())).expect("MP3 반주 믹스");
+    let out = samples(&bytes);
+    let peak = (0..out.len())
+        .max_by(|a, b| out[*a].abs().total_cmp(&out[*b].abs()))
+        .expect("출력");
+    // 44.1kHz 1.000초 클릭 → 48kHz 출력 48000프레임 근처(선형 변환)
+    assert!(peak.abs_diff(48000) <= 2, "클릭 위치 {peak}");
+    let native = super::native::load(&f.store, &mix, 48000, None, &flag).expect("네이티브 MP3");
+    let set = native.voices(&mix).expect("보이스");
+    let backing = set.voices.last().expect("반주");
+    let left = &backing.left;
+    let at = (0..left.len())
+        .max_by(|a, b| left[*a].abs().total_cmp(&left[*b].abs()))
+        .expect("반주 PCM");
+    assert_eq!(
+        at as i64 + backing.start_frame,
+        peak as i64,
+        "출력·네이티브 같은 시각"
+    );
+}
+
+#[test]
 fn native_load_keeps_stereo_backing_resamples_and_rebuilds_gains_without_decoding() {
     // docs/12 "네이티브 재생 v1"
     let (f, mut mix, _, _) = setup();
@@ -757,5 +807,20 @@ fn native_load_keeps_stereo_backing_resamples_and_rebuilds_gains_without_decodin
     f.store.save_take(&take).expect("같은 반주 기록");
     mix.layers[1].mute = false;
     assert!(super::native::load(&f.store, &mix, 48000, None, &flag).is_ok());
+    // R6: 배속 녹음 테이크도 네이티브로 준비하고 녹음 배속을 보이스에 넘깁니다(WAV 내보내기 거부는 위 검사).
+    let mut slow = take.clone();
+    slow.transport = slow
+        .transport
+        .map(|t| crate::recording::model::RecordingTransport { rate: 0.5, ..t });
+    f.store.save_take(&slow).expect("0.5배 녹음 기록");
+    let native = super::native::load(&f.store, &mix, 48000, None, &flag).expect("배속 테이크");
+    let set = native.voices(&mix).expect("보이스");
+    assert_eq!(
+        set.voices
+            .iter()
+            .map(|v| v.recorded_rate)
+            .collect::<Vec<_>>(),
+        vec![0.5, 1.0, 1.0]
+    );
     assert_eq!(fs::read(&path).expect("원본 보존"), wav);
 }

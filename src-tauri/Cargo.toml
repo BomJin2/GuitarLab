@@ -15,6 +15,7 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+cc = "1.8"
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -29,10 +30,14 @@ tauri-plugin-dialog = { version = "=2.8.2", default-features = false }
 rustfft = "=6.4.1"
 # docs/12 "모니터 AmpliTube 삽입 v1": 사용자가 설치한 VST3를 앱 안에서 호스팅합니다(CPAL 백엔드·프로세스 격리 기본 기능 끔).
 vst3-host = { version = "=0.11.0", default-features = false }
+symphonia = { version = "0.5", default-features = false, features = ["mp3"] }
 
 [target.'cfg(windows)'.dependencies]
 # DSP 스레드 우선순위(SetThreadPriority)만 씁니다.
 windows-sys = { version = "=0.61.2", features = ["Win32_System_Threading", "Win32_System_Ole", "Win32_UI_WindowsAndMessaging"] }
 
-
-
+# 최적화하지 않은 MP3 디코더는 release보다 약 50배 느려(10분 mono 12.6초) debug 검증앱에서도 반주 준비가 오래 걸리지 않게 최적화합니다.
+[profile.dev.package.symphonia-core]
+opt-level = 3
+[profile.dev.package.symphonia-bundle-mp3]
+opt-level = 3

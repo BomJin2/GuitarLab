@@ -76,7 +76,7 @@ export function MixPanel({
             disabled={c.busy}
             onChange={(e) => c.setNativePlayback(e.target.checked)}
           />{' '}
-          Rust 엔진으로 재생(1배속 WAV, 모니터 출력 장치)
+          Rust 엔진으로 재생(WAV·MP3, 0.5~1.5배, 모니터 출력 장치)
           {c.nativeActive ? ' · 사용 중' : ''}
         </label>
         <BounceList controller={c} mix={mix} />
@@ -329,9 +329,9 @@ export function MixPanel({
         서로 다른 악보 리비전·반주의 테이크는 자동 정렬을 보장하지 않습니다.
         오버더빙 준비는 현재 저장 리비전·반주와 일치하는 테이크만 허용합니다.
         청취용 다중 재생은 샘플 단위 동기를 보장하지 않습니다. WAV
-        출력은1×/무반주 테이크와 PCM16·float32 WAV 반주, 입력 합계512MiB까지
-        지원합니다. MP3·배속 녹음 출력/고품질 리샘플링은 미지원입니다. 반주
-        오프셋은 현재0ms입니다. YouTube 출력은 포함하지 않습니다.
+        출력은1×/무반주 테이크와 WAV·MP3 반주, 입력 합계512MiB까지 지원합니다.
+        배속 녹음 테이크 출력/고품질 리샘플링은 미지원입니다. 반주 오프셋은
+        현재0ms입니다. YouTube 출력은 포함하지 않습니다.
       </small>
     </section>
   );

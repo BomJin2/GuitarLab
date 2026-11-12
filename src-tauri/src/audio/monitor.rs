@@ -1149,6 +1149,7 @@ mod tests {
                     right: vec![0.0; 4].into(),
                     start_frame: 0,
                     gain: 0.0,
+                    recorded_rate: 1.0,
                 }],
             })
             .expect("보이스");
@@ -1241,6 +1242,7 @@ mod tests {
                     right: vec![-0.5, 0.5, f32::NAN].into(),
                     start_frame: 0,
                     gain: 1.0,
+                    recorded_rate: 1.0,
                 }],
             })
             .expect("voices");
@@ -1633,5 +1635,50 @@ mod tests {
         let mut output = [1.0f32; 4];
         reader.render(&mut output, 2, true);
         assert_eq!(output, [0.0; 4]);
+    }
+    #[test]
+    #[ignore = "실제 출력 장치를 엶(음량 0, 무음). 이름에 \"3/4\"가 든 출력이 있을 때만"]
+    fn stretched_playback_keeps_up_on_a_real_output_device() {
+        // R5: 작업 스레드가 실제 출력 속도를 따라가는지(곡 위치가 경과 × 배속만큼 나아감).
+        let Some(device) = list_outputs()
+            .expect("출력 열거")
+            .devices
+            .into_iter()
+            .find(|d| d.name.contains("3/4"))
+        else {
+            return;
+        };
+        let mut service = MonitorService::default();
+        let rate = service.start_output(&device.id).expect("재생 출력");
+        let bus = service.bus().expect("버스");
+        let len = rate as usize * 10;
+        let noise: Vec<f32> = (0..len)
+            .map(|i| ((i * 7919 % 1000) as f32 / 1000.0 - 0.5) * 0.1)
+            .collect();
+        bus.set_voices(playback_bus::VoiceSet {
+            sample_rate: rate,
+            voices: vec![playback_bus::BusVoice {
+                left: noise.clone().into(),
+                right: noise.into(),
+                start_frame: 0,
+                gain: 1.0,
+                recorded_rate: 1.0,
+            }],
+        })
+        .expect("보이스");
+        bus.set_master(0.0).expect("무음");
+        bus.set_rate(0.75).expect("0.75배");
+        bus.play(0).expect("재생");
+        std::thread::sleep(Duration::from_millis(300));
+        let start = service.bus().expect("버스").position().0;
+        std::thread::sleep(Duration::from_secs(2));
+        let moved = service.bus().expect("버스").position().0 - start;
+        let expected = f64::from(rate) * 2.0 * 0.75;
+        eprintln!("2초 동안 곡 {moved}프레임, 기대 {expected:.0}");
+        assert!(
+            (moved as f64 - expected).abs() < expected * 0.05,
+            "작업 스레드가 따라가지 못함"
+        );
+        service.stop_output().expect("끄기");
     }
 }

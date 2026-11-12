@@ -233,7 +233,7 @@ export function mixError(cause: unknown) {
     case 'MIX_RATE_UNSUPPORTED':
       return 'WAV 믹스 출력은1× 정렬 테이크 또는 무반주 테이크를 지원합니다. 배속 녹음은 오버더빙 청취만 가능합니다.';
     case 'MIX_FORMAT_UNSUPPORTED':
-      return '믹스 출력 반주는 PCM16/float32 mono·stereo WAV만 지원합니다. MP3/다른 WAV는 재생만 가능합니다.';
+      return '믹스 반주는 PCM16/float32 WAV 또는 MP3(mono·stereo)만 지원합니다. 다른 형식이거나 손상된 파일은 재생만 가능합니다.';
     case 'MIX_LIMIT_EXCEEDED':
       return '믹스 입력 합계512MiB·출력10분/256MiB 제한을 넘었습니다.';
     case 'MIX_DESTINATION_EXISTS':

@@ -104,11 +104,12 @@ export class PlayerEngine {
   get nativeAttached() {
     return this.native !== null;
   }
-  /** 1배속 Rust 재생으로 바꿉니다. 지금 위치·음량·구간을 넘기고 멈춘 상태로 시작합니다. */
+  /** Rust 재생으로 바꿉니다. 지금 위치·음량·구간·속도를 넘기고 멈춘 상태로 시작합니다. */
   attachNative(native: NativeTransport) {
     this.pause();
     this.detachNative();
     this.native = native;
+    native.setRate(this.snapshot.rate);
     native.setVolume(this.snapshot.volume);
     native.setLoop(this.snapshot.loop);
     native.seek(this.snapshot.audioTimeMs);
@@ -165,7 +166,7 @@ export class PlayerEngine {
   readClock = () => ({
     performanceTimeMs: performance.now(),
     songTimeMs: this.mediaTimeMs(),
-    rate: this.native ? 1 : this.audio.playbackRate,
+    rate: this.native ? this.snapshot.rate : this.audio.playbackRate,
     playbackEpoch: this.snapshot.playbackEpoch,
     playing: this.native
       ? this.snapshot.status === 'playing' && this.native.playing
@@ -442,12 +443,8 @@ export class PlayerEngine {
     if (!Number.isFinite(rate) || rate < 0.5 || rate > 1.5)
       throw new Error('배속은 0.5~1.5 범위여야 합니다.');
     if (this.snapshot.status === 'countIn') this.pause();
-    // 네이티브 재생은 1배속만 지원합니다. 다른 배속이면 HTMLAudio로 돌아가고 알립니다.
-    if (this.native && rate !== 1) {
-      const lost = this.native.onLost;
-      this.detachNative();
-      lost?.('NATIVE_RATE_UNSUPPORTED');
-    }
+    // R5: 네이티브 재생도 배속(피치 유지)을 Rust에서 처리합니다.
+    this.native?.setRate(rate);
     this.audio.playbackRate = rate;
     this.publish({ rate, playbackEpoch: this.snapshot.playbackEpoch + 1 });
   }

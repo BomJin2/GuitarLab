@@ -3,7 +3,7 @@
   "state": "INVENTORY_CREATED",
   "target": "x86_64-pc-windows-msvc",
   "npmMetadataSha256": "7f1fe72d112881534868c8ee7297eefff3d17b27659e92874c41090583f30d68",
-  "rustMetadataSha256": "a537f4b95eb7a46bc38200a8126f7f34c0afb79b69e3b0c8e8203f06caea3b98",
+  "rustMetadataSha256": "b221991e7cfc3be9477b7eeba9068b6d1d1adc2b044ede21fc90c50f44011029",
   "scope": "npm 배포 의존성/peer와 Rust Windows normal·build 의존성, dev-only 제외",
   "legalReviewCompleted": false,
   "components": [
@@ -200,6 +200,26 @@
           "bytes": 1023,
           "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
           "file": "notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "arrayvec",
+      "version": "0.7.8",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "notices": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "file": "notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071,
+          "sha256": "4da95ec4ecb65b738d470b7d762894ad9c97da93e6cbfb18b570fc2c96f4b871",
+          "file": "notices/4da95ec4ecb65b738d470b7d762894ad9c97da93e6cbfb18b570fc2c96f4b871.txt"
         }
       ]
     },
@@ -414,6 +434,32 @@
           "bytes": 1082,
           "sha256": "42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969",
           "file": "notices/42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bytemuck",
+      "version": "1.25.2",
+      "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+      "notices": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10398,
+          "sha256": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb",
+          "file": "notices/e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1110,
+          "sha256": "9df9ba60a11af705f2e451b53762686e615d86f76b169cf075c3237730dbd7e2",
+          "file": "notices/9df9ba60a11af705f2e451b53762686e615d86f76b169cf075c3237730dbd7e2.txt"
+        },
+        {
+          "name": "LICENSE-ZLIB",
+          "bytes": 851,
+          "sha256": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151",
+          "file": "notices/84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151.txt"
         }
       ]
     },
@@ -648,6 +694,26 @@
           "bytes": 1091,
           "sha256": "f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea",
           "file": "notices/f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core_detect",
+      "version": "1.0.0",
+      "declaredLicense": "MIT/Apache-2.0",
+      "notices": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10846,
+          "sha256": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
+          "file": "notices/769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1076,
+          "sha256": "8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1",
+          "file": "notices/8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1.txt"
         }
       ]
     },
@@ -1270,6 +1336,38 @@
           "bytes": 1081,
           "sha256": "1abdbbd4e3f95e56c79d4a8af190254c23ddb14db34aadadfafef9c3af041113",
           "file": "notices/1abdbbd4e3f95e56c79d4a8af190254c23ddb14db34aadadfafef9c3af041113.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "encoding_rs",
+      "version": "0.8.44",
+      "declaredLicense": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+      "notices": [
+        {
+          "name": "COPYRIGHT",
+          "bytes": 713,
+          "sha256": "11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190",
+          "file": "notices/11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190.txt"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "file": "notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1053,
+          "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c",
+          "file": "notices/3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c.txt"
+        },
+        {
+          "name": "LICENSE-WHATWG",
+          "bytes": 1501,
+          "sha256": "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50",
+          "file": "notices/838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50.txt"
         }
       ]
     },
@@ -2083,6 +2181,26 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "lazy_static",
+      "version": "1.5.1",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "notices": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847,
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "file": "notices/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "file": "notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "libc",
       "version": "0.2.190",
       "declaredLicense": "MIT OR Apache-2.0",
@@ -2344,6 +2462,32 @@
           "bytes": 809,
           "sha256": "b99f9d43803f2ac979c50949df630bd8eeaf2fcd1b9fdb9093710d70f5dfb63d",
           "file": "notices/b99f9d43803f2ac979c50949df630bd8eeaf2fcd1b9fdb9093710d70f5dfb63d.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "multiversion_no_op",
+      "version": "1.0.0",
+      "declaredLicense": "Apache-2.0 OR MIT",
+      "notices": [
+        {
+          "name": "COPYRIGHT",
+          "bytes": 644,
+          "sha256": "d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe",
+          "file": "notices/d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe.txt"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "file": "notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1053,
+          "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c",
+          "file": "notices/3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c.txt"
         }
       ]
     },
@@ -3117,6 +3261,26 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "rustversion",
+      "version": "1.0.23",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "notices": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723,
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "file": "notices/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023,
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "file": "notices/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "same-file",
       "version": "1.0.6",
       "declaredLicense": "Unlicense/MIT",
@@ -3574,6 +3738,26 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "simdutf8",
+      "version": "0.1.5",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "notices": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 10173,
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "file": "notices/0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9.txt"
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1035,
+          "sha256": "1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f",
+          "file": "notices/1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "siphasher",
       "version": "1.0.4",
       "declaredLicense": "MIT OR Apache-2.0",
@@ -3749,6 +3933,70 @@
           "bytes": 1166,
           "sha256": "1e697ce8d21401fbf1bddd9b5c3fd4c4c79ae1e3bdf51f81761c85e11d5a89cd",
           "file": "notices/1e697ce8d21401fbf1bddd9b5c3fd4c4c79ae1e3bdf51f81761c85e11d5a89cd.txt"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "notices": [
+        {
+          "name": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "file": "notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt",
+          "commit": "6d533f26150953a882a6a111ebd13f0abf7129d5"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-bundle-mp3",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "notices": [
+        {
+          "name": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "file": "notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt",
+          "commit": "6d533f26150953a882a6a111ebd13f0abf7129d5"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-core",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "notices": [
+        {
+          "name": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "file": "notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt",
+          "commit": "6d533f26150953a882a6a111ebd13f0abf7129d5"
+        }
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symphonia-metadata",
+      "version": "0.5.5",
+      "declaredLicense": "MPL-2.0",
+      "notices": [
+        {
+          "name": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE",
+          "bytes": 16725,
+          "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+          "file": "notices/c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30.txt",
+          "commit": "6d533f26150953a882a6a111ebd13f0abf7129d5"
         }
       ]
     },
@@ -5553,6 +5801,69 @@
           "file": "notices/a96e3c34cf94e763a35ed5a817dead089d61297ea1ed6c880f6480b4a3326196.txt"
         }
       ]
+    },
+    {
+      "ecosystem": "vendored",
+      "name": "Signalsmith Stretch",
+      "version": "1.4.0",
+      "declaredLicense": "MIT",
+      "notices": [
+        {
+          "name": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/Signalsmith-Audio/signalsmith-stretch/a670068d9aeb64913331d5cc29337b19a457a7df/LICENSE.txt",
+          "bytes": 1093,
+          "sha256": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f",
+          "file": "notices/ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f.txt",
+          "commit": "a670068d9aeb64913331d5cc29337b19a457a7df"
+        }
+      ],
+      "vendoredFiles": [
+        {
+          "path": "src-tauri/vendor/signalsmith/stretch/signalsmith-stretch.h",
+          "bytes": 35446,
+          "sha256": "1188667959ac19dd40c0a6abbce694e44705615ec4f0e8db8af0f1cfb4c5dea7"
+        }
+      ],
+      "sourceUrl": "https://github.com/Signalsmith-Audio/signalsmith-stretch/tree/a670068d9aeb64913331d5cc29337b19a457a7df"
+    },
+    {
+      "ecosystem": "vendored",
+      "name": "Signalsmith Linear",
+      "version": "0.6.4",
+      "declaredLicense": "MIT",
+      "notices": [
+        {
+          "name": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/Signalsmith-Audio/linear/de55e6a50ffcf6f8f43f649692d94691c7025151/LICENSE.txt",
+          "bytes": 1074,
+          "sha256": "072b5e9eb5b22880bdf6256324654cf3ce53dba828edb911921121e1be09d9c3",
+          "file": "notices/072b5e9eb5b22880bdf6256324654cf3ce53dba828edb911921121e1be09d9c3.txt",
+          "commit": "de55e6a50ffcf6f8f43f649692d94691c7025151"
+        }
+      ],
+      "vendoredFiles": [
+        {
+          "path": "src-tauri/vendor/signalsmith/signalsmith-linear/approx.h",
+          "bytes": 4956,
+          "sha256": "bf6f703193253a241e7a80d44547bb73c383a9a1f1ebe1f7fefdcf3d234515bd"
+        },
+        {
+          "path": "src-tauri/vendor/signalsmith/signalsmith-linear/fft.h",
+          "bytes": 45242,
+          "sha256": "fb55f69ac14cdbac66b9c76053069ff63bc36d18af20d8c028b9acc0aad6516a"
+        },
+        {
+          "path": "src-tauri/vendor/signalsmith/signalsmith-linear/linear.h",
+          "bytes": 36585,
+          "sha256": "9e777fe14653d496f5e0678fe4b9d8b01a0909bb2130bf4757a21ccad7292a02"
+        },
+        {
+          "path": "src-tauri/vendor/signalsmith/signalsmith-linear/stft.h",
+          "bytes": 24313,
+          "sha256": "7422ff5ddc2a017dc0587dcce99ce5ba30a2414bc2996081f6b00d56905d9b8c"
+        }
+      ],
+      "sourceUrl": "https://github.com/Signalsmith-Audio/linear/tree/de55e6a50ffcf6f8f43f649692d94691c7025151"
     }
   ],
   "reviewRequired": [
@@ -5569,13 +5880,13 @@
       "reason": "선택 다운로드 모델/가중치별 조건·고지를 앱 배포와 분리해 확인 필요"
     }
   ],
-  "upstreamSourcesSha256": "1a7066914e6106bb7fb4b0cb0c65cd68d77fac38a940a67d6214360853c7de17",
+  "upstreamSourcesSha256": "2590250dced621684c1d6696115c3ff7839cc1c807391548a0dea2ea5007eb59",
   "runtimeBundleManifestSha256": "f32fd12e444f4d1ddb663992fc65d0ee33720dca6de589098e035e7c460e4674",
   "dependencyInputNormalization": "utf8-crlf-to-lf-v1",
   "dependencyInputs": {
     "package.json": "4d2a59feb1b6a24185d8b665e47d00da0a9004316e424d36c102739b0b91a8e7",
     "pnpm-lock.yaml": "5e390ce49983acd7e1bfb4ba0776ee4d3c43bf4ba81972dd7243cc8f5d2c5db2",
-    "src-tauri/Cargo.toml": "434f0b1bee9df77f21804b9e85ab98bf714acec1c757aa46b3e56f6d4f2e8c36",
-    "src-tauri/Cargo.lock": "b3081520225ef61ed490889dba88feea4d369800699269bc5d8e0ec3425e1693"
+    "src-tauri/Cargo.toml": "f3e360db9f5c94a8681afa4817d72518a76459dad384315f94e41055292fdb5e",
+    "src-tauri/Cargo.lock": "7b31ed006959281c508eb682f48c03e969eda94a7ad4d577b273d1d3f654cad3"
   }
 }

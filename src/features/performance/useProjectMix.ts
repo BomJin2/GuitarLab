@@ -97,12 +97,11 @@ function readNativePreference() {
   }
 }
 const nativeReasons: Record<string, string> = {
-  MIX_FORMAT_UNSUPPORTED: 'MP3 등 WAV가 아닌 음원',
-  MIX_RATE_UNSUPPORTED: '배속 녹음 테이크',
+  MIX_FORMAT_UNSUPPORTED: '지원하지 않거나 손상된 음원 형식',
   MIX_LIMIT_EXCEEDED: '용량 한도 초과',
   MONITOR_OUTPUT_UNAVAILABLE: '출력 장치를 열 수 없음',
   MONITOR_RATE_UNSUPPORTED: '출력 장치 샘플레이트',
-  NATIVE_RATE_UNSUPPORTED: '1배속이 아님',
+  NATIVE_RATE_UNSUPPORTED: '배속으로 녹음한 테이크',
   NATIVE_NOT_PREPARED: '출력 샘플레이트가 바뀜',
 };
 export function nativeReason(code: string) {
@@ -123,7 +122,7 @@ export function useProjectMix(
   revisionId: string | undefined,
   enabled: boolean,
   auto: MixAuto | null = null,
-  /** docs/12 "네이티브 재생 v1": 모니터에서 고른 출력 장치. 있으면 1배속 믹스를 Rust로 재생합니다. */
+  /** docs/12 "네이티브 재생 v1": 모니터에서 고른 출력 장치. 있으면 믹스를 Rust로 재생합니다(배속 포함, R5). */
   outputDeviceId?: string,
 ) {
   const autoOn = auto !== null;
@@ -417,23 +416,12 @@ export function useProjectMix(
           throw new Error('RECORDING_REFERENCE_INVALID');
       }
       const device = outputDeviceId;
-      if (
-        nativeOn &&
-        !skipNative.current &&
-        device &&
-        main.getSnapshot().rate === 1 &&
-        wetTakeId === null
-      ) {
+      if (nativeOn && !skipNative.current && device && wetTakeId === null) {
         try {
           const ready = await nativePlaybackApi.prepare(device, mix, backingId);
           if (signal.aborted) {
             void nativePlaybackApi.release().catch(() => undefined);
             return;
-          }
-          // 준비를 기다리는 동안 배속을 바꿨으면 Rust 쪽을 놓고 기존 재생으로 넘깁니다.
-          if (main.getSnapshot().rate !== 1) {
-            await nativePlaybackApi.release().catch(() => undefined);
-            throw { code: 'NATIVE_RATE_UNSUPPORTED' };
           }
           const transport = new NativeTransport(
             nativePlaybackApi,
@@ -456,7 +444,7 @@ export function useProjectMix(
           setPrepared(true);
           setNotice(
             freezeWarning.current ??
-              '믹스 준비 완료 · Rust 엔진이 반주와 모든 레이어를 샘플 단위로 맞춰 재생합니다(1배속). 정지 상태에서 REC를 누르면3초 준비 후 녹음을 시작합니다.',
+              '믹스 준비 완료 · Rust 엔진이 반주와 모든 레이어를 샘플 단위로 맞춰 재생합니다(배속은 피치를 유지한 채 Rust에서 처리). 정지 상태에서 REC를 누르면3초 준비 후 녹음을 시작합니다.',
           );
           return;
         } catch (cause) {

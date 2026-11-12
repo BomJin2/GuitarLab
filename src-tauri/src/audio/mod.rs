@@ -10,6 +10,8 @@ pub mod monitor_playback;
 pub mod pitch_track;
 pub mod playback_bus;
 pub mod polyphonic;
+pub mod stretch;
+pub mod stretch_feed;
 #[cfg(test)]
 mod technique_benchmark;
 pub use input::RecordingCapture;

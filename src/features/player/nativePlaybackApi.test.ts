@@ -57,3 +57,34 @@ it('믹스 설정 변경은 보낸 순서대로 하나씩 적용한다(리뷰 R8
   await second;
   expect(order).toEqual(['start:0.1', 'end:0.1', 'start:0.9', 'end:0.9']);
 });
+
+it('전송 스냅샷의 재생 속도는 0.5~1.5만 받는다(R5)', async () => {
+  const snapshot = {
+    schemaVersion: 1,
+    prepared: true,
+    playing: true,
+    positionMs: 0,
+    loopCount: 0,
+    errorCode: null,
+  };
+  const request = {
+    playing: true,
+    positionMs: 0,
+    volume: 1,
+    loop: null,
+    rate: 1.25,
+  };
+  vi.mocked(invoke).mockResolvedValue({ ...snapshot, rate: 1.25 });
+  await expect(nativePlaybackApi.transport(request)).resolves.toMatchObject({
+    rate: 1.25,
+  });
+  expect(invoke).toHaveBeenLastCalledWith('set_native_transport', {
+    request: { schemaVersion: 1, ...request },
+  });
+  for (const rate of [2, 0.25, Number.NaN, undefined]) {
+    vi.mocked(invoke).mockResolvedValue({ ...snapshot, rate });
+    await expect(nativePlaybackApi.transport(request)).rejects.toThrow(
+      'NATIVE_CONTRACT_INVALID',
+    );
+  }
+});

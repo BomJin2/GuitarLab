@@ -17,7 +17,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
 });
-function harness() {
+function harness(rates: () => number = () => 1) {
   const engine = new PlayerEngine();
   const initial = engine.getSnapshot();
   let clockTime = 1000;
@@ -29,7 +29,7 @@ function harness() {
     return {
       performanceTimeMs: clockTime,
       songTimeMs: clockTime + 1000,
-      rate: 1,
+      rate: rates(),
       playbackEpoch: epoch,
       playing,
     };
@@ -116,6 +116,55 @@ describe('capture clock의 비동기 생명주기', () => {
         }),
       }),
     );
+  });
+  it('Rust 배속 재생 중에는 실제 배속으로 기준점을 만들고, 측정 중 배속이 바뀌면 만들지 않는다(리뷰 R4-1)', async () => {
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === 'get_native_clock'
+        ? {
+            schemaVersion: 1,
+            streamGeneration: 1,
+            monotonicNs: '2000000000',
+            lastRequestSequence: 0,
+            lastPlaybackEpoch: 0,
+            songTimeMs: 1234.5,
+          }
+        : {
+            schemaVersion: 1,
+            ready: true,
+            anchorCount: 3,
+            maximumResidualRealMs: 1,
+          },
+    );
+    const anchors = () =>
+      vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === 'update_capture_clock')
+        .map(
+          ([, args]) =>
+            (args as { request: { anchor: { rate: number } | null } }).request
+              .anchor,
+        );
+    const steady = harness(() => 0.75);
+    vi.spyOn(steady.engine, 'nativeAttached', 'get').mockReturnValue(true);
+    const first = renderHook(() => useCaptureClock(running, true), {
+      wrapper: steady.wrapper,
+    });
+    await act(async () => {});
+    expect(anchors()).toEqual([expect.objectContaining({ rate: 0.75 })]);
+    first.unmount();
+    vi.mocked(invoke).mockClear();
+    let next = 0.75;
+    const changing = harness(() => {
+      const rate = next;
+      next = 1.25;
+      return rate;
+    });
+    vi.spyOn(changing.engine, 'nativeAttached', 'get').mockReturnValue(true);
+    renderHook(() => useCaptureClock(running, true), {
+      wrapper: changing.wrapper,
+    });
+    await act(async () => {});
+    expect(anchors()).toEqual([null]);
   });
   it('실제 media 표본으로 handshake하며 native가 검증한 진단만 표시한다', async () => {
     vi.mocked(invoke).mockImplementation(async (command) =>

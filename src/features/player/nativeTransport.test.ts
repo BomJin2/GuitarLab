@@ -12,6 +12,7 @@ const ready = {
   playing: true,
   positionMs: 0,
   loopCount: 0,
+  rate: 1,
   errorCode: null,
 };
 function fakeApi() {
@@ -42,6 +43,7 @@ it('재생 위치를 추정하고 구간 끝에서 Rust처럼 되감으며, 정�
     positionMs: 1000,
     volume: 1,
     loop: null,
+    rate: 1,
   });
   vi.advanceTimersByTime(200);
   expect(t.timeMs()).toBeCloseTo(1200, -1);
@@ -96,7 +98,7 @@ it('재생 중 Rust 위치와 크게 어긋나면 맞추고, 준비가 풀리면
   t.dispose();
 });
 
-it('PlayerEngine은 네이티브가 붙으면 HTMLAudio 대신 Rust로 재생하고, 1배속이 아니면 떼고 알린다', async () => {
+it('PlayerEngine은 네이티브가 붙으면 HTMLAudio 대신 Rust로 재생하고, 배속도 Rust로 보낸다(R5)', async () => {
   vi.stubGlobal(
     'requestAnimationFrame',
     vi.fn(() => 1),
@@ -133,11 +135,32 @@ it('PlayerEngine은 네이티브가 붙으면 HTMLAudio 대신 Rust로 재생하
   expect(engine.getSnapshot().status).toBe('playing');
   expect(engine.readClock().playing).toBe(true);
   engine.setRate(0.75);
-  expect(engine.nativeAttached).toBe(false);
-  expect(lost).toHaveBeenCalledWith('NATIVE_RATE_UNSUPPORTED');
-  expect(api.release).toHaveBeenCalledTimes(1);
-  expect(engine.getSnapshot().status).toBe('paused');
+  expect(engine.nativeAttached).toBe(true);
+  expect(lost).not.toHaveBeenCalled();
+  expect(api.release).not.toHaveBeenCalled();
+  expect(api.transport).toHaveBeenLastCalledWith(
+    expect.objectContaining({ rate: 0.75, positionMs: null }),
+  );
+  expect(engine.readClock().rate).toBe(0.75);
+  expect(engine.getSnapshot().status).toBe('playing');
   engine.dispose();
+});
+
+it('배속이면 화면 위치를 경과 시간 × 속도로 추정하고 Rust 스냅샷 속도를 검사한다(R5)', async () => {
+  vi.useFakeTimers();
+  const api = fakeApi();
+  const t = new NativeTransport(api, 10000);
+  t.setRate(1.5);
+  await t.play(1000);
+  expect(api.transport).toHaveBeenLastCalledWith(
+    expect.objectContaining({ playing: true, positionMs: 1000, rate: 1.5 }),
+  );
+  vi.advanceTimersByTime(200);
+  expect(t.timeMs()).toBeCloseTo(1300, -1);
+  t.setRate(0.5);
+  vi.advanceTimersByTime(200);
+  expect(t.timeMs()).toBeCloseTo(1400, -1);
+  t.dispose();
 });
 
 it('네이티브 재생 중 메트로놈·카운트인은 Rust로 보내고 WebAudio를 쓰지 않는다(R3)', async () => {

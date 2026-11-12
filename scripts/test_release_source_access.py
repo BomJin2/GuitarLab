@@ -16,9 +16,9 @@ class SourceAccessTests(unittest.TestCase):
 
     def test_all_declared_mpl_versions_have_sources_and_bundled_files_match(self):
         sources = source_archives(RELEASE, self.inventory)
-        self.assertEqual(len(self.original["components"]), 6)
-        self.assertEqual(len(sources), 5)
-        self.assertEqual(sum(s["bytes"] for s in sources), 150290)
+        self.assertEqual(len(self.original["components"]), 10)
+        self.assertEqual(len(sources), 9)
+        self.assertEqual(sum(s["bytes"] for s in sources), 347260)
         for source in sources:
             checked_payload(RELEASE, source["file"], source["bytes"], source["sha256"])
 

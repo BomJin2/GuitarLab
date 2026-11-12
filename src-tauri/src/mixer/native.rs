@@ -17,6 +17,8 @@ struct NativeLayer {
     right: Arc<[f32]>,
     /// 레이어 offset을 뺀 곡 위 시작 시각(ms). offset만 바뀌면 다시 풀지 않습니다.
     base_ms: f64,
+    /// R6: 배속 녹음 테이크(·그 Freeze·Bounce)의 녹음 배속. 곡 시각 길이 = 프레임 수 × 이 값.
+    recorded_rate: f64,
 }
 pub struct NativeMix {
     pub project_id: String,
@@ -98,7 +100,7 @@ pub fn load(
     // 음소거·음량 0 레이어도 풀어 두어야 재생 중 켜고 끌 때 다시 읽지 않습니다.
     for layer in &mix.layers {
         canceled(cancel)?;
-        let (bytes, start_ms, _) =
+        let (bytes, start_ms, _, recorded_rate) =
             layer_source(store, mix, layer, &frozen, budget, backing, cancel)?;
         let (left, right) = pcm::decode_stereo(&bytes, &mut budget, cancel)?;
         drop(bytes);
@@ -119,6 +121,7 @@ pub fn load(
             left,
             right,
             base_ms: start_ms - layer.offset_ms,
+            recorded_rate,
         });
     }
     Ok(NativeMix {
@@ -163,6 +166,7 @@ impl NativeMix {
                     } else {
                         0.0
                     },
+                    recorded_rate: native.recorded_rate,
                 })
                 .collect(),
         })
@@ -174,7 +178,7 @@ impl NativeMix {
             .map(|(layer, n)| {
                 n.base_ms
                     + layer.offset_ms
-                    + n.left.len() as f64 * 1000.0 / f64::from(self.sample_rate)
+                    + n.left.len() as f64 * n.recorded_rate * 1000.0 / f64::from(self.sample_rate)
             })
             .fold(0.0, f64::max)
     }

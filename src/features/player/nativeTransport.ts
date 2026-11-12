@@ -10,6 +10,8 @@ type Snapshot = {
   positionMs: number;
   /** Rust 버스가 구간 끝에서 되감은 횟수(누적). */
   loopCount: number;
+  /** R5 재생 속도. */
+  rate: number;
   errorCode: string | null;
 };
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -26,6 +28,8 @@ function decodeSnapshot(value: unknown): Snapshot {
     typeof value.loopCount !== 'number' ||
     !Number.isSafeInteger(value.loopCount) ||
     value.loopCount < 0 ||
+    typeof value.rate !== 'number' ||
+    !(value.rate >= 0.5 && value.rate <= 1.5) ||
     !(value.errorCode === null || typeof value.errorCode === 'string')
   )
     throw new Error('NATIVE_CONTRACT_INVALID');
@@ -34,6 +38,7 @@ function decodeSnapshot(value: unknown): Snapshot {
     playing: value.playing,
     positionMs: value.positionMs,
     loopCount: value.loopCount,
+    rate: value.rate,
     errorCode: value.errorCode,
   };
 }
@@ -92,6 +97,7 @@ export const nativePlaybackApi = {
     positionMs: number | null;
     volume: number;
     loop: PlaybackLoop | null;
+    rate: number;
   }) =>
     decodeSnapshot(
       await invoke<unknown>('set_native_transport', {
@@ -144,6 +150,8 @@ export class NativeTransport {
   private anchorAt = 0;
   private loop: PlaybackLoop | null = null;
   private volume = 1;
+  /** R5 재생 속도(피치 유지). 곡 시각은 경과 시간 × 속도로 나아갑니다. */
+  private rate = 1;
   private timer: number | undefined;
   private disposed = false;
   /** 위치를 새로 정할 때마다 올려, 그 전에 보낸 위치 조회의 늦은 응답을 버립니다. */
@@ -161,7 +169,7 @@ export class NativeTransport {
   ) {}
   timeMs() {
     if (!this.playing) return this.anchorMs;
-    const t = this.anchorMs + (performance.now() - this.anchorAt);
+    const t = this.anchorMs + (performance.now() - this.anchorAt) * this.rate;
     const loop = this.loop;
     // Rust가 구간 끝에서 되감으므로 추정도 같이 되감습니다.
     if (loop && this.anchorMs < loop.endMs && t >= loop.endMs)
@@ -178,7 +186,7 @@ export class NativeTransport {
     let extra = 0;
     const loop = this.loop;
     if (this.playing && loop && this.anchorMs < loop.endMs) {
-      const t = this.anchorMs + (performance.now() - this.anchorAt);
+      const t = this.anchorMs + (performance.now() - this.anchorAt) * this.rate;
       if (t >= loop.endMs)
         extra = 1 + Math.floor((t - loop.endMs) / (loop.endMs - loop.startMs));
     }
@@ -194,6 +202,7 @@ export class NativeTransport {
       positionMs,
       volume: this.volume,
       loop: this.loop,
+      rate: this.rate,
     });
     this.observe(snapshot);
     if (!snapshot.prepared)
@@ -220,6 +229,14 @@ export class NativeTransport {
   }
   setVolume(volume: number) {
     this.volume = volume;
+    void this.send(null).catch(() => this.lost('NATIVE_FAILED'));
+  }
+  /** R5: 재생 속도를 바꿉니다. Rust가 지금 위치에서 늘이기를 다시 시작합니다. */
+  setRate(rate: number) {
+    if (rate === this.rate) return;
+    this.era++;
+    this.anchor(this.timeMs());
+    this.rate = rate;
     void this.send(null).catch(() => this.lost('NATIVE_FAILED'));
   }
   setLoop(loop: PlaybackLoop | null) {

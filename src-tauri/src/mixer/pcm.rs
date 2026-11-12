@@ -43,6 +43,9 @@ fn decode_inner(
     cancel: &AtomicBool,
     stereo: bool,
 ) -> Result<(Pcm, Option<Vec<f32>>), AppError> {
+    if super::mp3::looks_like_mp3(bytes) {
+        return super::mp3::decode(bytes, budget, cancel, stereo);
+    }
     let invalid = || mix_error("MIX_FORMAT_UNSUPPORTED");
     if bytes.get(..4) != Some(b"RIFF")
         || bytes.get(8..12) != Some(b"WAVE")

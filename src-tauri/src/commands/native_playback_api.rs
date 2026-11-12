@@ -44,6 +44,9 @@ pub struct NativeTransportRequest {
     pub position_ms: Option<f64>,
     pub volume: f32,
     pub r#loop: Option<NativeLoop>,
+    /// R5 재생 속도(0.5~1.5, 피치 유지). 없으면 지금 속도를 유지합니다.
+    #[serde(default)]
+    pub rate: Option<f64>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +58,8 @@ pub struct NativeTransportSnapshot {
     pub sample_rate: u32,
     /// 구간 끝에서 되감은 누적 횟수.
     pub loop_count: u64,
+    /// R5 재생 속도.
+    pub rate: f64,
     pub error_code: Option<&'static str>,
 }
 
@@ -172,6 +177,9 @@ pub async fn set_native_transport(
         };
         let position = request.position_ms.map(|ms| frame(ms, rate)).transpose()?;
         bus.set_master(request.volume)?;
+        if let Some(speed) = request.rate {
+            bus.set_rate(speed)?;
+        }
         bus.set_loop(range)?;
         let (current, playing) = bus.position();
         match (request.playing, position) {
@@ -228,9 +236,11 @@ pub(crate) fn release_output(
 }
 
 fn snapshot(m: &mut crate::audio::monitor::MonitorService) -> NativeTransportSnapshot {
-    let error_code = m.output_error();
+    let output_error = m.output_error();
     match m.bus() {
         Some(bus) => {
+            let error_code = output_error
+                .or_else(|| bus.stretch_failed().then_some("NATIVE_STRETCH_UNAVAILABLE"));
             let (position, playing) = bus.position();
             let rate = bus.sample_rate();
             NativeTransportSnapshot {
@@ -240,6 +250,7 @@ fn snapshot(m: &mut crate::audio::monitor::MonitorService) -> NativeTransportSna
                 position_ms: position as f64 * 1000.0 / f64::from(rate.max(1)),
                 sample_rate: rate,
                 loop_count: bus.loop_count(),
+                rate: bus.rate(),
                 error_code,
             }
         }
@@ -250,7 +261,8 @@ fn snapshot(m: &mut crate::audio::monitor::MonitorService) -> NativeTransportSna
             position_ms: 0.0,
             sample_rate: 0,
             loop_count: 0,
-            error_code,
+            rate: 1.0,
+            error_code: output_error,
         },
     }
 }
@@ -268,7 +280,12 @@ mod tests {
             "schemaVersion":1,"playing":false,"positionMs":10,"volume":0.5,"loop":{"startMs":1,"endMs":2}
         }))
         .expect("요청");
-        assert!(ok.r#loop.is_some());
+        assert!(ok.r#loop.is_some() && ok.rate.is_none(), "rate는 선택");
+        let fast: NativeTransportRequest = serde_json::from_value(json!({
+            "schemaVersion":1,"playing":true,"positionMs":null,"volume":1,"loop":null,"rate":1.25
+        }))
+        .expect("배속 요청");
+        assert_eq!(fast.rate, Some(1.25));
         for bad in [-1.0, f64::NAN, MAX_MS + 1.0] {
             assert!(frame(bad, 48000).is_err());
         }
